@@ -1294,15 +1294,13 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
             Debug_.assert_is_defined(&right_type, None);
             let right_type = right_type.unwrap();
 
-            let node_ref = node.ref_(self);
-            let node_as_binary_expression = node_ref.as_binary_expression();
             result = Some(
                 self.type_checker
                     .ref_(self)
                     .check_binary_like_expression_worker(
-                        node_as_binary_expression.left,
-                        node_as_binary_expression.operator_token,
-                        node_as_binary_expression.right,
+                        node.ref_(self).as_binary_expression().left,
+                        node.ref_(self).as_binary_expression().operator_token,
+                        node.ref_(self).as_binary_expression().right,
                         left_type,
                         right_type,
                         Some(node),

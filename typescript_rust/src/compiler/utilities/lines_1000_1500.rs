@@ -13,7 +13,7 @@ use crate::{
     is_function_like, is_identifier, is_import_type_node, is_jsdoc, is_jsx_text,
     is_literal_type_node, is_meta_property, is_parameter_property_declaration,
     is_property_declaration, is_property_signature, is_string_literal, is_variable_declaration,
-    is_variable_statement, maybe_filter, maybe_text_char_at_index, node_is_missing,
+    is_variable_statement, maybe_filter, maybe_text_char_at_index, node_is_missing, released,
     single_or_undefined, skip_trivia, try_for_each_child, AsDoubleDeref, BaseDiagnostic,
     BaseDiagnosticRelatedInformation, CharacterCodes, ClassLikeDeclarationInterface, CommentRange,
     Debug_, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
@@ -771,7 +771,7 @@ fn try_for_each_return_statement_traverse<TError>(
     visitor: &mut impl FnMut(Id<Node>) -> Result<(), TError>,
     arena: &impl HasArena,
 ) -> Result<(), TError> {
-    match node.ref_(arena).kind() {
+    match released!(node.ref_(arena).kind()) {
         SyntaxKind::ReturnStatement => {
             visitor(node)?;
         }

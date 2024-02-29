@@ -8,13 +8,13 @@ use super::{
 use crate::{
     contains, get_effective_return_type_node, get_object_flags, has_context_sensitive_parameters,
     is_function_declaration, is_function_expression_or_arrow_function, is_in_js_file,
-    is_jsx_opening_element, is_object_literal_method, is_part_of_type_node, map, try_every,
-    try_for_each_child_bool, try_map, try_some, AsDoubleDeref, Debug_, DiagnosticMessage,
-    Diagnostics, ElementFlags, HasArena, HasTypeArgumentsInterface, InArena, IndexInfo, MappedType,
-    Node, NodeArray, NodeInterface, ObjectFlags, ObjectTypeInterface, OptionInArena,
-    ResolvableTypeInterface, Symbol, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker,
-    TypeFlags, TypeInterface, TypeMapper, TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
-    UnionReduction,
+    is_jsx_opening_element, is_object_literal_method, is_part_of_type_node, map, released,
+    try_every, try_for_each_child_bool, try_map, try_some, AsDoubleDeref, Debug_,
+    DiagnosticMessage, Diagnostics, ElementFlags, HasArena, HasTypeArgumentsInterface, InArena,
+    IndexInfo, MappedType, Node, NodeArray, NodeInterface, ObjectFlags, ObjectTypeInterface,
+    OptionInArena, ResolvableTypeInterface, Symbol, SymbolInterface, SyntaxKind, Ternary, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypeSystemPropertyName,
+    UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -940,10 +940,10 @@ impl TypeChecker {
         mapper: Id<TypeMapper>,
     ) -> io::Result<Id<IndexInfo>> {
         Ok(self.alloc_index_info(self.create_index_info(
-            info.ref_(self).key_type.clone(),
-            self.instantiate_type(info.ref_(self).type_, Some(mapper))?,
-            info.ref_(self).is_readonly,
-            info.ref_(self).declaration.clone(),
+            released!(info.ref_(self).key_type),
+            self.instantiate_type(released!(info.ref_(self).type_), Some(mapper))?,
+            released!(info.ref_(self).is_readonly),
+            released!(info.ref_(self).declaration),
         )))
     }
 

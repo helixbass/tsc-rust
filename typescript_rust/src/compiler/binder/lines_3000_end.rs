@@ -312,22 +312,27 @@ impl Binder {
         }
         let namespace_symbol = namespace_symbol.unwrap();
 
-        let namespace_symbol_ref = namespace_symbol.ref_(self);
         let symbol_table = {
             let symbol_table = if is_prototype_property {
-                if namespace_symbol_ref.maybe_members().is_none() {
-                    namespace_symbol_ref.set_members(Some(self.alloc_symbol_table(
-                        create_symbol_table(Option::<&[Id<Symbol>]>::None, self),
-                    )));
+                if namespace_symbol.ref_(self).maybe_members().is_none() {
+                    namespace_symbol
+                        .ref_(self)
+                        .set_members(Some(self.alloc_symbol_table(create_symbol_table(
+                            Option::<&[Id<Symbol>]>::None,
+                            self,
+                        ))));
                 }
-                namespace_symbol_ref.maybe_members()
+                namespace_symbol.ref_(self).maybe_members()
             } else {
-                if namespace_symbol_ref.maybe_exports().is_none() {
-                    namespace_symbol_ref.set_exports(Some(self.alloc_symbol_table(
-                        create_symbol_table(Option::<&[Id<Symbol>]>::None, self),
-                    )));
+                if namespace_symbol.ref_(self).maybe_exports().is_none() {
+                    namespace_symbol
+                        .ref_(self)
+                        .set_exports(Some(self.alloc_symbol_table(create_symbol_table(
+                            Option::<&[Id<Symbol>]>::None,
+                            self,
+                        ))));
                 }
-                namespace_symbol_ref.maybe_exports()
+                namespace_symbol.ref_(self).maybe_exports()
             };
             let symbol_table = symbol_table.clone().unwrap();
             symbol_table

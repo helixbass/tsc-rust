@@ -325,12 +325,19 @@ impl TypeChecker {
         func: Id<Node>, /*FunctionLikeDeclaration*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
-        let func_ref = func.ref_(self);
-        let func_as_function_like_declaration = func_ref.as_function_like_declaration();
-        if func_as_function_like_declaration.maybe_body().is_none() {
+        if func
+            .ref_(self)
+            .as_function_like_declaration()
+            .maybe_body()
+            .is_none()
+        {
             return Ok(self.error_type());
         }
-        let func_body = func_as_function_like_declaration.maybe_body().unwrap();
+        let func_body = func
+            .ref_(self)
+            .as_function_like_declaration()
+            .maybe_body()
+            .unwrap();
 
         let function_flags = get_function_flags(Some(func), self);
         let is_async = function_flags.intersects(FunctionFlags::Async);

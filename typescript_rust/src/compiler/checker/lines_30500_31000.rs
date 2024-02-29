@@ -16,7 +16,7 @@ use crate::{
     is_function_declaration, is_function_expression, is_function_like_declaration, is_import_call,
     is_in_js_file, is_jsdoc_construct_signature, is_object_literal_expression, is_prototype_access,
     is_qualified_name, is_same_entity_name, is_transient_symbol, is_var_const,
-    is_variable_declaration, length, return_ok_default_if_none, skip_parentheses,
+    is_variable_declaration, length, released, return_ok_default_if_none, skip_parentheses,
     try_get_property_access_or_identifier_to_string, try_maybe_for_each,
     walk_up_parenthesized_expressions, AsDoubleDeref, Debug_, Diagnostic, DiagnosticMessage,
     DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Diagnostics, HasArena,
@@ -491,7 +491,7 @@ impl TypeChecker {
         candidates_out_array: Option<&mut Vec<Id<Signature>>>,
         check_mode: CheckMode,
     ) -> io::Result<Id<Signature>> {
-        Ok(match node.ref_(self).kind() {
+        Ok(match released!(node.ref_(self).kind()) {
             SyntaxKind::CallExpression => {
                 self.resolve_call_expression(node, candidates_out_array, check_mode)?
             }

@@ -21,14 +21,14 @@ use crate::{
     is_declaration_name_of_enum_or_namespace, is_effective_external_module, is_export_declaration,
     is_export_name, is_external_module, is_generated_identifier, is_identifier, is_import_clause,
     is_import_equals_declaration, is_import_specifier, is_json_source_file, is_local_name,
-    is_shorthand_property_assignment, is_statement, out_file, reduce_left, set_emit_flags,
-    try_get_module_name_from_file, try_map_defined, try_maybe_visit_node, try_visit_node,
-    try_visit_nodes, AllArenas, CoreTransformationContext, EmitFlags, EmitHelperFactory, EmitHint,
-    EmitHost, GeneratedIdentifierFlags, HasArena, HasStatementsInterface, InArena, Matches,
-    NamedDeclarationInterface, NodeArray, NodeArrayExt, NodeExt, NodeInterface, NonEmpty,
-    SyntaxKind, TransformFlags, TransformNodesTransformationResult,
-    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
-    VecExt,
+    is_shorthand_property_assignment, is_statement, out_file, reduce_left, released,
+    set_emit_flags, try_get_module_name_from_file, try_map_defined, try_maybe_visit_node,
+    try_visit_node, try_visit_nodes, AllArenas, CoreTransformationContext, EmitFlags,
+    EmitHelperFactory, EmitHint, EmitHost, GeneratedIdentifierFlags, HasArena,
+    HasStatementsInterface, InArena, Matches, NamedDeclarationInterface, NodeArray, NodeArrayExt,
+    NodeExt, NodeInterface, NonEmpty, SyntaxKind, TransformFlags,
+    TransformNodesTransformationResult, TransformationContextOnEmitNodeOverrider,
+    TransformationContextOnSubstituteNodeOverrider, VecExt,
 };
 
 pub(super) struct AsynchronousDependencies {
@@ -234,7 +234,7 @@ impl TransformModule {
                 || self.compiler_options.ref_(self).no_implicit_use_strict != Some(true)
                     && is_external_module(&self.current_source_file().ref_(self));
         let statement_offset = self.factory.ref_(self).try_copy_prologue(
-            &node.ref_(self).as_source_file().statements().ref_(self),
+            &released!(node.ref_(self).as_source_file().statements()).ref_(self),
             &mut statements,
             Some(ensure_use_strict && !is_json_source_file(&node.ref_(self))),
             Some(|node: Id<Node>| self.top_level_visitor(node)),

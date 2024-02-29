@@ -159,9 +159,9 @@ impl TypeChecker {
         self.check_signature_declaration(node)?;
         let function_flags = get_function_flags(Some(node), self);
 
-        let node_ref = node.ref_(self);
-        let node_as_signature_declaration = node_ref.as_signature_declaration();
-        if let Some(node_name) = node_as_signature_declaration
+        if let Some(node_name) = node
+            .ref_(self)
+            .as_signature_declaration()
             .maybe_name()
             .filter(|node_name| node_name.ref_(self).kind() == SyntaxKind::ComputedPropertyName)
         {
@@ -1079,12 +1079,10 @@ impl TypeChecker {
         if node.ref_(self).kind() == SyntaxKind::Block {
             self.check_grammar_statement_in_ambient_context(node);
         }
-        let node_ref = node.ref_(self);
-        let node_as_has_statements = node_ref.as_has_statements();
         if is_function_or_module_block(node, self) {
             let save_flow_analysis_disabled = self.flow_analysis_disabled();
             try_for_each(
-                &*node_as_has_statements.statements().ref_(self),
+                &*node.ref_(self).as_has_statements().statements().ref_(self),
                 |&statement, _| -> io::Result<_> {
                     self.check_source_element(Some(statement))?;
                     Ok(Option::<()>::None)
@@ -1093,7 +1091,7 @@ impl TypeChecker {
             self.set_flow_analysis_disabled(save_flow_analysis_disabled);
         } else {
             try_for_each(
-                &*node_as_has_statements.statements().ref_(self),
+                &*node.ref_(self).as_has_statements().statements().ref_(self),
                 |&statement, _| -> io::Result<_> {
                     self.check_source_element(Some(statement))?;
                     Ok(Option::<()>::None)

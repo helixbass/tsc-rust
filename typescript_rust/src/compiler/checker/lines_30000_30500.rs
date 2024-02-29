@@ -314,12 +314,18 @@ impl TypeChecker {
         candidates_out_array: Option<&mut Vec<Id<Signature>>>,
         check_mode: CheckMode,
     ) -> io::Result<Id<Signature>> {
-        let node_ref = node.ref_(self);
-        let node_as_call_expression = node_ref.as_call_expression();
-        if node_as_call_expression.expression.ref_(self).kind() == SyntaxKind::SuperKeyword {
-            let super_type = self.check_super_expression(node_as_call_expression.expression)?;
+        if node
+            .ref_(self)
+            .as_call_expression()
+            .expression
+            .ref_(self)
+            .kind()
+            == SyntaxKind::SuperKeyword
+        {
+            let super_type =
+                self.check_super_expression(node.ref_(self).as_call_expression().expression)?;
             if self.is_type_any(Some(super_type)) {
-                for &arg in &*node_as_call_expression.arguments.ref_(self) {
+                for &arg in &*node.ref_(self).as_call_expression().arguments.ref_(self) {
                     self.check_expression(arg, None, None)?;
                 }
                 return Ok(self.any_signature());
@@ -353,10 +359,12 @@ impl TypeChecker {
 
         let call_chain_flags: SignatureFlags;
         let mut func_type =
-            self.check_expression(node_as_call_expression.expression, None, None)?;
+            self.check_expression(node.ref_(self).as_call_expression().expression, None, None)?;
         if is_call_chain(&node.ref_(self)) {
-            let non_optional_type =
-                self.get_optional_expression_type(func_type, node_as_call_expression.expression)?;
+            let non_optional_type = self.get_optional_expression_type(
+                func_type,
+                node.ref_(self).as_call_expression().expression,
+            )?;
             call_chain_flags = if non_optional_type == func_type {
                 SignatureFlags::None
             } else if is_outermost_optional_chain(node, self) {
@@ -371,7 +379,7 @@ impl TypeChecker {
 
         func_type = self.check_non_null_type_with_reporter(
             func_type,
-            node_as_call_expression.expression,
+            node.ref_(self).as_call_expression().expression,
             |node: Id<Node>, flags: TypeFlags| {
                 self.report_cannot_invoke_possibly_null_or_undefined_error(node, flags)
             },
@@ -398,7 +406,11 @@ impl TypeChecker {
             num_construct_signatures,
         )? {
             if !self.is_error_type(func_type)
-                && node_as_call_expression.maybe_type_arguments().is_some()
+                && node
+                    .ref_(self)
+                    .as_call_expression()
+                    .maybe_type_arguments()
+                    .is_some()
             {
                 self.error(
                     Some(node),
@@ -422,7 +434,14 @@ impl TypeChecker {
                 );
             } else {
                 let mut related_information: Option<Id<DiagnosticRelatedInformation>> = None;
-                if node_as_call_expression.arguments.ref_(self).len() == 1 {
+                if node
+                    .ref_(self)
+                    .as_call_expression()
+                    .arguments
+                    .ref_(self)
+                    .len()
+                    == 1
+                {
                     let source_file = get_source_file_of_node(node, self);
                     let source_file_ref = source_file.ref_(self);
                     let text = source_file_ref.as_source_file().text_as_chars();
@@ -430,7 +449,11 @@ impl TypeChecker {
                         &text,
                         TryInto::<usize>::try_into(skip_trivia(
                             &text,
-                            node_as_call_expression.expression.ref_(self).end(),
+                            node.ref_(self)
+                                .as_call_expression()
+                                .expression
+                                .ref_(self)
+                                .end(),
                             Some(true),
                             None,
                             None,
@@ -441,7 +464,7 @@ impl TypeChecker {
                         related_information = Some(
                             self.alloc_diagnostic_related_information(
                                 create_diagnostic_for_node(
-                                    node_as_call_expression.expression,
+                                    node.ref_(self).as_call_expression().expression,
                                     &Diagnostics::Are_you_missing_a_semicolon,
                                     None,
                                     self,
@@ -452,7 +475,7 @@ impl TypeChecker {
                     }
                 }
                 self.invocation_error(
-                    node_as_call_expression.expression,
+                    node.ref_(self).as_call_expression().expression,
                     apparent_type,
                     SignatureKind::Call,
                     related_information,
@@ -461,7 +484,11 @@ impl TypeChecker {
             return self.resolve_error_call(node);
         }
         if check_mode.intersects(CheckMode::SkipGenericFunctions)
-            && node_as_call_expression.maybe_type_arguments().is_none()
+            && node
+                .ref_(self)
+                .as_call_expression()
+                .maybe_type_arguments()
+                .is_none()
             && call_signatures.iter().try_any(|call_signature| {
                 self.is_generic_function_returning_function(call_signature.clone())
             })?

@@ -22,10 +22,11 @@ use crate::{
     get_synthetic_trailing_comments, has_syntactic_modifier, is_call_chain,
     is_element_access_expression, is_generated_identifier, is_identifier, is_labeled_statement,
     is_parenthesized_expression, is_property_access_expression, is_statement, is_string_literal,
-    is_super_keyword, is_super_property, reduce_left_no_initial_value, return_ok_default_if_none,
-    set_emit_flags, set_text_range, skip_outer_expressions, skip_parentheses, try_visit_node,
-    EmitFlags, HasArena, InArena, MapOrDefault, Matches, NumberOrRcNode, OptionInArena, OptionTry,
-    ReadonlyTextRangeConcrete, SyntheticReferenceExpression, VecExt,
+    is_super_keyword, is_super_property, reduce_left_no_initial_value, released,
+    return_ok_default_if_none, set_emit_flags, set_text_range, skip_outer_expressions,
+    skip_parentheses, try_visit_node, EmitFlags, HasArena, InArena, MapOrDefault, Matches,
+    NumberOrRcNode, OptionInArena, OptionTry, ReadonlyTextRangeConcrete,
+    SyntheticReferenceExpression, VecExt,
 };
 
 impl NodeFactory {
@@ -643,7 +644,7 @@ impl NodeFactory {
         //     return node;
         //  }
 
-        let clone = self.alloc_node((*node.ref_(self)).clone());
+        let clone = self.alloc_node(released!((*node.ref_(self)).clone()));
         clone.ref_(self).set_pos(-1);
         clone.ref_(self).set_end(-1);
         clone.ref_(self).set_id(0);

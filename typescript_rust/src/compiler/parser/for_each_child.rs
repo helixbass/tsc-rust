@@ -1395,284 +1395,701 @@ pub fn try_for_each_child<TError>(
     node.ref_(arena).kind() <= SyntaxKind::LastToken {
         return Ok(());
     }
-    match &*node.ref_(arena) {
-        Node::QualifiedName(node) => {
-            try_visit_node(&mut cb_node, Some(node.left))?;
-            try_visit_node(&mut cb_node, Some(node.right))?;
+    match node.ref_(arena).kind() {
+        SyntaxKind::QualifiedName => {
+            try_visit_node(
+                &mut cb_node,
+                Some(node.ref_(arena).as_qualified_name().left),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                Some(node.ref_(arena).as_qualified_name().right),
+            )?;
         }
-        Node::TypeParameterDeclaration(node) => {
-            try_visit_node(&mut cb_node, Some(node.name()))?;
-            try_visit_node(&mut cb_node, node.constraint.clone())?;
-            try_visit_node(&mut cb_node, node.default.clone())?;
-            try_visit_node(&mut cb_node, node.expression.clone())?;
+        SyntaxKind::TypeParameterDeclaration => {
+            try_visit_node(
+                &mut cb_node,
+                Some(node.ref_(arena).as_type_parameter_declaration().name()),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_type_parameter_declaration()
+                    .constraint
+                    .clone(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_type_parameter_declaration()
+                    .default
+                    .clone(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_type_parameter_declaration()
+                    .expression
+                    .clone(),
+            )?;
         }
-        Node::ShorthandPropertyAssignment(node) => {
+        SyntaxKind::ShorthandPropertyAssignment => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators(),
+                node.ref_(arena).maybe_decorators(),
                 arena,
             )?;
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers(),
+                node.ref_(arena).maybe_modifiers(),
                 arena,
             )?;
-            try_visit_node(&mut cb_node, node.maybe_name())?;
-            try_visit_node(&mut cb_node, node.question_token.clone())?;
-            try_visit_node(&mut cb_node, node.exclamation_token.clone())?;
-            try_visit_node(&mut cb_node, node.equals_token.clone())?;
-            try_visit_node(&mut cb_node, node.object_assignment_initializer.clone())?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_shorthand_property_assignment()
+                    .maybe_name(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_shorthand_property_assignment()
+                    .question_token
+                    .clone(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_shorthand_property_assignment()
+                    .exclamation_token
+                    .clone(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_shorthand_property_assignment()
+                    .equals_token
+                    .clone(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_shorthand_property_assignment()
+                    .object_assignment_initializer
+                    .clone(),
+            )?;
         }
-        Node::SpreadAssignment(node) => {
-            try_visit_node(&mut cb_node, Some(node.expression))?;
+        SyntaxKind::SpreadAssignment => {
+            try_visit_node(
+                &mut cb_node,
+                Some(node.ref_(arena).as_spread_assignment().expression),
+            )?;
         }
-        Node::ParameterDeclaration(node) => {
+        SyntaxKind::ParameterDeclaration => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators(),
+                node.ref_(arena).maybe_decorators(),
                 arena,
             )?;
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers(),
+                node.ref_(arena).maybe_modifiers(),
                 arena,
             )?;
-            try_visit_node(&mut cb_node, node.dot_dot_dot_token.clone())?;
-            try_visit_node(&mut cb_node, node.maybe_name())?;
-            try_visit_node(&mut cb_node, node.question_token.clone())?;
-            try_visit_node(&mut cb_node, node.maybe_type())?;
-            try_visit_node(&mut cb_node, node.maybe_initializer())?
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_parameter_declaration()
+                    .dot_dot_dot_token
+                    .clone(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena).as_parameter_declaration().maybe_name(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_parameter_declaration()
+                    .question_token
+                    .clone(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena).as_parameter_declaration().maybe_type(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_parameter_declaration()
+                    .maybe_initializer(),
+            )?
         }
-        Node::PropertyDeclaration(node) => {
+        SyntaxKind::PropertyDeclaration => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators(),
+                node.ref_(arena).maybe_decorators(),
                 arena,
             )?;
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers(),
+                node.ref_(arena).maybe_modifiers(),
                 arena,
             )?;
-            try_visit_node(&mut cb_node, Some(node.name()))?;
-            try_visit_node(&mut cb_node, node.question_token.clone())?;
-            try_visit_node(&mut cb_node, node.exclamation_token.clone())?;
-            try_visit_node(&mut cb_node, node.maybe_type())?;
-            try_visit_node(&mut cb_node, node.maybe_initializer())?
+            try_visit_node(
+                &mut cb_node,
+                Some(node.ref_(arena).as_property_declaration().name()),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_property_declaration()
+                    .question_token
+                    .clone(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_property_declaration()
+                    .exclamation_token
+                    .clone(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena).as_property_declaration().maybe_type(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_property_declaration()
+                    .maybe_initializer(),
+            )?
         }
-        Node::PropertySignature(node) => {
+        SyntaxKind::PropertySignature => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators(),
+                node.ref_(arena).maybe_decorators(),
                 arena,
             )?;
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers(),
+                node.ref_(arena).maybe_modifiers(),
                 arena,
             )?;
-            try_visit_node(&mut cb_node, Some(node.name()))?;
-            try_visit_node(&mut cb_node, node.question_token.clone())?;
-            try_visit_node(&mut cb_node, node.maybe_type())?;
-            try_visit_node(&mut cb_node, node.maybe_initializer())?;
+            try_visit_node(
+                &mut cb_node,
+                Some(node.ref_(arena).as_property_signature().name()),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_property_signature()
+                    .question_token
+                    .clone(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena).as_property_signature().maybe_type(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena).as_property_signature().maybe_initializer(),
+            )?;
         }
-        Node::PropertyAssignment(node) => {
+        SyntaxKind::PropertyAssignment => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators(),
+                node.ref_(arena).maybe_decorators(),
                 arena,
             )?;
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers(),
+                node.ref_(arena).maybe_modifiers(),
                 arena,
             )?;
-            try_visit_node(&mut cb_node, Some(node.name()))?;
-            try_visit_node(&mut cb_node, node.question_token.clone())?;
-            try_visit_node(&mut cb_node, Some(node.initializer))?
+            try_visit_node(
+                &mut cb_node,
+                Some(node.ref_(arena).as_property_assignment().name()),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_property_assignment()
+                    .question_token
+                    .clone(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                Some(node.ref_(arena).as_property_assignment().initializer),
+            )?
         }
-        Node::VariableDeclaration(node) => {
+        SyntaxKind::VariableDeclaration => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators(),
+                node.ref_(arena).maybe_decorators(),
                 arena,
             )?;
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers(),
+                node.ref_(arena).maybe_modifiers(),
                 arena,
             )?;
-            try_visit_node(&mut cb_node, Some(node.name()))?;
-            try_visit_node(&mut cb_node, node.exclamation_token.clone())?;
-            try_visit_node(&mut cb_node, node.maybe_type())?;
-            try_visit_node(&mut cb_node, node.maybe_initializer())?
+            try_visit_node(
+                &mut cb_node,
+                Some(node.ref_(arena).as_variable_declaration().name()),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_variable_declaration()
+                    .exclamation_token
+                    .clone(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena).as_variable_declaration().maybe_type(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_variable_declaration()
+                    .maybe_initializer(),
+            )?
         }
-        Node::BindingElement(node) => {
+        SyntaxKind::BindingElement => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators(),
+                node.ref_(arena).maybe_decorators(),
                 arena,
             )?;
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers(),
+                node.ref_(arena).maybe_modifiers(),
                 arena,
             )?;
-            try_visit_node(&mut cb_node, node.dot_dot_dot_token.clone())?;
-            try_visit_node(&mut cb_node, node.property_name.clone())?;
-            try_visit_node(&mut cb_node, node.maybe_name())?;
-            try_visit_node(&mut cb_node, node.maybe_initializer())?
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_binding_element()
+                    .dot_dot_dot_token
+                    .clone(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena).as_binding_element().property_name.clone(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena).as_binding_element().maybe_name(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena).as_binding_element().maybe_initializer(),
+            )?
         }
-        Node::FunctionTypeNode(node) => {
+        SyntaxKind::FunctionTypeNode => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators(),
+                node.ref_(arena).maybe_decorators(),
                 arena,
             )?;
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers(),
+                node.ref_(arena).maybe_modifiers(),
                 arena,
             )?;
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_type_parameters(),
+                node.ref_(arena)
+                    .as_function_type_node()
+                    .maybe_type_parameters(),
                 arena,
             )?;
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                Some(node.parameters()),
+                Some(node.ref_(arena).as_function_type_node().parameters()),
                 arena,
             )?;
-            try_visit_node(&mut cb_node, node.maybe_type())?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena).as_function_type_node().maybe_type(),
+            )?;
         }
-        Node::ConstructorTypeNode(node) => {
+        SyntaxKind::ConstructorTypeNode => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators(),
+                node.ref_(arena).maybe_decorators(),
                 arena,
             )?;
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers(),
+                node.ref_(arena).maybe_modifiers(),
                 arena,
             )?;
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_type_parameters(),
+                node.ref_(arena)
+                    .as_constructor_type_node()
+                    .maybe_type_parameters(),
                 arena,
             )?;
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                Some(node.parameters()),
+                Some(node.ref_(arena).as_constructor_type_node().parameters()),
                 arena,
             )?;
-            try_visit_node(&mut cb_node, node.maybe_type())?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena).as_constructor_type_node().maybe_type(),
+            )?;
         }
-        Node::CallSignatureDeclaration(node) => {
+        SyntaxKind::CallSignatureDeclaration => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators(),
+                node.ref_(arena).maybe_decorators(),
                 arena,
             )?;
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers(),
+                node.ref_(arena).maybe_modifiers(),
                 arena,
             )?;
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_type_parameters(),
+                node.ref_(arena)
+                    .as_call_signature_declaration()
+                    .maybe_type_parameters(),
                 arena,
             )?;
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                Some(node.parameters()),
+                Some(
+                    node.ref_(arena)
+                        .as_call_signature_declaration()
+                        .parameters(),
+                ),
                 arena,
             )?;
-            try_visit_node(&mut cb_node, node.maybe_type())?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_call_signature_declaration()
+                    .maybe_type(),
+            )?;
         }
-        Node::ConstructSignatureDeclaration(node) => {
+        SyntaxKind::ConstructSignatureDeclaration => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators(),
+                node.ref_(arena).maybe_decorators(),
                 arena,
             )?;
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers(),
+                node.ref_(arena).maybe_modifiers(),
                 arena,
             )?;
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_type_parameters(),
+                node.ref_(arena)
+                    .as_construct_signature_declaration()
+                    .maybe_type_parameters(),
                 arena,
             )?;
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                Some(node.parameters()),
+                Some(
+                    node.ref_(arena)
+                        .as_construct_signature_declaration()
+                        .parameters(),
+                ),
                 arena,
             )?;
-            try_visit_node(&mut cb_node, node.maybe_type())?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_construct_signature_declaration()
+                    .maybe_type(),
+            )?;
         }
-        Node::IndexSignatureDeclaration(node) => {
+        SyntaxKind::IndexSignatureDeclaration => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators(),
+                node.ref_(arena).maybe_decorators(),
                 arena,
             )?;
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers(),
+                node.ref_(arena).maybe_modifiers(),
                 arena,
             )?;
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_type_parameters(),
+                node.ref_(arena)
+                    .as_index_signature_declaration()
+                    .maybe_type_parameters(),
                 arena,
             )?;
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                Some(node.parameters()),
+                Some(
+                    node.ref_(arena)
+                        .as_index_signature_declaration()
+                        .parameters(),
+                ),
                 arena,
             )?;
-            try_visit_node(&mut cb_node, node.maybe_type())?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_index_signature_declaration()
+                    .maybe_type(),
+            )?;
         }
-        Node::MethodDeclaration(node) => {
+        SyntaxKind::MethodDeclaration => {
+            try_visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.ref_(arena).maybe_decorators(),
+                arena,
+            )?;
+            try_visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.ref_(arena).maybe_modifiers(),
+                arena,
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_method_declaration()
+                    .maybe_asterisk_token(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                Some(node.ref_(arena).as_method_declaration().name()),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_method_declaration()
+                    .maybe_question_token(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_method_declaration()
+                    .maybe_exclamation_token(),
+            )?;
+            try_visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.ref_(arena)
+                    .as_method_declaration()
+                    .maybe_type_parameters(),
+                arena,
+            )?;
+            try_visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                Some(node.ref_(arena).as_method_declaration().parameters()),
+                arena,
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena).as_method_declaration().maybe_type(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena).as_method_declaration().maybe_body(),
+            )?
+        }
+        SyntaxKind::MethodSignature => {
+            try_visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.ref_(arena).maybe_decorators(),
+                arena,
+            )?;
+            try_visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.ref_(arena).maybe_modifiers(),
+                arena,
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                Some(node.ref_(arena).as_method_signature().name()),
+            )?;
+            try_visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.ref_(arena)
+                    .as_method_signature()
+                    .maybe_type_parameters(),
+                arena,
+            )?;
+            try_visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                Some(node.ref_(arena).as_method_signature().parameters()),
+                arena,
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena).as_method_signature().maybe_type(),
+            )?;
+        }
+        SyntaxKind::ConstructorDeclaration => {
+            try_visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.ref_(arena).maybe_decorators(),
+                arena,
+            )?;
+            try_visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.ref_(arena).maybe_modifiers(),
+                arena,
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_constructor_declaration()
+                    .maybe_asterisk_token(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena).as_constructor_declaration().maybe_name(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_constructor_declaration()
+                    .maybe_question_token(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_constructor_declaration()
+                    .maybe_exclamation_token(),
+            )?;
+            try_visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.ref_(arena)
+                    .as_constructor_declaration()
+                    .maybe_type_parameters(),
+                arena,
+            )?;
+            try_visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                Some(node.ref_(arena).as_constructor_declaration().parameters()),
+                arena,
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena).as_constructor_declaration().maybe_type(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena).as_constructor_declaration().maybe_body(),
+            )?
+        }
+        SyntaxKind::GetAccessorDeclaration => {
+            try_visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.ref_(arena).maybe_decorators(),
+                arena,
+            )?;
+            try_visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.ref_(arena).maybe_modifiers(),
+                arena,
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_get_accessor_declaration()
+                    .maybe_asterisk_token(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                Some(node.ref_(arena).as_get_accessor_declaration().name()),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_get_accessor_declaration()
+                    .maybe_question_token(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena)
+                    .as_get_accessor_declaration()
+                    .maybe_exclamation_token(),
+            )?;
+            try_visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.ref_(arena)
+                    .as_get_accessor_declaration()
+                    .maybe_type_parameters(),
+                arena,
+            )?;
+            try_visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                Some(node.ref_(arena).as_get_accessor_declaration().parameters()),
+                arena,
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena).as_get_accessor_declaration().maybe_type(),
+            )?;
+            try_visit_node(
+                &mut cb_node,
+                node.ref_(arena).as_get_accessor_declaration().maybe_body(),
+            )?
+        }
+        SyntaxKind::SetAccessorDeclaration => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -1704,35 +2121,7 @@ pub fn try_for_each_child<TError>(
             try_visit_node(&mut cb_node, node.maybe_type())?;
             try_visit_node(&mut cb_node, node.maybe_body())?
         }
-        Node::MethodSignature(node) => {
-            try_visit_nodes(
-                &mut cb_node,
-                cb_nodes.as_mut(),
-                node.maybe_decorators(),
-                arena,
-            )?;
-            try_visit_nodes(
-                &mut cb_node,
-                cb_nodes.as_mut(),
-                node.maybe_modifiers(),
-                arena,
-            )?;
-            try_visit_node(&mut cb_node, Some(node.name()))?;
-            try_visit_nodes(
-                &mut cb_node,
-                cb_nodes.as_mut(),
-                node.maybe_type_parameters(),
-                arena,
-            )?;
-            try_visit_nodes(
-                &mut cb_node,
-                cb_nodes.as_mut(),
-                Some(node.parameters()),
-                arena,
-            )?;
-            try_visit_node(&mut cb_node, node.maybe_type())?;
-        }
-        Node::ConstructorDeclaration(node) => {
+        SyntaxKind::FunctionExpression => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -1764,71 +2153,7 @@ pub fn try_for_each_child<TError>(
             try_visit_node(&mut cb_node, node.maybe_type())?;
             try_visit_node(&mut cb_node, node.maybe_body())?
         }
-        Node::GetAccessorDeclaration(node) => {
-            try_visit_nodes(
-                &mut cb_node,
-                cb_nodes.as_mut(),
-                node.maybe_decorators(),
-                arena,
-            )?;
-            try_visit_nodes(
-                &mut cb_node,
-                cb_nodes.as_mut(),
-                node.maybe_modifiers(),
-                arena,
-            )?;
-            try_visit_node(&mut cb_node, node.maybe_asterisk_token())?;
-            try_visit_node(&mut cb_node, Some(node.name()))?;
-            try_visit_node(&mut cb_node, node.maybe_question_token())?;
-            try_visit_node(&mut cb_node, node.maybe_exclamation_token())?;
-            try_visit_nodes(
-                &mut cb_node,
-                cb_nodes.as_mut(),
-                node.maybe_type_parameters(),
-                arena,
-            )?;
-            try_visit_nodes(
-                &mut cb_node,
-                cb_nodes.as_mut(),
-                Some(node.parameters()),
-                arena,
-            )?;
-            try_visit_node(&mut cb_node, node.maybe_type())?;
-            try_visit_node(&mut cb_node, node.maybe_body())?
-        }
-        Node::SetAccessorDeclaration(node) => {
-            try_visit_nodes(
-                &mut cb_node,
-                cb_nodes.as_mut(),
-                node.maybe_decorators(),
-                arena,
-            )?;
-            try_visit_nodes(
-                &mut cb_node,
-                cb_nodes.as_mut(),
-                node.maybe_modifiers(),
-                arena,
-            )?;
-            try_visit_node(&mut cb_node, node.maybe_asterisk_token())?;
-            try_visit_node(&mut cb_node, Some(node.name()))?;
-            try_visit_node(&mut cb_node, node.maybe_question_token())?;
-            try_visit_node(&mut cb_node, node.maybe_exclamation_token())?;
-            try_visit_nodes(
-                &mut cb_node,
-                cb_nodes.as_mut(),
-                node.maybe_type_parameters(),
-                arena,
-            )?;
-            try_visit_nodes(
-                &mut cb_node,
-                cb_nodes.as_mut(),
-                Some(node.parameters()),
-                arena,
-            )?;
-            try_visit_node(&mut cb_node, node.maybe_type())?;
-            try_visit_node(&mut cb_node, node.maybe_body())?
-        }
-        Node::FunctionExpression(node) => {
+        SyntaxKind::FunctionDeclaration => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -1860,39 +2185,7 @@ pub fn try_for_each_child<TError>(
             try_visit_node(&mut cb_node, node.maybe_type())?;
             try_visit_node(&mut cb_node, node.maybe_body())?
         }
-        Node::FunctionDeclaration(node) => {
-            try_visit_nodes(
-                &mut cb_node,
-                cb_nodes.as_mut(),
-                node.maybe_decorators(),
-                arena,
-            )?;
-            try_visit_nodes(
-                &mut cb_node,
-                cb_nodes.as_mut(),
-                node.maybe_modifiers(),
-                arena,
-            )?;
-            try_visit_node(&mut cb_node, node.maybe_asterisk_token())?;
-            try_visit_node(&mut cb_node, node.maybe_name())?;
-            try_visit_node(&mut cb_node, node.maybe_question_token())?;
-            try_visit_node(&mut cb_node, node.maybe_exclamation_token())?;
-            try_visit_nodes(
-                &mut cb_node,
-                cb_nodes.as_mut(),
-                node.maybe_type_parameters(),
-                arena,
-            )?;
-            try_visit_nodes(
-                &mut cb_node,
-                cb_nodes.as_mut(),
-                Some(node.parameters()),
-                arena,
-            )?;
-            try_visit_node(&mut cb_node, node.maybe_type())?;
-            try_visit_node(&mut cb_node, node.maybe_body())?
-        }
-        Node::ArrowFunction(node) => {
+        SyntaxKind::ArrowFunction => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -1925,7 +2218,7 @@ pub fn try_for_each_child<TError>(
             try_visit_node(&mut cb_node, Some(node.equals_greater_than_token))?;
             try_visit_node(&mut cb_node, node.maybe_body())?
         }
-        Node::ClassStaticBlockDeclaration(node) => {
+        SyntaxKind::ClassStaticBlockDeclaration => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -1940,7 +2233,7 @@ pub fn try_for_each_child<TError>(
             )?;
             try_visit_node(&mut cb_node, Some(node.body))?;
         }
-        Node::TypeReferenceNode(node) => {
+        SyntaxKind::TypeReferenceNode => {
             try_visit_node(&mut cb_node, Some(node.type_name.clone()))?;
             try_visit_nodes(
                 &mut cb_node,
@@ -1949,35 +2242,35 @@ pub fn try_for_each_child<TError>(
                 arena,
             )?
         }
-        Node::TypePredicateNode(node) => {
+        SyntaxKind::TypePredicateNode => {
             try_visit_node(&mut cb_node, node.asserts_modifier.clone())?;
             try_visit_node(&mut cb_node, Some(node.parameter_name))?;
             try_visit_node(&mut cb_node, node.type_.clone())?;
         }
-        Node::TypeQueryNode(node) => try_visit_node(&mut cb_node, Some(node.expr_name))?,
-        Node::TypeLiteralNode(node) => {
+        SyntaxKind::TypeQueryNode => try_visit_node(&mut cb_node, Some(node.expr_name))?,
+        SyntaxKind::TypeLiteralNode => {
             try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.members), arena)?
         }
-        Node::ArrayTypeNode(node) => try_visit_node(&mut cb_node, Some(node.element_type.clone()))?,
-        Node::TupleTypeNode(node) => {
+        SyntaxKind::ArrayTypeNode => try_visit_node(&mut cb_node, Some(node.element_type.clone()))?,
+        SyntaxKind::TupleTypeNode => {
             try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.elements), arena)?
         }
-        Node::UnionTypeNode(node) => {
+        SyntaxKind::UnionTypeNode => {
             try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.types), arena)?
         }
-        Node::IntersectionTypeNode(node) => {
+        SyntaxKind::IntersectionTypeNode => {
             try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.types), arena)?
         }
-        Node::ConditionalTypeNode(node) => {
+        SyntaxKind::ConditionalTypeNode => {
             try_visit_node(&mut cb_node, Some(node.check_type))?;
             try_visit_node(&mut cb_node, Some(node.extends_type))?;
             try_visit_node(&mut cb_node, Some(node.true_type))?;
             try_visit_node(&mut cb_node, Some(node.false_type))?;
         }
-        Node::InferTypeNode(node) => {
+        SyntaxKind::InferTypeNode => {
             try_visit_node(&mut cb_node, Some(node.type_parameter))?;
         }
-        Node::ImportTypeNode(node) => {
+        SyntaxKind::ImportTypeNode => {
             try_visit_node(&mut cb_node, Some(node.argument))?;
             try_visit_node(&mut cb_node, node.qualifier.clone())?;
             try_visit_nodes(
@@ -1987,13 +2280,13 @@ pub fn try_for_each_child<TError>(
                 arena,
             )?
         }
-        Node::ParenthesizedTypeNode(node) => try_visit_node(&mut cb_node, Some(node.type_))?,
-        Node::TypeOperatorNode(node) => try_visit_node(&mut cb_node, Some(node.type_))?,
-        Node::IndexedAccessTypeNode(node) => {
+        SyntaxKind::ParenthesizedTypeNode => try_visit_node(&mut cb_node, Some(node.type_))?,
+        SyntaxKind::TypeOperatorNode => try_visit_node(&mut cb_node, Some(node.type_))?,
+        SyntaxKind::IndexedAccessTypeNode => {
             try_visit_node(&mut cb_node, Some(node.object_type))?;
             try_visit_node(&mut cb_node, Some(node.index_type))?;
         }
-        Node::MappedTypeNode(node) => {
+        SyntaxKind::MappedTypeNode => {
             try_visit_node(&mut cb_node, node.readonly_token.clone())?;
             try_visit_node(&mut cb_node, Some(node.type_parameter))?;
             try_visit_node(&mut cb_node, node.name_type.clone())?;
@@ -2001,39 +2294,39 @@ pub fn try_for_each_child<TError>(
             try_visit_node(&mut cb_node, node.type_.clone())?;
             try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.members, arena)?
         }
-        Node::LiteralTypeNode(node) => try_visit_node(&mut cb_node, Some(node.literal))?,
-        Node::NamedTupleMember(node) => {
+        SyntaxKind::LiteralTypeNode => try_visit_node(&mut cb_node, Some(node.literal))?,
+        SyntaxKind::NamedTupleMember => {
             try_visit_node(&mut cb_node, node.dot_dot_dot_token.clone())?;
             try_visit_node(&mut cb_node, Some(node.name))?;
             try_visit_node(&mut cb_node, node.question_token.clone())?;
             try_visit_node(&mut cb_node, Some(node.type_))?;
         }
-        Node::ObjectBindingPattern(node) => {
+        SyntaxKind::ObjectBindingPattern => {
             try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.elements), arena)?
         }
-        Node::ArrayBindingPattern(node) => {
+        SyntaxKind::ArrayBindingPattern => {
             try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.elements), arena)?
         }
-        Node::ArrayLiteralExpression(node) => {
+        SyntaxKind::ArrayLiteralExpression => {
             try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.elements), arena)?
         }
-        Node::ObjectLiteralExpression(node) => try_visit_nodes(
+        SyntaxKind::ObjectLiteralExpression => try_visit_nodes(
             &mut cb_node,
             cb_nodes.as_mut(),
             Some(node.properties),
             arena,
         )?,
-        Node::PropertyAccessExpression(node) => {
+        SyntaxKind::PropertyAccessExpression => {
             try_visit_node(&mut cb_node, Some(node.expression))?;
             try_visit_node(&mut cb_node, node.question_dot_token.clone())?;
             try_visit_node(&mut cb_node, Some(node.name))?;
         }
-        Node::ElementAccessExpression(node) => {
+        SyntaxKind::ElementAccessExpression => {
             try_visit_node(&mut cb_node, Some(node.expression))?;
             try_visit_node(&mut cb_node, node.question_dot_token.clone())?;
             try_visit_node(&mut cb_node, Some(node.argument_expression))?;
         }
-        Node::CallExpression(node) => {
+        SyntaxKind::CallExpression => {
             try_visit_node(&mut cb_node, Some(node.expression))?;
             try_visit_node(&mut cb_node, node.question_dot_token.clone())?;
             try_visit_nodes(
@@ -2044,7 +2337,7 @@ pub fn try_for_each_child<TError>(
             )?;
             try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.arguments), arena)?;
         }
-        Node::NewExpression(node) => {
+        SyntaxKind::NewExpression => {
             try_visit_node(&mut cb_node, Some(node.expression))?;
             try_visit_nodes(
                 &mut cb_node,
@@ -2054,7 +2347,7 @@ pub fn try_for_each_child<TError>(
             )?;
             try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.arguments, arena)?;
         }
-        Node::TaggedTemplateExpression(node) => {
+        SyntaxKind::TaggedTemplateExpression => {
             try_visit_node(&mut cb_node, Some(node.tag))?;
             try_visit_node(&mut cb_node, node.question_dot_token.clone())?;
             try_visit_nodes(
@@ -2065,57 +2358,57 @@ pub fn try_for_each_child<TError>(
             )?;
             try_visit_node(&mut cb_node, Some(node.template))?;
         }
-        Node::TypeAssertion(node) => {
+        SyntaxKind::TypeAssertion => {
             try_visit_node(&mut cb_node, Some(node.type_))?;
             try_visit_node(&mut cb_node, Some(node.expression))?;
         }
-        Node::ParenthesizedExpression(node) => {
+        SyntaxKind::ParenthesizedExpression => {
             try_visit_node(&mut cb_node, Some(node.expression))?;
         }
-        Node::DeleteExpression(node) => {
+        SyntaxKind::DeleteExpression => {
             try_visit_node(&mut cb_node, Some(node.expression))?;
         }
-        Node::TypeOfExpression(node) => {
+        SyntaxKind::TypeOfExpression => {
             try_visit_node(&mut cb_node, Some(node.expression))?;
         }
-        Node::VoidExpression(node) => {
+        SyntaxKind::VoidExpression => {
             try_visit_node(&mut cb_node, Some(node.expression))?;
         }
-        Node::PrefixUnaryExpression(node) => try_visit_node(&mut cb_node, Some(node.operand))?,
-        Node::YieldExpression(node) => {
+        SyntaxKind::PrefixUnaryExpression => try_visit_node(&mut cb_node, Some(node.operand))?,
+        SyntaxKind::YieldExpression => {
             try_visit_node(&mut cb_node, node.asterisk_token.clone())?;
             try_visit_node(&mut cb_node, node.expression.clone())?;
         }
-        Node::AwaitExpression(node) => {
+        SyntaxKind::AwaitExpression => {
             try_visit_node(&mut cb_node, Some(node.expression))?;
         }
-        Node::PostfixUnaryExpression(node) => try_visit_node(&mut cb_node, Some(node.operand))?,
-        Node::BinaryExpression(node) => {
+        SyntaxKind::PostfixUnaryExpression => try_visit_node(&mut cb_node, Some(node.operand))?,
+        SyntaxKind::BinaryExpression => {
             try_visit_node(&mut cb_node, Some(node.left))?;
             try_visit_node(&mut cb_node, Some(node.operator_token))?;
             try_visit_node(&mut cb_node, Some(node.right))?;
         }
-        Node::AsExpression(node) => {
+        SyntaxKind::AsExpression => {
             try_visit_node(&mut cb_node, Some(node.expression))?;
             try_visit_node(&mut cb_node, Some(node.type_))?;
         }
-        Node::NonNullExpression(node) => {
+        SyntaxKind::NonNullExpression => {
             try_visit_node(&mut cb_node, Some(node.expression))?;
         }
-        Node::MetaProperty(node) => {
+        SyntaxKind::MetaProperty => {
             try_visit_node(&mut cb_node, Some(node.name))?;
         }
-        Node::ConditionalExpression(node) => {
+        SyntaxKind::ConditionalExpression => {
             try_visit_node(&mut cb_node, Some(node.condition))?;
             try_visit_node(&mut cb_node, Some(node.question_token))?;
             try_visit_node(&mut cb_node, Some(node.when_true))?;
             try_visit_node(&mut cb_node, Some(node.colon_token))?;
             try_visit_node(&mut cb_node, Some(node.when_false))?;
         }
-        Node::SpreadElement(node) => {
+        SyntaxKind::SpreadElement => {
             try_visit_node(&mut cb_node, Some(node.expression))?;
         }
-        Node::Block(node) => {
+        SyntaxKind::Block => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -2123,7 +2416,7 @@ pub fn try_for_each_child<TError>(
                 arena,
             )?;
         }
-        Node::ModuleBlock(node) => {
+        SyntaxKind::ModuleBlock => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -2131,7 +2424,7 @@ pub fn try_for_each_child<TError>(
                 arena,
             )?;
         }
-        Node::SourceFile(node) => {
+        SyntaxKind::SourceFile => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -2140,7 +2433,7 @@ pub fn try_for_each_child<TError>(
             )?;
             try_visit_node(&mut cb_node, Some(node.end_of_file_token()))?;
         }
-        Node::VariableStatement(node) => {
+        SyntaxKind::VariableStatement => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -2155,66 +2448,66 @@ pub fn try_for_each_child<TError>(
             )?;
             try_visit_node(&mut cb_node, Some(node.declaration_list.clone()))?
         }
-        Node::VariableDeclarationList(node) => try_visit_nodes(
+        SyntaxKind::VariableDeclarationList => try_visit_nodes(
             &mut cb_node,
             cb_nodes.as_mut(),
             Some(node.declarations),
             arena,
         )?,
-        Node::ExpressionStatement(node) => {
+        SyntaxKind::ExpressionStatement => {
             try_visit_node(&mut cb_node, Some(node.expression))?;
         }
-        Node::IfStatement(node) => {
+        SyntaxKind::IfStatement => {
             try_visit_node(&mut cb_node, Some(node.expression))?;
             try_visit_node(&mut cb_node, Some(node.then_statement))?;
             try_visit_node(&mut cb_node, node.else_statement.clone())?;
         }
-        Node::DoStatement(node) => {
+        SyntaxKind::DoStatement => {
             try_visit_node(&mut cb_node, Some(node.statement))?;
             try_visit_node(&mut cb_node, Some(node.expression))?;
         }
-        Node::WhileStatement(node) => {
+        SyntaxKind::WhileStatement => {
             try_visit_node(&mut cb_node, Some(node.expression))?;
             try_visit_node(&mut cb_node, Some(node.statement))?;
         }
-        Node::ForStatement(node) => {
+        SyntaxKind::ForStatement => {
             try_visit_node(&mut cb_node, node.initializer.clone())?;
             try_visit_node(&mut cb_node, node.condition.clone())?;
             try_visit_node(&mut cb_node, node.incrementor.clone())?;
             try_visit_node(&mut cb_node, Some(node.statement))?;
         }
-        Node::ForInStatement(node) => {
+        SyntaxKind::ForInStatement => {
             try_visit_node(&mut cb_node, Some(node.initializer))?;
             try_visit_node(&mut cb_node, Some(node.expression))?;
             try_visit_node(&mut cb_node, Some(node.statement))?;
         }
-        Node::ForOfStatement(node) => {
+        SyntaxKind::ForOfStatement => {
             try_visit_node(&mut cb_node, node.await_modifier.clone())?;
             try_visit_node(&mut cb_node, Some(node.initializer))?;
             try_visit_node(&mut cb_node, Some(node.expression))?;
             try_visit_node(&mut cb_node, Some(node.statement))?;
         }
-        Node::BreakStatement(node) => {
+        SyntaxKind::BreakStatement => {
             try_visit_node(&mut cb_node, node.label.clone())?;
         }
-        Node::ContinueStatement(node) => {
+        SyntaxKind::ContinueStatement => {
             try_visit_node(&mut cb_node, node.label.clone())?;
         }
-        Node::ReturnStatement(node) => {
+        SyntaxKind::ReturnStatement => {
             try_visit_node(&mut cb_node, node.expression.clone())?;
         }
-        Node::WithStatement(node) => {
+        SyntaxKind::WithStatement => {
             try_visit_node(&mut cb_node, Some(node.expression))?;
             try_visit_node(&mut cb_node, Some(node.statement))?;
         }
-        Node::SwitchStatement(node) => {
+        SyntaxKind::SwitchStatement => {
             try_visit_node(&mut cb_node, Some(node.expression))?;
             try_visit_node(&mut cb_node, Some(node.case_block))?;
         }
-        Node::CaseBlock(node) => {
+        SyntaxKind::CaseBlock => {
             try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.clauses), arena)?
         }
-        Node::CaseClause(node) => {
+        SyntaxKind::CaseClause => {
             try_visit_node(&mut cb_node, Some(node.expression))?;
             try_visit_nodes(
                 &mut cb_node,
@@ -2223,32 +2516,32 @@ pub fn try_for_each_child<TError>(
                 arena,
             )?
         }
-        Node::DefaultClause(node) => try_visit_nodes(
+        SyntaxKind::DefaultClause => try_visit_nodes(
             &mut cb_node,
             cb_nodes.as_mut(),
             Some(node.statements),
             arena,
         )?,
-        Node::LabeledStatement(node) => {
+        SyntaxKind::LabeledStatement => {
             try_visit_node(&mut cb_node, Some(node.label))?;
             try_visit_node(&mut cb_node, Some(node.statement))?;
         }
-        Node::ThrowStatement(node) => {
+        SyntaxKind::ThrowStatement => {
             try_visit_node(&mut cb_node, Some(node.expression))?;
         }
-        Node::TryStatement(node) => {
+        SyntaxKind::TryStatement => {
             try_visit_node(&mut cb_node, Some(node.try_block))?;
             try_visit_node(&mut cb_node, node.catch_clause.clone())?;
             try_visit_node(&mut cb_node, node.finally_block.clone())?;
         }
-        Node::CatchClause(node) => {
+        SyntaxKind::CatchClause => {
             try_visit_node(&mut cb_node, node.variable_declaration.clone())?;
             try_visit_node(&mut cb_node, Some(node.block))?;
         }
-        Node::Decorator(node) => {
+        SyntaxKind::Decorator => {
             try_visit_node(&mut cb_node, Some(node.expression))?;
         }
-        Node::ClassDeclaration(node) => {
+        SyntaxKind::ClassDeclaration => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -2276,7 +2569,7 @@ pub fn try_for_each_child<TError>(
             )?;
             try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.members()), arena)?
         }
-        Node::ClassExpression(node) => {
+        SyntaxKind::ClassExpression => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -2304,7 +2597,7 @@ pub fn try_for_each_child<TError>(
             )?;
             try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.members()), arena)?
         }
-        Node::InterfaceDeclaration(node) => {
+        SyntaxKind::InterfaceDeclaration => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -2332,7 +2625,7 @@ pub fn try_for_each_child<TError>(
             )?;
             try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.members), arena)?
         }
-        Node::TypeAliasDeclaration(node) => {
+        SyntaxKind::TypeAliasDeclaration => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -2354,7 +2647,7 @@ pub fn try_for_each_child<TError>(
             )?;
             try_visit_node(&mut cb_node, Some(node.type_.clone()))?
         }
-        Node::EnumDeclaration(node) => {
+        SyntaxKind::EnumDeclaration => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -2370,11 +2663,11 @@ pub fn try_for_each_child<TError>(
             try_visit_node(&mut cb_node, Some(node.name()))?;
             try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.members), arena)?
         }
-        Node::EnumMember(node) => {
+        SyntaxKind::EnumMember => {
             try_visit_node(&mut cb_node, Some(node.name))?;
             try_visit_node(&mut cb_node, node.initializer.clone())?;
         }
-        Node::ModuleDeclaration(node) => {
+        SyntaxKind::ModuleDeclaration => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -2390,7 +2683,7 @@ pub fn try_for_each_child<TError>(
             try_visit_node(&mut cb_node, node.maybe_name())?;
             try_visit_node(&mut cb_node, node.body.clone())?;
         }
-        Node::ImportEqualsDeclaration(node) => {
+        SyntaxKind::ImportEqualsDeclaration => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -2406,7 +2699,7 @@ pub fn try_for_each_child<TError>(
             try_visit_node(&mut cb_node, node.maybe_name())?;
             try_visit_node(&mut cb_node, Some(node.module_reference))?;
         }
-        Node::ImportDeclaration(node) => {
+        SyntaxKind::ImportDeclaration => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -2423,33 +2716,33 @@ pub fn try_for_each_child<TError>(
             try_visit_node(&mut cb_node, Some(node.module_specifier))?;
             try_visit_node(&mut cb_node, node.assert_clause.clone())?;
         }
-        Node::ImportClause(node) => {
+        SyntaxKind::ImportClause => {
             try_visit_node(&mut cb_node, node.name.clone())?;
             try_visit_node(&mut cb_node, node.named_bindings.clone())?;
         }
-        Node::AssertClause(node) => {
+        SyntaxKind::AssertClause => {
             try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.elements), arena)?
         }
-        Node::AssertEntry(node) => {
+        SyntaxKind::AssertEntry => {
             try_visit_node(&mut cb_node, Some(node.name))?;
             try_visit_node(&mut cb_node, Some(node.value))?;
         }
-        Node::NamespaceExportDeclaration(node) => {
+        SyntaxKind::NamespaceExportDeclaration => {
             try_visit_node(&mut cb_node, node.maybe_name())?;
         }
-        Node::NamespaceImport(node) => {
+        SyntaxKind::NamespaceImport => {
             try_visit_node(&mut cb_node, Some(node.name))?;
         }
-        Node::NamespaceExport(node) => {
+        SyntaxKind::NamespaceExport => {
             try_visit_node(&mut cb_node, Some(node.name))?;
         }
-        Node::NamedImports(node) => {
+        SyntaxKind::NamedImports => {
             try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.elements), arena)?
         }
-        Node::NamedExports(node) => {
+        SyntaxKind::NamedExports => {
             try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.elements), arena)?
         }
-        Node::ExportDeclaration(node) => {
+        SyntaxKind::ExportDeclaration => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -2466,15 +2759,15 @@ pub fn try_for_each_child<TError>(
             try_visit_node(&mut cb_node, node.module_specifier.clone())?;
             try_visit_node(&mut cb_node, node.assert_clause.clone())?;
         }
-        Node::ImportSpecifier(node) => {
+        SyntaxKind::ImportSpecifier => {
             try_visit_node(&mut cb_node, node.property_name.clone())?;
             try_visit_node(&mut cb_node, Some(node.name))?;
         }
-        Node::ExportSpecifier(node) => {
+        SyntaxKind::ExportSpecifier => {
             try_visit_node(&mut cb_node, node.property_name.clone())?;
             try_visit_node(&mut cb_node, Some(node.name))?;
         }
-        Node::ExportAssignment(node) => {
+        SyntaxKind::ExportAssignment => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -2489,7 +2782,7 @@ pub fn try_for_each_child<TError>(
             )?;
             try_visit_node(&mut cb_node, Some(node.expression))?;
         }
-        Node::TemplateExpression(node) => {
+        SyntaxKind::TemplateExpression => {
             try_visit_node(&mut cb_node, Some(node.head))?;
             try_visit_nodes(
                 &mut cb_node,
@@ -2498,11 +2791,11 @@ pub fn try_for_each_child<TError>(
                 arena,
             )?
         }
-        Node::TemplateSpan(node) => {
+        SyntaxKind::TemplateSpan => {
             try_visit_node(&mut cb_node, Some(node.expression))?;
             try_visit_node(&mut cb_node, Some(node.literal))?
         }
-        Node::TemplateLiteralTypeNode(node) => {
+        SyntaxKind::TemplateLiteralTypeNode => {
             try_visit_node(&mut cb_node, Some(node.head))?;
             try_visit_nodes(
                 &mut cb_node,
@@ -2511,17 +2804,17 @@ pub fn try_for_each_child<TError>(
                 arena,
             )?
         }
-        Node::TemplateLiteralTypeSpan(node) => {
+        SyntaxKind::TemplateLiteralTypeSpan => {
             try_visit_node(&mut cb_node, Some(node.type_))?;
             try_visit_node(&mut cb_node, Some(node.literal))?
         }
-        Node::ComputedPropertyName(node) => {
+        SyntaxKind::ComputedPropertyName => {
             try_visit_node(&mut cb_node, Some(node.expression))?;
         }
-        Node::HeritageClause(node) => {
+        SyntaxKind::HeritageClause => {
             try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.types), arena)?
         }
-        Node::ExpressionWithTypeArguments(node) => {
+        SyntaxKind::ExpressionWithTypeArguments => {
             try_visit_node(&mut cb_node, Some(node.expression))?;
             try_visit_nodes(
                 &mut cb_node,
@@ -2530,10 +2823,10 @@ pub fn try_for_each_child<TError>(
                 arena,
             )?
         }
-        Node::ExternalModuleReference(node) => {
+        SyntaxKind::ExternalModuleReference => {
             try_visit_node(&mut cb_node, Some(node.expression))?;
         }
-        Node::MissingDeclaration(node) => {
+        SyntaxKind::MissingDeclaration => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -2541,20 +2834,20 @@ pub fn try_for_each_child<TError>(
                 arena,
             )?;
         }
-        Node::CommaListExpression(node) => {
+        SyntaxKind::CommaListExpression => {
             try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.elements), arena)?
         }
-        Node::JsxElement(node) => {
+        SyntaxKind::JsxElement => {
             try_visit_node(&mut cb_node, Some(node.opening_element))?;
             try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.children), arena)?;
             try_visit_node(&mut cb_node, Some(node.closing_element))?;
         }
-        Node::JsxFragment(node) => {
+        SyntaxKind::JsxFragment => {
             try_visit_node(&mut cb_node, Some(node.opening_fragment))?;
             try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.children), arena)?;
             try_visit_node(&mut cb_node, Some(node.closing_fragment))?;
         }
-        Node::JsxSelfClosingElement(node) => {
+        SyntaxKind::JsxSelfClosingElement => {
             try_visit_node(&mut cb_node, Some(node.tag_name))?;
             try_visit_nodes(
                 &mut cb_node,
@@ -2564,7 +2857,7 @@ pub fn try_for_each_child<TError>(
             )?;
             try_visit_node(&mut cb_node, Some(node.attributes))?;
         }
-        Node::JsxOpeningElement(node) => {
+        SyntaxKind::JsxOpeningElement => {
             try_visit_node(&mut cb_node, Some(node.tag_name))?;
             try_visit_nodes(
                 &mut cb_node,
@@ -2574,7 +2867,7 @@ pub fn try_for_each_child<TError>(
             )?;
             try_visit_node(&mut cb_node, Some(node.attributes))?;
         }
-        Node::JsxAttributes(node) => {
+        SyntaxKind::JsxAttributes => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -2582,33 +2875,33 @@ pub fn try_for_each_child<TError>(
                 arena,
             )?;
         }
-        Node::JsxAttribute(node) => {
+        SyntaxKind::JsxAttribute => {
             try_visit_node(&mut cb_node, Some(node.name))?;
             try_visit_node(&mut cb_node, node.initializer.clone())?;
         }
-        Node::JsxSpreadAttribute(node) => {
+        SyntaxKind::JsxSpreadAttribute => {
             try_visit_node(&mut cb_node, Some(node.expression))?;
         }
-        Node::JsxExpression(node) => {
+        SyntaxKind::JsxExpression => {
             try_visit_node(&mut cb_node, node.dot_dot_dot_token.clone())?;
             try_visit_node(&mut cb_node, node.expression.clone())?;
         }
-        Node::JsxClosingElement(node) => {
+        SyntaxKind::JsxClosingElement => {
             try_visit_node(&mut cb_node, Some(node.tag_name))?;
         }
-        Node::OptionalTypeNode(node) => {
+        SyntaxKind::OptionalTypeNode => {
             try_visit_node(&mut cb_node, Some(node.type_))?;
         }
-        Node::RestTypeNode(node) => {
+        SyntaxKind::RestTypeNode => {
             try_visit_node(&mut cb_node, Some(node.type_))?;
         }
-        Node::JSDocTypeExpression(node) => {
+        SyntaxKind::JSDocTypeExpression => {
             try_visit_node(&mut cb_node, Some(node.type_))?;
         }
-        Node::BaseJSDocUnaryType(node) => {
+        SyntaxKind::BaseJSDocUnaryType => {
             try_visit_node(&mut cb_node, node.type_.clone())?;
         }
-        Node::JSDocFunctionType(node) => {
+        SyntaxKind::JSDocFunctionType => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -2617,27 +2910,27 @@ pub fn try_for_each_child<TError>(
             )?;
             try_visit_node(&mut cb_node, node.maybe_type())?;
         }
-        Node::JSDoc(node) => {
+        SyntaxKind::JSDoc => {
             if let Some(StringOrNodeArray::NodeArray(comment)) = node.comment.as_ref() {
                 try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(*comment), arena)?;
             }
             try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.tags, arena)?;
         }
-        Node::JSDocSeeTag(node) => {
+        SyntaxKind::JSDocSeeTag => {
             try_visit_node(&mut cb_node, Some(node.tag_name()))?;
             try_visit_node(&mut cb_node, node.name.clone())?;
             if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
                 try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(*comment), arena)?;
             }
         }
-        Node::JSDocNameReference(node) => {
+        SyntaxKind::JSDocNameReference => {
             try_visit_node(&mut cb_node, Some(node.name))?;
         }
-        Node::JSDocMemberName(node) => {
+        SyntaxKind::JSDocMemberName => {
             try_visit_node(&mut cb_node, Some(node.left))?;
             try_visit_node(&mut cb_node, Some(node.right))?;
         }
-        Node::JSDocPropertyLikeTag(node) => {
+        SyntaxKind::JSDocPropertyLikeTag => {
             try_visit_node(&mut cb_node, Some(node.tag_name()))?;
             if node.is_name_first {
                 try_visit_node(&mut cb_node, Some(node.name))?;
@@ -2653,27 +2946,27 @@ pub fn try_for_each_child<TError>(
                 }
             }
         }
-        Node::BaseJSDocTag(node) => {
+        SyntaxKind::BaseJSDocTag => {
             try_visit_node(&mut cb_node, Some(node.tag_name()))?;
             if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
                 try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(*comment), arena)?;
             }
         }
-        Node::JSDocImplementsTag(node) => {
-            try_visit_node(&mut cb_node, Some(node.tag_name()))?;
-            try_visit_node(&mut cb_node, Some(node.class))?;
-            if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
-                try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(*comment), arena)?;
-            }
-        }
-        Node::JSDocAugmentsTag(node) => {
+        SyntaxKind::JSDocImplementsTag => {
             try_visit_node(&mut cb_node, Some(node.tag_name()))?;
             try_visit_node(&mut cb_node, Some(node.class))?;
             if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
                 try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(*comment), arena)?;
             }
         }
-        Node::JSDocTemplateTag(node) => {
+        SyntaxKind::JSDocAugmentsTag => {
+            try_visit_node(&mut cb_node, Some(node.tag_name()))?;
+            try_visit_node(&mut cb_node, Some(node.class))?;
+            if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+                try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(*comment), arena)?;
+            }
+        }
+        SyntaxKind::JSDocTemplateTag => {
             try_visit_node(&mut cb_node, Some(node.tag_name()))?;
             try_visit_node(&mut cb_node, node.constraint.clone())?;
             try_visit_nodes(
@@ -2686,7 +2979,7 @@ pub fn try_for_each_child<TError>(
                 try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(*comment), arena)?;
             }
         }
-        Node::JSDocTypedefTag(node) => {
+        SyntaxKind::JSDocTypedefTag => {
             try_visit_node(&mut cb_node, Some(node.tag_name()))?;
             if matches!(
                 node.type_expression,
@@ -2705,7 +2998,7 @@ pub fn try_for_each_child<TError>(
                 }
             }
         }
-        Node::JSDocCallbackTag(node) => {
+        SyntaxKind::JSDocCallbackTag => {
             try_visit_node(&mut cb_node, Some(node.tag_name()))?;
             try_visit_node(&mut cb_node, node.full_name.clone())?;
             try_visit_node(&mut cb_node, Some(node.type_expression))?;
@@ -2713,14 +3006,14 @@ pub fn try_for_each_child<TError>(
                 try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(*comment), arena)?;
             }
         }
-        Node::BaseJSDocTypeLikeTag(node) => {
+        SyntaxKind::BaseJSDocTypeLikeTag => {
             try_visit_node(&mut cb_node, Some(node.tag_name()))?;
             try_visit_node(&mut cb_node, node.type_expression.clone())?;
             if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
                 try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(*comment), arena)?;
             }
         }
-        Node::JSDocSignature(node) => {
+        SyntaxKind::JSDocSignature => {
             node.maybe_type_parameters()
                 .as_ref()
                 .try_map(|type_parameters| {
@@ -2741,16 +3034,16 @@ pub fn try_for_each_child<TError>(
             )?;
             try_visit_node(&mut cb_node, node.type_.clone())?;
         }
-        Node::JSDocLink(node) => {
+        SyntaxKind::JSDocLink => {
             try_visit_node(&mut cb_node, node.name.clone())?;
         }
-        Node::JSDocLinkCode(node) => {
+        SyntaxKind::JSDocLinkCode => {
             try_visit_node(&mut cb_node, node.name.clone())?;
         }
-        Node::JSDocLinkPlain(node) => {
+        SyntaxKind::JSDocLinkPlain => {
             try_visit_node(&mut cb_node, node.name.clone())?;
         }
-        Node::JSDocTypeLiteral(node) => {
+        SyntaxKind::JSDocTypeLiteral => {
             try_maybe_for_each(
                 node.js_doc_property_tags.refed(arena).as_deref(),
                 |&node: &Id<Node>, _| -> Result<_, TError> {
@@ -2759,7 +3052,7 @@ pub fn try_for_each_child<TError>(
                 },
             )?;
         }
-        Node::PartiallyEmittedExpression(node) => {
+        SyntaxKind::PartiallyEmittedExpression => {
             try_visit_node(&mut cb_node, Some(node.expression))?;
         }
         _ => (),

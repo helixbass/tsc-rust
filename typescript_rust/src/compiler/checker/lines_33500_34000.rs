@@ -11,7 +11,7 @@ use crate::{
     is_declaration_readonly, is_in_js_file, is_jsdoc_type_assertion, is_omitted_expression,
     is_parameter, is_parenthesized_expression, is_property_assignment,
     is_shorthand_property_assignment, is_spread_element, is_template_span, map,
-    parse_pseudo_big_int, skip_parentheses, some, try_some, ContextFlags, Diagnostics,
+    parse_pseudo_big_int, released, skip_parentheses, some, try_some, ContextFlags, Diagnostics,
     ElementFlags, HasArena, InArena, InferenceContext, InferenceFlags, InferenceInfo,
     InferencePriority, Matches, NamedDeclarationInterface, Node, NodeFlags, NodeInterface,
     OptionTry, PseudoBigInt, SignatureKind, SymbolInterface, SyntaxKind, Type, TypeChecker,
@@ -845,7 +845,7 @@ impl TypeChecker {
             );
         }
         self.check_expression(
-            node.ref_(self).as_parenthesized_expression().expression,
+            released!(node.ref_(self).as_parenthesized_expression().expression),
             check_mode,
             None,
         )

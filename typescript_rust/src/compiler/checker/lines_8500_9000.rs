@@ -16,8 +16,8 @@ use crate::{
     is_module_exports_access_expression, is_named_declaration, is_object_literal_expression,
     is_parameter, is_parameter_declaration, is_property_access_expression, is_property_declaration,
     is_property_signature, is_string_or_numeric_literal_like, is_variable_declaration, length,
-    return_ok_default_if_none, return_ok_none_if_none, set_parent, skip_parentheses, some,
-    starts_with, try_cast, try_maybe_every, unescape_leading_underscores,
+    released, return_ok_default_if_none, return_ok_none_if_none, set_parent, skip_parentheses,
+    some, starts_with, try_cast, try_maybe_every, unescape_leading_underscores,
     walk_up_binding_elements_and_patterns, AccessFlags, AssignmentDeclarationKind, Debug_,
     Diagnostics, HasArena, HasInitializerInterface, HasTypeInterface, InArena, InternalSymbolName,
     LiteralType, ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, Number,
@@ -978,7 +978,7 @@ impl TypeChecker {
         if type_.is_none() {
             let mut types: Option<Vec<Id<Type>>> = None;
             if let Some(symbol_declarations) =
-                symbol.ref_(self).maybe_declarations().clone().as_deref()
+                released!(symbol.ref_(self).maybe_declarations().clone()).as_deref()
             {
                 let mut jsdoc_type: Option<Id<Type>> = None;
                 for &declaration in symbol_declarations {
