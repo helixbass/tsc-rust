@@ -597,7 +597,7 @@ impl TransformJsx {
             },
         );
         let object_properties = if !attrs.ref_(self).is_empty() {
-            self.transform_jsx_attributes_to_object_props(&attrs.ref_(self), children_prop)
+            self.transform_jsx_attributes_to_object_props(&attrs.to_vec(self), children_prop)
         } else {
             self.factory.ref_(self).create_object_literal_expression(
                 Some(children_prop.map_or_default(|children_prop| vec![children_prop])),

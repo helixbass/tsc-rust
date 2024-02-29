@@ -25,10 +25,8 @@ impl Printer {
             self.write_punctuation(",");
             self.write_space();
         }
-        let node_ref = node.ref_(self);
-        let node_as_call_expression = node_ref.as_call_expression();
         self.emit_expression(
-            Some(node_as_call_expression.expression),
+            Some(node.ref_(self).as_call_expression().expression),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(
                     self.parenthesizer(),
@@ -39,11 +37,17 @@ impl Printer {
         if indirect_call {
             self.write_punctuation(")");
         }
-        self.emit(node_as_call_expression.question_dot_token, None)?;
-        self.emit_type_arguments(node, node_as_call_expression.maybe_type_arguments())?;
+        self.emit(
+            node.ref_(self).as_call_expression().question_dot_token,
+            None,
+        )?;
+        self.emit_type_arguments(
+            node,
+            node.ref_(self).as_call_expression().maybe_type_arguments(),
+        )?;
         self.emit_expression_list(
             Some(node),
-            Some(node_as_call_expression.arguments),
+            Some(node.ref_(self).as_call_expression().arguments),
             ListFormat::CallExpressionArguments,
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(

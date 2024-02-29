@@ -129,7 +129,7 @@ impl TransformTypeScript {
                 all_decorators
                     .decorators
                     .as_ref()
-                    .map(|decorators| decorators.ref_(self))
+                    .map(|decorators| decorators.to_vec(self))
                     .as_deref(),
                 |&decorator: &Id<Node>, _| self.transform_decorator(decorator),
             )
@@ -151,7 +151,7 @@ impl TransformTypeScript {
                                 .transform_decorators_of_parameter(
                                     parameter
                                         .as_ref()
-                                        .map(|parameter| parameter.ref_(self))
+                                        .map(|parameter| parameter.to_vec(self))
                                         .as_deref(),
                                     index,
                                 )?

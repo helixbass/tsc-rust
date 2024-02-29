@@ -614,16 +614,14 @@ impl TypeChecker {
                     Some(unidirectional),
                 )?;
             }
-            if let Some(source_exports) = source.ref_(self).maybe_exports() {
-                let target_ref = target.ref_(self);
-                if target_ref.maybe_exports().is_none() {
-                    target_ref.set_exports(Some(self.alloc_symbol_table(create_symbol_table(
-                        Option::<&[Id<Symbol>]>::None,
-                        self,
-                    ))));
+            if let Some(source_exports) = released!(source.ref_(self).maybe_exports()) {
+                if target.ref_(self).maybe_exports().is_none() {
+                    target.ref_(self).set_exports(Some(self.alloc_symbol_table(
+                        create_symbol_table(Option::<&[Id<Symbol>]>::None, self),
+                    )));
                 }
                 self.merge_symbol_table(
-                    target_ref.exports(),
+                    target.ref_(self).exports(),
                     source_exports,
                     Some(unidirectional),
                 )?;

@@ -363,7 +363,7 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete {
         &self,
         elements: NodeArrayOrVec,
     ) -> Id<NodeArray> {
-        let result = same_map(&elements.ref_(self), |&element, _| {
+        let result = same_map(&elements.to_vec(self), |&element, _| {
             self.parenthesize_expression_for_disallowed_comma(element)
         });
         let node_array = self.factory.ref_(self).create_node_array(
@@ -531,7 +531,7 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete {
                     maybe_same_map(
                         type_arguments
                             .as_ref()
-                            .map(|type_arguments| type_arguments.ref_(self))
+                            .map(|type_arguments| type_arguments.to_vec(self))
                             .as_deref(),
                         |&type_arguments, index| {
                             self.parenthesize_ordinal_type_argument(type_arguments, index)
