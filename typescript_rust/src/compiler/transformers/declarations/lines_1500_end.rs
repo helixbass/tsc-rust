@@ -60,7 +60,7 @@ impl TransformDeclarations {
                         .create_node_array(self.ensure_modifiers(input), None),
                 ),
                 self.factory.ref_(self).update_variable_declaration_list(
-                    input.ref_(self).as_variable_statement().declaration_list,
+                    released!(input.ref_(self).as_variable_statement().declaration_list),
                     nodes,
                 ),
             ),

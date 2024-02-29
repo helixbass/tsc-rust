@@ -9,7 +9,7 @@ use crate::{
     get_class_like_declaration_of_symbol, get_members_of_declaration, get_name_of_declaration,
     get_object_flags, has_dynamic_name, has_static_modifier, has_syntactic_modifier,
     is_binary_expression, is_dynamic_name, is_element_access_expression, is_in_js_file,
-    last_or_undefined, length, maybe_concatenate, maybe_for_each, range_equals,
+    last_or_undefined, length, maybe_concatenate, maybe_for_each, range_equals, released,
     return_ok_default_if_none, some, try_map, try_map_defined, try_maybe_map, try_some,
     unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics,
     ElementFlags, HasArena, InArena, IndexInfo, InterfaceTypeInterface,
@@ -548,10 +548,11 @@ impl TypeChecker {
                 mapper.clone().unwrap(),
             )?;
             construct_signatures = self.instantiate_signatures(
-                &*source
+                &*released!(source
                     .ref_(self)
                     .as_interface_type_with_declared_members()
-                    .declared_construct_signatures(),
+                    .declared_construct_signatures()
+                    .clone()),
                 mapper.clone().unwrap(),
             )?;
             index_infos = self.instantiate_index_infos(

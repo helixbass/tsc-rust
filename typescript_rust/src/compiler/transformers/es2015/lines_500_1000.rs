@@ -621,19 +621,17 @@ impl TransformES2015 {
             .factory
             .ref_(self)
             .create_block(
-                self.factory
+                released!(self
+                    .factory
                     .ref_(self)
                     .create_node_array(Some(statements), None)
                     .set_text_range(
                         Some(
-                            &*node
-                                .ref_(self)
-                                .as_class_like_declaration()
-                                .members()
+                            &*released!(node.ref_(self).as_class_like_declaration().members())
                                 .ref_(self),
                         ),
                         self,
-                    ),
+                    )),
                 Some(true),
             )
             .set_emit_flags(EmitFlags::NoComments, self))

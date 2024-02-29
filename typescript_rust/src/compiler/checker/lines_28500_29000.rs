@@ -13,8 +13,8 @@ use crate::{
     is_function_like_declaration, is_jsx_opening_like_element, is_named_declaration,
     is_optional_chain, is_private_identifier, is_private_identifier_class_element_declaration,
     is_property_access_expression, is_static, is_string_literal_like,
-    is_tagged_template_expression, is_write_only_access, map_defined, return_ok_default_if_none,
-    skip_parentheses, starts_with, symbol_name, try_filter,
+    is_tagged_template_expression, is_write_only_access, map_defined, released,
+    return_ok_default_if_none, skip_parentheses, starts_with, symbol_name, try_filter,
     try_get_property_access_or_identifier_to_string, try_get_spelling_suggestion,
     try_maybe_for_each, unescape_leading_underscores, AccessFlags, AssignmentKind, CheckFlags,
     Debug_, Diagnostics, HasArena, InArena, ModifierFlags, NamedDeclarationInterface, Node,
@@ -686,9 +686,9 @@ impl TypeChecker {
             } else {
                 self.check_element_access_expression(
                     node,
-                    self.check_non_null_expression(
-                        node.ref_(self).as_element_access_expression().expression,
-                    )?,
+                    self.check_non_null_expression(released!(
+                        node.ref_(self).as_element_access_expression().expression
+                    ))?,
                     check_mode,
                 )?
             },
@@ -735,9 +735,10 @@ impl TypeChecker {
         } else {
             expr_type
         };
-        let node_ref = node.ref_(self);
-        let node_as_element_access_expression = node_ref.as_element_access_expression();
-        let index_expression = node_as_element_access_expression.argument_expression;
+        let index_expression = node
+            .ref_(self)
+            .as_element_access_expression()
+            .argument_expression;
         let index_type = self.check_expression(index_expression, None, None)?;
 
         if self.is_error_type(object_type) || object_type == self.silent_never_type() {

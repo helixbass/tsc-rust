@@ -783,7 +783,10 @@ impl Printer {
             node,
             None,
         );
-        self.emit_embedded_statement(node, node.ref_(self).as_if_statement().then_statement)?;
+        self.emit_embedded_statement(
+            node,
+            released!(node.ref_(self).as_if_statement().then_statement),
+        )?;
         Ok(
             if let Some(node_else_statement) = node.ref_(self).as_if_statement().else_statement {
                 self.write_line_or_space(

@@ -285,7 +285,7 @@ impl TransformDeclarations {
             return Ok(None);
         }
         let new_params = return_ok_default_if_none!(try_maybe_map(
-            released!(params.refed(self).as_ref().cloned()).as_deref(),
+            released!(params.refed(self).as_deref().cloned()).as_deref(),
             |&p: &Id<Node>, _| { self.ensure_parameter(p, modifier_mask, None) }
         )
         .transpose()?);

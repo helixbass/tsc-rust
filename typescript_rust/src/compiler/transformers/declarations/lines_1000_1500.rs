@@ -283,37 +283,31 @@ impl TransformDeclarations {
                 can_prodice_diagnostic,
                 &old_diag,
                 previous_needs_declare,
-                Some(
-                    self.factory.ref_(self).update_interface_declaration(
+                Some(self.factory.ref_(self).update_interface_declaration(
+                    input,
+                    Option::<Id<NodeArray>>::None,
+                    self.ensure_modifiers(input),
+                    released!(input.ref_(self).as_interface_declaration().name()),
+                    self.ensure_type_params(
                         input,
-                        Option::<Id<NodeArray>>::None,
-                        self.ensure_modifiers(input),
-                        input.ref_(self).as_interface_declaration().name(),
-                        self.ensure_type_params(
-                            input,
-                            input
+                        released!(input
                                 .ref_(self)
                                 .as_interface_declaration()
-                                .maybe_type_parameters(),
-                        )?,
-                        Some(
-                            self.transform_heritage_clauses(
-                                input
+                                .maybe_type_parameters()),
+                    )?,
+                    Some(self.transform_heritage_clauses(released!(input
                                     .ref_(self)
                                     .as_interface_declaration()
-                                    .maybe_heritage_clauses(),
-                            )?,
-                        ),
-                        try_visit_nodes(
-                            input.ref_(self).as_interface_declaration().members,
-                            Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
-                            Option::<fn(Id<Node>) -> bool>::None,
-                            None,
-                            None,
-                            self,
-                        )?,
-                    ),
-                ),
+                                    .maybe_heritage_clauses()))?),
+                    try_visit_nodes(
+                        released!(input.ref_(self).as_interface_declaration().members),
+                        Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
+                        Option::<fn(Id<Node>) -> bool>::None,
+                        None,
+                        None,
+                        self,
+                    )?,
+                )),
             ),
             SyntaxKind::FunctionDeclaration => {
                 let clean = self.transform_top_level_declaration_cleanup(
@@ -328,17 +322,19 @@ impl TransformDeclarations {
                             Option::<Id<NodeArray>>::None,
                             self.ensure_modifiers(input),
                             None,
-                            input.ref_(self).as_function_declaration().maybe_name(),
+                            released!(input.ref_(self).as_function_declaration().maybe_name()),
                             self.ensure_type_params(
                                 input,
-                                input
+                                released!(input
                                     .ref_(self)
                                     .as_function_declaration()
-                                    .maybe_type_parameters(),
+                                    .maybe_type_parameters()),
                             )?,
                             self.update_params_list(
                                 input,
-                                Some(input.ref_(self).as_function_declaration().parameters()),
+                                released!(Some(
+                                    input.ref_(self).as_function_declaration().parameters()
+                                )),
                                 None,
                             )?
                             .unwrap(),

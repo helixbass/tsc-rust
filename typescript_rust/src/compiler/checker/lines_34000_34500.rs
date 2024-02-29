@@ -846,17 +846,17 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*PropertySignature*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_named_declaration = node_ref.as_named_declaration();
         if !self.check_grammar_decorators_and_modifiers(node)
             && !self.check_grammar_property(node)?
         {
-            self.check_grammar_computed_property_name(node_as_named_declaration.name());
+            self.check_grammar_computed_property_name(
+                node.ref_(self).as_named_declaration().name(),
+            );
         }
         self.check_variable_like_declaration(node)?;
 
         self.set_node_links_for_private_identifier_scope(node);
-        if is_private_identifier(&node_as_named_declaration.name().ref_(self))
+        if is_private_identifier(&node.ref_(self).as_named_declaration().name().ref_(self))
             && has_static_modifier(node, self)
         {
             if let Some(node_initializer) = node.ref_(self).as_has_initializer().maybe_initializer()
@@ -884,7 +884,7 @@ impl TypeChecker {
                 Some(node),
                 &Diagnostics::Property_0_cannot_have_an_initializer_because_it_is_marked_abstract,
                 Some(vec![declaration_name_to_string(
-                    node_as_named_declaration.maybe_name(),
+                    node.ref_(self).as_named_declaration().maybe_name(),
                     self,
                 )
                 .into_owned()]),

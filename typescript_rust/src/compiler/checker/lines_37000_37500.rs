@@ -8,8 +8,8 @@ use super::{
 use crate::{
     append, filter, get_containing_function_or_class_static_block, get_function_flags,
     is_binary_expression, is_binding_pattern, is_class_static_block_declaration, is_identifier,
-    try_for_each, try_for_each_child_bool, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
-    FunctionFlags, HasArena, InArena, IterationTypeCacheKey, IterationTypes,
+    released, try_for_each, try_for_each_child_bool, DiagnosticMessage, Diagnostics,
+    ExternalEmitHelpers, FunctionFlags, HasArena, InArena, IterationTypeCacheKey, IterationTypes,
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, OptionInArena, OptionTry,
     ScriptTarget, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
     UnionOrIntersectionTypeInterface, UnionReduction,
@@ -339,7 +339,9 @@ impl TypeChecker {
             );
         }
 
-        self.check_source_element(Some(node.ref_(self).as_for_in_statement().statement))?;
+        self.check_source_element(Some(released!(
+            node.ref_(self).as_for_in_statement().statement
+        )))?;
         if node.ref_(self).maybe_locals().is_some() {
             self.register_for_unused_identifiers_check(node);
         }

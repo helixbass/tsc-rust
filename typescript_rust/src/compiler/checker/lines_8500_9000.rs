@@ -140,10 +140,13 @@ impl TypeChecker {
             parent_type = self.get_type_with_facts(parent_type, TypeFacts::NEUndefined)?;
         }
         let type_: Option<Id<Type>>;
-        let declaration_ref = declaration.ref_(self);
-        let declaration_as_binding_element = declaration_ref.as_binding_element();
         if pattern.ref_(self).kind() == SyntaxKind::ObjectBindingPattern {
-            if declaration_as_binding_element.dot_dot_dot_token.is_some() {
+            if declaration
+                .ref_(self)
+                .as_binding_element()
+                .dot_dot_dot_token
+                .is_some()
+            {
                 parent_type = self.get_reduced_type(parent_type)?;
                 if parent_type
                     .ref_(self)
@@ -182,10 +185,12 @@ impl TypeChecker {
                     declaration.ref_(self).maybe_symbol(),
                 )?);
             } else {
-                let name = declaration_as_binding_element
+                let name = declaration
+                    .ref_(self)
+                    .as_binding_element()
                     .property_name
                     .clone()
-                    .unwrap_or_else(|| declaration_as_binding_element.name());
+                    .unwrap_or_else(|| declaration.ref_(self).as_binding_element().name());
                 let index_type = self.get_literal_type_from_property_name(name)?;
                 let declared_type = self.get_indexed_access_type(
                     parent_type,
@@ -200,7 +205,12 @@ impl TypeChecker {
         } else {
             let element_type = self.check_iterated_type_or_element_type(
                 IterationUse::Destructuring
-                    | if declaration_as_binding_element.dot_dot_dot_token.is_some() {
+                    | if declaration
+                        .ref_(self)
+                        .as_binding_element()
+                        .dot_dot_dot_token
+                        .is_some()
+                    {
                         IterationUse::None
                     } else {
                         IterationUse::PossiblyOutOfBounds
@@ -219,7 +229,12 @@ impl TypeChecker {
             )
             .try_into()
             .unwrap();
-            if declaration_as_binding_element.dot_dot_dot_token.is_some() {
+            if declaration
+                .ref_(self)
+                .as_binding_element()
+                .dot_dot_dot_token
+                .is_some()
+            {
                 type_ = if self.every_type(parent_type, |type_| self.is_tuple_type(type_)) {
                     self.try_map_type(
                         parent_type,
@@ -244,7 +259,7 @@ impl TypeChecker {
                         parent_type,
                         index_type,
                         Some(access_flags),
-                        declaration_as_binding_element.maybe_name(),
+                        declaration.ref_(self).as_binding_element().maybe_name(),
                         Option::<Id<Symbol>>::None,
                         None,
                     )?
@@ -254,7 +269,12 @@ impl TypeChecker {
                 type_ = Some(element_type);
             }
         }
-        if declaration_as_binding_element.maybe_initializer().is_none() {
+        if declaration
+            .ref_(self)
+            .as_binding_element()
+            .maybe_initializer()
+            .is_none()
+        {
             return Ok(type_);
         }
         let type_ = type_.unwrap();

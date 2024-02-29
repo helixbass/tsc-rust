@@ -1027,8 +1027,7 @@ impl TypeChecker {
             None;
         let mut previous_declaration: Option<Id<Node /*SignatureDeclaration*/>> = None;
 
-        let symbol_ref = symbol.ref_(self);
-        let declarations = symbol_ref.maybe_declarations();
+        let declarations = symbol.ref_(self).maybe_declarations().clone();
         let is_constructor = symbol
             .ref_(self)
             .flags()

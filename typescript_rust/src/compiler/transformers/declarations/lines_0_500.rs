@@ -1193,8 +1193,6 @@ impl TransformDeclarations {
         modifier_mask: Option<ModifierFlags>,
         type_: Option<Id<Node> /*TypeNode*/>,
     ) -> io::Result<Id<Node /*ParameterDeclaration*/>> {
-        let p_ref = p.ref_(self);
-        let p_as_parameter_declaration = p_ref.as_parameter_declaration();
         let mut old_diag: Option<GetSymbolAccessibilityDiagnostic> = None;
         if self.maybe_suppress_new_diagnostic_contexts() != Some(true) {
             old_diag = Some(self.get_symbol_accessibility_diagnostic());
@@ -1206,11 +1204,14 @@ impl TransformDeclarations {
             p,
             Option::<Id<NodeArray>>::None,
             Some(mask_modifiers(p, modifier_mask, None, self)),
-            p_as_parameter_declaration.dot_dot_dot_token,
-            Some(self.filter_binding_pattern_initializers(p_as_parameter_declaration.name())?),
+            p.ref_(self).as_parameter_declaration().dot_dot_dot_token,
+            Some(self.filter_binding_pattern_initializers(
+                p.ref_(self).as_parameter_declaration().name(),
+            )?),
             if self.resolver.ref_(self).is_optional_parameter(p)? {
                 Some(
-                    p_as_parameter_declaration
+                    p.ref_(self)
+                        .as_parameter_declaration()
                         .question_token
                         .clone()
                         .unwrap_or_else(|| {
@@ -1224,7 +1225,7 @@ impl TransformDeclarations {
             },
             self.ensure_type(
                 p,
-                type_.or_else(|| p_as_parameter_declaration.maybe_type()),
+                type_.or_else(|| p.ref_(self).as_parameter_declaration().maybe_type()),
                 Some(true),
             )?,
             self.ensure_no_initializer(p)?,

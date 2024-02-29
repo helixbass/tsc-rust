@@ -282,12 +282,10 @@ impl NodeFactory {
         node: Id<Node>,                        /*Block*/
         statements: impl Into<NodeArrayOrVec>, /*Statement*/
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_block = node_ref.as_block();
         let statements = statements.into();
-        if has_node_array_changed(node_as_block.statements, &statements) {
+        if has_node_array_changed(node.ref_(self).as_block().statements, &statements) {
             self.update(
-                self.create_block(statements, node_as_block.multi_line),
+                self.create_block(statements, node.ref_(self).as_block().multi_line),
                 node,
             )
         } else {

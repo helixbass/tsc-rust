@@ -202,7 +202,7 @@ impl TypeChecker {
                 let type_with_this = self.get_type_with_this_argument(type_, None, None)?;
                 if self.check_inherited_properties_are_identical(
                     type_,
-                    node.ref_(self).as_interface_declaration().name(),
+                    released!(node.ref_(self).as_interface_declaration().name()),
                 )? {
                     for &base_type in &self.get_base_types(type_)? {
                         self.check_type_assignable_to(
@@ -257,11 +257,7 @@ impl TypeChecker {
         )?;
 
         try_for_each(
-            &*node
-                .ref_(self)
-                .as_interface_declaration()
-                .members
-                .ref_(self),
+            &*released!(node.ref_(self).as_interface_declaration().members).ref_(self),
             |&member, _| -> io::Result<_> {
                 self.check_source_element(Some(member))?;
                 Ok(Option::<()>::None)

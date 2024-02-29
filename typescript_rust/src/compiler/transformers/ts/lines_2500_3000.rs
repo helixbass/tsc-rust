@@ -9,13 +9,13 @@ use crate::{
     has_syntactic_modifier, insert_statements_after_standard_prologue, is_export_specifier,
     is_external_module, is_external_module_import_equals_declaration, is_identifier,
     is_import_clause, is_import_specifier, is_modifier, is_named_export_bindings,
-    is_namespace_export, maybe_visit_nodes, move_range_pos, set_comment_range, set_emit_flags,
-    set_source_map_range, set_synthetic_leading_comments, set_synthetic_trailing_comments,
-    set_text_range, set_text_range_node_array, try_maybe_visit_each_child, try_maybe_visit_node,
-    try_visit_each_child, try_visit_node, try_visit_nodes, BoolExt, CoreTransformationContext,
-    Debug_, EmitFlags, GetOrInsertDefault, HasArena, ImportsNotUsedAsValues, InArena,
-    ModifierFlags, NamedDeclarationInterface, NodeArray, NodeExt, NodeFlags, OptionInArena,
-    ReadonlyTextRangeConcrete, SingleNodeOrVecNode, SyntaxKind,
+    is_namespace_export, maybe_visit_nodes, move_range_pos, released, set_comment_range,
+    set_emit_flags, set_source_map_range, set_synthetic_leading_comments,
+    set_synthetic_trailing_comments, set_text_range, set_text_range_node_array,
+    try_maybe_visit_each_child, try_maybe_visit_node, try_visit_each_child, try_visit_node,
+    try_visit_nodes, BoolExt, CoreTransformationContext, Debug_, EmitFlags, GetOrInsertDefault,
+    HasArena, ImportsNotUsedAsValues, InArena, ModifierFlags, NamedDeclarationInterface, NodeArray,
+    NodeExt, NodeFlags, OptionInArena, ReadonlyTextRangeConcrete, SingleNodeOrVecNode, SyntaxKind,
 };
 
 impl TransformTypeScript {
@@ -92,7 +92,7 @@ impl TransformTypeScript {
             .ref_(self)
             .create_variable_statement(
                 maybe_visit_nodes(
-                    node.ref_(self).maybe_modifiers(),
+                    released!(node.ref_(self).maybe_modifiers()),
                     Some(|node: Id<Node>| self.modifier_visitor(node)),
                     Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                     None,

@@ -7,7 +7,7 @@ use crate::{
     expression_result_is_unused, get_assigned_expando_initializer, get_containing_function,
     get_function_flags, is_assignment_operator, is_element_access_expression, is_identifier,
     is_jsdoc_typedef_tag, is_jsx_self_closing_element, is_object_literal_expression,
-    is_parenthesized_expression, is_property_access_expression, token_to_string,
+    is_parenthesized_expression, is_property_access_expression, released, token_to_string,
     unescape_leading_underscores, AssignmentDeclarationKind, Diagnostic, DiagnosticMessage,
     Diagnostics, ExternalEmitHelpers, FunctionFlags, InArena, InferenceContext, Node, NodeFlags,
     NodeInterface, OptionTry, ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
@@ -492,7 +492,7 @@ impl TypeChecker {
             None,
         )?;
         let type2 = self.check_expression(
-            node.ref_(self).as_conditional_expression().when_false,
+            released!(node.ref_(self).as_conditional_expression().when_false),
             check_mode,
             None,
         )?;
