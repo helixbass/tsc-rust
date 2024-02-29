@@ -6,7 +6,7 @@ use super::PipelinePhase;
 use crate::{
     cast, create_binary_expression_trampoline, get_emit_flags, get_parse_tree_node, impl_has_arena,
     is_binary_expression, is_block, is_expression, is_json_source_file, node_is_synthesized,
-    positions_are_on_same_line, skip_trivia, AllArenas, BinaryExpressionStateMachine,
+    positions_are_on_same_line, released, skip_trivia, AllArenas, BinaryExpressionStateMachine,
     BinaryExpressionTrampoline, CurrentParenthesizerRule, Debug_, EmitFlags, EmitHint, HasArena,
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, InArena, LeftOrRight,
     ListFormat, NamedDeclarationInterface, Node, NodeInterface, ParenthesizerRules, Printer,
@@ -718,7 +718,7 @@ impl Printer {
         node: Id<Node>, /*ExpressionStatement*/
     ) -> io::Result<()> {
         self.emit_expression(
-            Some(node.ref_(self).as_expression_statement().expression),
+            released!(Some(node.ref_(self).as_expression_statement().expression)),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionOfExpressionStatementCurrentParenthesizerRule::new(
                     self.parenthesizer(),

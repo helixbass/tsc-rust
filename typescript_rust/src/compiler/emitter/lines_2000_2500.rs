@@ -11,7 +11,7 @@ use super::{
 };
 use crate::{
     for_each, get_constant_value, get_emit_flags, get_factory, is_access_expression, is_finite,
-    is_json_source_file, is_numeric_literal, set_text_range_pos_end,
+    is_json_source_file, is_numeric_literal, released, set_text_range_pos_end,
     skip_partially_emitted_expressions, string_contains, token_to_string, EmitFlags, EmitHint,
     FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface, HasQuestionTokenInterface,
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, InArena, ListFormat,
@@ -983,28 +983,28 @@ impl Printer {
                 ),
             ))),
         )?;
-        let token = node
-            .ref_(self)
-            .as_property_access_expression()
-            .question_dot_token
-            .clone()
-            .unwrap_or_else(|| {
-                let token: Id<Node> = get_factory(self).create_token(SyntaxKind::DotToken);
-                set_text_range_pos_end(
-                    &*token.ref_(self),
-                    node.ref_(self)
-                        .as_property_access_expression()
-                        .expression
-                        .ref_(self)
-                        .end(),
-                    node.ref_(self)
-                        .as_property_access_expression()
-                        .name
-                        .ref_(self)
-                        .pos(),
-                );
-                token
-            });
+        let token = released!(
+            node.ref_(self)
+                .as_property_access_expression()
+                .question_dot_token
+        )
+        .unwrap_or_else(|| {
+            let token: Id<Node> = get_factory(self).create_token(SyntaxKind::DotToken);
+            set_text_range_pos_end(
+                &*token.ref_(self),
+                node.ref_(self)
+                    .as_property_access_expression()
+                    .expression
+                    .ref_(self)
+                    .end(),
+                node.ref_(self)
+                    .as_property_access_expression()
+                    .name
+                    .ref_(self)
+                    .pos(),
+            );
+            token
+        });
         let lines_before_dot = self.get_lines_between_nodes(
             node,
             node.ref_(self).as_property_access_expression().expression,
