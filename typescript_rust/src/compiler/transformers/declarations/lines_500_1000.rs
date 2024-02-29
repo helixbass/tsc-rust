@@ -285,7 +285,7 @@ impl TransformDeclarations {
             return Ok(None);
         }
         let new_params = return_ok_default_if_none!(try_maybe_map(
-            params.refed(self).as_deref(),
+            released!(params.refed(self).as_ref().cloned()).as_deref(),
             |&p: &Id<Node>, _| { self.ensure_parameter(p, modifier_mask, None) }
         )
         .transpose()?);
@@ -1294,11 +1294,11 @@ impl TransformDeclarations {
                         old_within_object_literal_type,
                         Some(self.factory.ref_(self).update_variable_declaration(
                             input,
-                            input.ref_(self).as_variable_declaration().maybe_name(),
+                            released!(input.ref_(self).as_variable_declaration().maybe_name()),
                             None,
                             self.ensure_type(
                                 input,
-                                input.ref_(self).as_variable_declaration().maybe_type(),
+                                released!(input.ref_(self).as_variable_declaration().maybe_type()),
                                 None,
                             )?,
                             self.ensure_no_initializer(input)?,

@@ -333,12 +333,9 @@ impl TransformTypeScript {
             node,
             Option::<Id<NodeArray>>::None,
             Option::<Id<NodeArray>>::None,
-            node.ref_(self)
-                .as_parameter_declaration()
-                .dot_dot_dot_token
-                .clone(),
+            released!(node.ref_(self).as_parameter_declaration().dot_dot_dot_token),
             try_maybe_visit_node(
-                node.ref_(self).as_parameter_declaration().maybe_name(),
+                released!(node.ref_(self).as_parameter_declaration().maybe_name()),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node: Id<Node>| is_binding_name(&node.ref_(self))),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -346,9 +343,10 @@ impl TransformTypeScript {
             None,
             None,
             try_maybe_visit_node(
-                node.ref_(self)
+                released!(node
+                    .ref_(self)
                     .as_parameter_declaration()
-                    .maybe_initializer(),
+                    .maybe_initializer()),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

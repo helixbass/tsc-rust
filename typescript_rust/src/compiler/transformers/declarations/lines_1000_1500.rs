@@ -277,38 +277,44 @@ impl TransformDeclarations {
                     )),
                 )
             }
-            SyntaxKind::InterfaceDeclaration => {
-                let input_ref = input.ref_(self);
-                let input_as_interface_declaration = input_ref.as_interface_declaration();
-                self.transform_top_level_declaration_cleanup(
-                    input,
-                    previous_enclosing_declaration,
-                    can_prodice_diagnostic,
-                    &old_diag,
-                    previous_needs_declare,
-                    Some(self.factory.ref_(self).update_interface_declaration(
+            SyntaxKind::InterfaceDeclaration => self.transform_top_level_declaration_cleanup(
+                input,
+                previous_enclosing_declaration,
+                can_prodice_diagnostic,
+                &old_diag,
+                previous_needs_declare,
+                Some(
+                    self.factory.ref_(self).update_interface_declaration(
                         input,
                         Option::<Id<NodeArray>>::None,
                         self.ensure_modifiers(input),
-                        input_as_interface_declaration.name(),
+                        input.ref_(self).as_interface_declaration().name(),
                         self.ensure_type_params(
                             input,
-                            input_as_interface_declaration.maybe_type_parameters(),
+                            input
+                                .ref_(self)
+                                .as_interface_declaration()
+                                .maybe_type_parameters(),
                         )?,
-                        Some(self.transform_heritage_clauses(
-                            input_as_interface_declaration.maybe_heritage_clauses(),
-                        )?),
+                        Some(
+                            self.transform_heritage_clauses(
+                                input
+                                    .ref_(self)
+                                    .as_interface_declaration()
+                                    .maybe_heritage_clauses(),
+                            )?,
+                        ),
                         try_visit_nodes(
-                            input_as_interface_declaration.members,
+                            input.ref_(self).as_interface_declaration().members,
                             Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                             Option::<fn(Id<Node>) -> bool>::None,
                             None,
                             None,
                             self,
                         )?,
-                    )),
-                )
-            }
+                    ),
+                ),
+            ),
             SyntaxKind::FunctionDeclaration => {
                 let clean = self.transform_top_level_declaration_cleanup(
                     input,

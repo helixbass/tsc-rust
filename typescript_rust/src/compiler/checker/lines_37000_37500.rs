@@ -250,17 +250,22 @@ impl TypeChecker {
     ) -> io::Result<()> {
         self.check_grammar_for_in_or_for_of_statement(node);
 
-        let node_ref = node.ref_(self);
-        let node_as_for_in_statement = node_ref.as_for_in_statement();
         let right_type = self.get_non_nullable_type_if_needed(self.check_expression(
-            node_as_for_in_statement.expression,
+            node.ref_(self).as_for_in_statement().expression,
             None,
             None,
         )?)?;
-        if node_as_for_in_statement.initializer.ref_(self).kind()
+        if node
+            .ref_(self)
+            .as_for_in_statement()
+            .initializer
+            .ref_(self)
+            .kind()
             == SyntaxKind::VariableDeclarationList
         {
-            let variable = node_as_for_in_statement
+            let variable = node
+                .ref_(self)
+                .as_for_in_statement()
                 .initializer
                 .ref_(self)
                 .as_variable_declaration_list()
@@ -286,7 +291,7 @@ impl TypeChecker {
             }
             self.check_for_in_or_for_of_variable_declaration(node)?;
         } else {
-            let var_expr = node_as_for_in_statement.initializer;
+            let var_expr = node.ref_(self).as_for_in_statement().initializer;
             let left_type = self.check_expression(var_expr, None, None)?;
             if matches!(
                 var_expr.ref_(self).kind(),
@@ -322,7 +327,7 @@ impl TypeChecker {
             )?
         {
             self.error(
-                Some(node_as_for_in_statement.expression),
+                Some(node.ref_(self).as_for_in_statement().expression),
                 &Diagnostics::The_right_hand_side_of_a_for_in_statement_must_be_of_type_any_an_object_type_or_a_type_parameter_but_here_has_type_0,
                 Some(vec![
                     self.type_to_string_(
@@ -334,7 +339,7 @@ impl TypeChecker {
             );
         }
 
-        self.check_source_element(Some(node_as_for_in_statement.statement))?;
+        self.check_source_element(Some(node.ref_(self).as_for_in_statement().statement))?;
         if node.ref_(self).maybe_locals().is_some() {
             self.register_for_unused_identifiers_check(node);
         }

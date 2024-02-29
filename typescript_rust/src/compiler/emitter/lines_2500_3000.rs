@@ -684,7 +684,7 @@ impl Printer {
             };
         self.emit_list(
             Some(node),
-            Some(node.ref_(self).as_has_statements().statements()),
+            released!(Some(node.ref_(self).as_has_statements().statements())),
             format,
             None,
             None,
@@ -771,27 +771,33 @@ impl Printer {
             node,
             None,
         );
-        let node_ref = node.ref_(self);
-        let node_as_if_statement = node_ref.as_if_statement();
-        self.emit_expression(Some(node_as_if_statement.expression), None)?;
+        self.emit_expression(Some(node.ref_(self).as_if_statement().expression), None)?;
         self.emit_token_with_comment(
             SyntaxKind::CloseParenToken,
-            node_as_if_statement.expression.ref_(self).end(),
+            node.ref_(self)
+                .as_if_statement()
+                .expression
+                .ref_(self)
+                .end(),
             |text: &str| self.write_punctuation(text),
             node,
             None,
         );
-        self.emit_embedded_statement(node, node_as_if_statement.then_statement)?;
+        self.emit_embedded_statement(node, node.ref_(self).as_if_statement().then_statement)?;
         Ok(
-            if let Some(node_else_statement) = node_as_if_statement.else_statement {
+            if let Some(node_else_statement) = node.ref_(self).as_if_statement().else_statement {
                 self.write_line_or_space(
                     node,
-                    node_as_if_statement.then_statement,
+                    node.ref_(self).as_if_statement().then_statement,
                     node_else_statement,
                 );
                 self.emit_token_with_comment(
                     SyntaxKind::ElseKeyword,
-                    node_as_if_statement.then_statement.ref_(self).end(),
+                    node.ref_(self)
+                        .as_if_statement()
+                        .then_statement
+                        .ref_(self)
+                        .end(),
                     |text: &str| self.write_keyword(text),
                     node,
                     None,

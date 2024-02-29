@@ -548,7 +548,7 @@ impl TypeChecker {
         node: Id<Node>, /*TypeLiteralNode*/
     ) -> io::Result<()> {
         try_for_each(
-            &*node.ref_(self).as_type_literal_node().members.ref_(self),
+            &*released!(node.ref_(self).as_type_literal_node().members).ref_(self),
             |&member: &Id<Node>, _| -> io::Result<Option<()>> {
                 self.check_source_element(Some(member))?;
                 Ok(None)

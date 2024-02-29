@@ -12,12 +12,12 @@ use crate::{
     has_ambient_modifier, has_effective_modifier, has_override_modifier, has_syntactic_modifier,
     impl_has_arena, is_binary_expression, is_constructor_declaration, is_identifier, is_in_js_file,
     is_parameter_property_declaration, is_property_declaration, is_static, length, maybe_filter,
-    maybe_for_each, some, symbol_name, try_for_each, unescape_leading_underscores, AllArenas,
-    CheckFlags, Debug_, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, HasArena,
-    HasInitializerInterface, InArena, InterfaceTypeInterface, Matches, MemberOverrideStatus,
-    ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry,
-    SignatureDeclarationInterface, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeInterface,
+    maybe_for_each, released, some, symbol_name, try_for_each, unescape_leading_underscores,
+    AllArenas, CheckFlags, Debug_, DiagnosticMessage, DiagnosticMessageChain, Diagnostics,
+    HasArena, HasInitializerInterface, InArena, InterfaceTypeInterface, Matches,
+    MemberOverrideStatus, ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface,
+    OptionTry, SignatureDeclarationInterface, SignatureKind, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeInterface,
 };
 
 impl TypeChecker {
@@ -449,9 +449,10 @@ impl TypeChecker {
             if base.ref_(self).flags().intersects(SymbolFlags::Prototype) {
                 continue;
             }
-            let base_symbol = continue_if_none!(
-                self.get_property_of_object_type(type_, base.ref_(self).escaped_name())?
-            );
+            let base_symbol = continue_if_none!(self.get_property_of_object_type(
+                type_,
+                &released!(base.ref_(self).escaped_name().to_owned())
+            )?);
             let derived = self.get_target_symbol(base_symbol);
             let base_declaration_flags =
                 get_declaration_modifier_flags_from_symbol(base, None, self);

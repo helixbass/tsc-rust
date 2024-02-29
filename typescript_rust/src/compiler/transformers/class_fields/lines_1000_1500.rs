@@ -17,7 +17,7 @@ use crate::{
     is_decorator, is_expression, is_heritage_clause, is_identifier, is_initialized_property,
     is_parameter_property_declaration, is_private_identifier,
     is_private_identifier_class_element_declaration, is_simple_inlineable_expression, is_statement,
-    is_static, maybe_map, maybe_visit_node, maybe_visit_nodes, move_range_past_modifiers,
+    is_static, maybe_map, maybe_visit_node, maybe_visit_nodes, move_range_past_modifiers, released,
     set_emit_flags, set_original_node, skip_outer_expressions, unescape_leading_underscores,
     visit_each_child, visit_function_body, visit_nodes, visit_parameter_list,
     CoreTransformationContext, Debug_, EmitFlags, FunctionLikeDeclarationInterface,
@@ -77,13 +77,14 @@ impl TransformClassFields {
             vec![self.factory.ref_(self).update_class_declaration(
                 node,
                 Option::<Id<NodeArray>>::None,
-                node.ref_(self).maybe_modifiers(),
-                node.ref_(self).as_class_declaration().maybe_name(),
+                released!(node.ref_(self).maybe_modifiers()),
+                released!(node.ref_(self).as_class_declaration().maybe_name()),
                 Option::<Id<NodeArray>>::None,
                 maybe_visit_nodes(
-                    node.ref_(self)
+                    released!(node
+                        .ref_(self)
                         .as_class_declaration()
-                        .maybe_heritage_clauses(),
+                        .maybe_heritage_clauses()),
                     Some(|node: Id<Node>| self.heritage_clause_visitor(node)),
                     Some(|node: Id<Node>| is_heritage_clause(&node.ref_(self))),
                     None,

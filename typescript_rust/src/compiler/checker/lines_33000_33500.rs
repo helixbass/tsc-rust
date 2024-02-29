@@ -477,19 +477,25 @@ impl TypeChecker {
         node: Id<Node>, /*ConditionalExpression*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
-        let node_ref = node.ref_(self);
-        let node_as_conditional_expression = node_ref.as_conditional_expression();
-        let type_ =
-            self.check_truthiness_expression(node_as_conditional_expression.condition, None)?;
-        self.check_testing_known_truthy_callable_or_awaitable_type(
-            node_as_conditional_expression.condition,
-            type_,
-            Some(node_as_conditional_expression.when_true),
+        let type_ = self.check_truthiness_expression(
+            node.ref_(self).as_conditional_expression().condition,
+            None,
         )?;
-        let type1 =
-            self.check_expression(node_as_conditional_expression.when_true, check_mode, None)?;
-        let type2 =
-            self.check_expression(node_as_conditional_expression.when_false, check_mode, None)?;
+        self.check_testing_known_truthy_callable_or_awaitable_type(
+            node.ref_(self).as_conditional_expression().condition,
+            type_,
+            Some(node.ref_(self).as_conditional_expression().when_true),
+        )?;
+        let type1 = self.check_expression(
+            node.ref_(self).as_conditional_expression().when_true,
+            check_mode,
+            None,
+        )?;
+        let type2 = self.check_expression(
+            node.ref_(self).as_conditional_expression().when_false,
+            check_mode,
+            None,
+        )?;
         self.get_union_type(
             &[type1, type2],
             Some(UnionReduction::Subtype),

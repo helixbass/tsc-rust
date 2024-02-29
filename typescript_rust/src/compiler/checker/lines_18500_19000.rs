@@ -7,8 +7,8 @@ use super::{
     CheckTypeRelatedTo, ExpandingFlags, IntersectionState, MappedTypeModifiers, RecursionFlags,
 };
 use crate::{
-    are_option_rcs_equal, get_object_flags, impl_has_arena, try_map, AccessFlags, AllArenas,
-    DiagnosticMessageChain, HasArena, InArena, InferenceFlags, InferencePriority, Node,
+    are_option_rcs_equal, get_object_flags, impl_has_arena, released, try_map, AccessFlags,
+    AllArenas, DiagnosticMessageChain, HasArena, InArena, InferenceFlags, InferencePriority, Node,
     NodeInterface, ObjectFlags, ObjectTypeInterface, OutofbandVarianceMarkerHandler,
     RelationComparisonResult, SignatureKind, Symbol, SymbolInterface, Ternary, Type, TypeChecker,
     TypeComparer, TypeComparerCall, TypeFlags, TypeInterface, TypeMapper, TypeMapperCallback,
@@ -1529,9 +1529,7 @@ impl CheckTypeRelatedTo {
                         } else {
                             AccessFlags::None
                         };
-                    let constraint = self_
-                        .ref_(arena)
-                        .type_checker
+                    let constraint = released!(self_.ref_(arena).type_checker)
                         .ref_(arena)
                         .get_indexed_access_type_or_undefined(
                             base_object_type,
@@ -2408,10 +2406,12 @@ impl CheckTypeRelatedTo {
                 && !(get_object_flags(&source.ref_(arena)).intersects(ObjectFlags::MarkerType)
                     || get_object_flags(&target.ref_(arena)).intersects(ObjectFlags::MarkerType))
             {
-                let variances = self_.ref_(arena).type_checker.ref_(arena).get_variances({
-                    let target = source.ref_(arena).as_type_reference_interface().target();
-                    target
-                });
+                let variances = released!(self_.ref_(arena).type_checker)
+                    .ref_(arena)
+                    .get_variances({
+                        let target = source.ref_(arena).as_type_reference_interface().target();
+                        target
+                    });
                 if variances.is_empty() {
                     return Ok(Ternary::Unknown);
                 }

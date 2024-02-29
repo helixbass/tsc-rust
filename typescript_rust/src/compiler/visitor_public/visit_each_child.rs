@@ -21,9 +21,9 @@ use crate::{
     is_template_literal_type_span, is_template_middle_or_template_tail, is_template_span, is_token,
     is_type_element, is_type_node, is_type_node_or_type_parameter_declaration,
     is_type_parameter_declaration, is_variable_declaration, is_variable_declaration_list,
-    maybe_visit_node, maybe_visit_nodes, visit_function_body_full, visit_parameter_list_full,
-    ClassLikeDeclarationInterface, FunctionLikeDeclarationInterface, HasArena,
-    HasInitializerInterface, HasMembersInterface, HasQuestionTokenInterface,
+    maybe_visit_node, maybe_visit_nodes, released, visit_function_body_full,
+    visit_parameter_list_full, ClassLikeDeclarationInterface, FunctionLikeDeclarationInterface,
+    HasArena, HasInitializerInterface, HasMembersInterface, HasQuestionTokenInterface,
     HasStatementsInterface, HasTypeArgumentsInterface, HasTypeInterface,
     HasTypeParametersInterface, InArena, InterfaceOrClassLikeDeclarationInterface,
     NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
@@ -3895,7 +3895,7 @@ pub fn maybe_visit_each_child_full(
         SyntaxKind::SourceFile => Some(factory.ref_(arena).update_source_file(
             node,
             visit_lexical_environment(
-                node.ref_(arena).as_source_file().statements(),
+                released!(node.ref_(arena).as_source_file().statements()),
                 |node: Id<Node>| visitor(node),
                 context,
                 None,

@@ -953,9 +953,11 @@ impl TypeChecker {
                 .maybe_erased_signature_cache()
                 .is_none()
             {
-                signature.ref_(self).set_erased_signature_cache(Some(
-                    self.alloc_signature(self.create_erased_signature(signature.clone())?),
-                ));
+                let erased_signature =
+                    self.alloc_signature(self.create_erased_signature(signature.clone())?);
+                signature
+                    .ref_(self)
+                    .set_erased_signature_cache(Some(erased_signature));
             }
             signature.ref_(self).maybe_erased_signature_cache().unwrap()
         } else {

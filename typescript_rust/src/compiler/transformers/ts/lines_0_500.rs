@@ -508,7 +508,7 @@ impl TransformTypeScript {
 
     pub(super) fn class_element_visitor_worker(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/
     {
-        Ok(match node.ref_(self).kind() {
+        Ok(match released!(node.ref_(self).kind()) {
             SyntaxKind::Constructor => self.visit_constructor(node)?,
             SyntaxKind::PropertyDeclaration => self.visit_property_declaration(node)?,
             SyntaxKind::IndexSignature

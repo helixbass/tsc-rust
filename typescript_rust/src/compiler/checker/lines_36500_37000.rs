@@ -493,7 +493,12 @@ impl TypeChecker {
             }
 
             try_for_each(
-                &*node_name.ref_(self).as_has_elements().elements().ref_(self),
+                &*released!(node_name
+                    .ref_(self)
+                    .as_has_elements()
+                    .elements()
+                    .ref_(self)
+                    .clone()),
                 |&element: &Id<Node>, _| -> io::Result<Option<()>> {
                     self.check_source_element(Some(element))?;
                     Ok(None)
