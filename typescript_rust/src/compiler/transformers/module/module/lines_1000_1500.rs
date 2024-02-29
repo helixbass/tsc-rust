@@ -24,8 +24,6 @@ impl TransformModule {
         &self,
         node: Id<Node>, /*ImportEqualsDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_ref = node.ref_(self);
-        let node_as_import_equals_declaration = node_ref.as_import_equals_declaration();
         Debug_.assert(
             is_external_module_import_equals_declaration(node, self),
             Some("import= for internal module references should be handled in an earlier transformer.")
@@ -38,7 +36,7 @@ impl TransformModule {
                     self.factory
                         .ref_(self)
                         .create_expression_statement(self.create_export_expression(
-                            node_as_import_equals_declaration.name(),
+                            node.ref_(self).as_import_equals_declaration().name(),
                             self.create_require_call(node)?,
                             Option::<&Node>::None,
                             None,
@@ -54,11 +52,9 @@ impl TransformModule {
                             Option::<Id<NodeArray>>::None,
                             self.factory.ref_(self).create_variable_declaration_list(
                                 vec![self.factory.ref_(self).create_variable_declaration(
-                                    Some(
-                                        self.factory
-                                            .ref_(self)
-                                            .clone_node(node_as_import_equals_declaration.name()),
-                                    ),
+                                    Some(self.factory.ref_(self).clone_node(
+                                        node.ref_(self).as_import_equals_declaration().name(),
+                                    )),
                                     None,
                                     None,
                                     Some(self.create_require_call(node)?),
@@ -466,8 +462,6 @@ impl TransformModule {
         &self,
         node: Id<Node>, /*VariableStatement*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_ref = node.ref_(self);
-        let node_as_variable_statement = node_ref.as_variable_statement();
         let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
         let mut variables: Option<Vec<Id<Node /*VariableDeclaration*/>>> = _d();
         let mut expressions: Option<Vec<Id<Node /*Expression*/>>> = _d();
@@ -476,7 +470,9 @@ impl TransformModule {
             let mut modifiers: Option<Id<NodeArray /*Modifier*/>> = _d();
             let mut remove_comments_on_expressions = false;
 
-            for &variable in &*node_as_variable_statement
+            for &variable in &*node
+                .ref_(self)
+                .as_variable_statement()
                 .declaration_list
                 .ref_(self)
                 .as_variable_declaration_list()
@@ -557,7 +553,7 @@ impl TransformModule {
                         node,
                         modifiers,
                         self.factory.ref_(self).update_variable_declaration_list(
-                            node_as_variable_statement.declaration_list,
+                            node.ref_(self).as_variable_statement().declaration_list,
                             variables,
                         ),
                     ),

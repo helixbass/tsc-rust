@@ -5,10 +5,10 @@ use id_arena::Id;
 use super::TransformModule;
 use crate::{
     get_original_node_id, has_syntactic_modifier, id_text, is_binding_pattern,
-    is_generated_identifier, is_omitted_expression, set_emit_flags, EmitFlags, EmitHelper,
-    GetOrInsertDefault, HasArena, InArena, ModifierFlags, Node, NodeArray, NodeExt, NodeInterface,
-    OptionInArena, OptionTry, ReadonlyTextRange, ScopedEmitHelperBuilder, ScriptTarget, SyntaxKind,
-    VisitResult,
+    is_generated_identifier, is_omitted_expression, released, set_emit_flags, EmitFlags,
+    EmitHelper, GetOrInsertDefault, HasArena, InArena, ModifierFlags, Node, NodeArray, NodeExt,
+    NodeInterface, OptionInArena, OptionTry, ReadonlyTextRange, ScopedEmitHelperBuilder,
+    ScriptTarget, SyntaxKind, VisitResult,
 };
 
 impl TransformModule {
@@ -36,8 +36,6 @@ impl TransformModule {
         node: Id<Node>, /*VariableStatement*/
     ) /*: Statement[] | undefined */
     {
-        let node_ref = node.ref_(self);
-        let node_as_variable_statement = node_ref.as_variable_statement();
         if self
             .current_module_info()
             .ref_(self)
@@ -47,12 +45,15 @@ impl TransformModule {
             return /*statements*/;
         }
 
-        for &decl in &*node_as_variable_statement
-            .declaration_list
-            .ref_(self)
-            .as_variable_declaration_list()
-            .declarations
-            .ref_(self)
+        for &decl in &*released!(
+            node.ref_(self)
+                .as_variable_statement()
+                .declaration_list
+                .ref_(self)
+                .as_variable_declaration_list()
+                .declarations
+        )
+        .ref_(self)
         {
             self.append_exports_of_binding_element(statements, decl);
         }
@@ -66,8 +67,6 @@ impl TransformModule {
         decl: Id<Node>, /*VariableDeclaration | BindingElement*/
     ) /*: Statement[] | undefined */
     {
-        let decl_ref = decl.ref_(self);
-        let decl_as_named_declaration = decl_ref.as_named_declaration();
         if self
             .current_module_info()
             .ref_(self)
@@ -78,12 +77,15 @@ impl TransformModule {
         }
 
         if is_binding_pattern(
-            decl_as_named_declaration
+            decl.ref_(self)
+                .as_named_declaration()
                 .maybe_name()
                 .refed(self)
                 .as_deref(),
         ) {
-            for &element in &*decl_as_named_declaration
+            for &element in &*decl
+                .ref_(self)
+                .as_named_declaration()
                 .name()
                 .ref_(self)
                 .as_has_elements()
@@ -94,7 +96,9 @@ impl TransformModule {
                     self.append_exports_of_binding_element(statements, element);
                 }
             }
-        } else if !is_generated_identifier(&decl_as_named_declaration.name().ref_(self)) {
+        } else if !is_generated_identifier(
+            &decl.ref_(self).as_named_declaration().name().ref_(self),
+        ) {
             self.append_exports_of_declaration(statements, decl, None);
         }
 

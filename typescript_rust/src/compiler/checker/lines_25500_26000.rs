@@ -214,13 +214,13 @@ impl TypeChecker {
             return Ok(None);
         }
         let iife = get_immediately_invoked_function_expression(func, self);
-        let func_ref = func.ref_(self);
-        let func_as_function_like_declaration = func_ref.as_function_like_declaration();
         if let Some(iife) = iife
         /*&& iife.arguments*/
         {
             let args = self.get_effective_call_arguments(iife)?;
-            let index_of_parameter = func_as_function_like_declaration
+            let index_of_parameter = func
+                .ref_(self)
+                .as_function_like_declaration()
                 .parameters()
                 .ref_(self)
                 .into_iter()
@@ -265,7 +265,9 @@ impl TypeChecker {
         }
         let contextual_signature = self.get_contextual_signature(func)?;
         if let Some(contextual_signature) = contextual_signature {
-            let index = func_as_function_like_declaration
+            let index = func
+                .ref_(self)
+                .as_function_like_declaration()
                 .parameters()
                 .ref_(self)
                 .into_iter()
@@ -283,7 +285,7 @@ impl TypeChecker {
                     .dot_dot_dot_token
                     .is_some()
                     && matches!(
-                        last_or_undefined(&func_as_function_like_declaration.parameters().ref_(self)),
+                        last_or_undefined(&func.ref_(self).as_function_like_declaration().parameters().ref_(self)),
                         Some(&last) if last == parameter
                     )
                 {

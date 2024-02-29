@@ -604,20 +604,19 @@ impl NodeFactory {
         expression: Id<Node /*Expression*/>,
         name: Id<Node /*Identifier | PrivateIdentifier*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_property_access_expression = node_ref.as_property_access_expression();
         if is_property_access_chain(&node.ref_(self)) {
             return self.update_property_access_chain(
                 node,
                 expression,
-                node_as_property_access_expression
+                node.ref_(self)
+                    .as_property_access_expression()
                     .question_dot_token
                     .clone(),
                 name,
             );
         }
-        if node_as_property_access_expression.expression != expression
-            || node_as_property_access_expression.name != name
+        if node.ref_(self).as_property_access_expression().expression != expression
+            || node.ref_(self).as_property_access_expression().name != name
         {
             self.update(
                 self.create_property_access_expression(expression, name),

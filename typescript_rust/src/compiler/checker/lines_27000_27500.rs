@@ -8,10 +8,11 @@ use crate::{
     get_emit_module_resolution_kind, get_factory, get_jsx_implicit_import_base,
     get_jsx_runtime_import, get_jsx_transform_enabled, get_object_flags, get_source_file_of_node,
     id_text, is_identifier, is_intrinsic_jsx_name, is_jsx_attribute, maybe_get_source_file_of_node,
-    set_parent, string_contains, try_every, unescape_leading_underscores, Debug_, Diagnostics,
-    HasArena, InArena, IndexInfo, JsxFlags, ModuleResolutionKind, Node, NodeArray, NodeInterface,
-    ObjectFlags, OptionInArena, OptionTry, PragmaName, Symbol, SymbolFlags, SymbolInterface,
-    SymbolTable, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    released, set_parent, string_contains, try_every, unescape_leading_underscores, Debug_,
+    Diagnostics, HasArena, InArena, IndexInfo, JsxFlags, ModuleResolutionKind, Node, NodeArray,
+    NodeInterface, ObjectFlags, OptionInArena, OptionTry, PragmaName, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTable, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
+    TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -135,9 +136,9 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*JsxElement*/
     ) -> io::Result<()> {
-        self.check_jsx_opening_like_element_or_opening_fragment(
-            node.ref_(self).as_jsx_element().opening_element,
-        )?;
+        self.check_jsx_opening_like_element_or_opening_fragment(released!(
+            node.ref_(self).as_jsx_element().opening_element
+        ))?;
 
         if self.is_jsx_intrinsic_identifier(
             node.ref_(self)
