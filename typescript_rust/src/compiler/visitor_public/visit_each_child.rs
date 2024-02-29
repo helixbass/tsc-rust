@@ -3892,35 +3892,31 @@ pub fn maybe_visit_each_child_full(
                 ),
             )
         }
-        SyntaxKind::SourceFile => {
-            let node_ref = node.ref_(arena);
-            let node_as_source_file = node_ref.as_source_file();
-            Some(factory.ref_(arena).update_source_file(
-                node,
-                visit_lexical_environment(
-                    node_as_source_file.statements(),
-                    |node: Id<Node>| visitor(node),
-                    context,
-                    None,
-                    None,
-                    Option::<
-                        fn(
-                            Option<Id<NodeArray>>,
-                            Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
-                            Option<&dyn Fn(Id<Node>) -> bool>,
-                            Option<usize>,
-                            Option<usize>,
-                        ) -> Option<Id<NodeArray>>,
-                    >::None,
-                    arena,
-                ),
+        SyntaxKind::SourceFile => Some(factory.ref_(arena).update_source_file(
+            node,
+            visit_lexical_environment(
+                node.ref_(arena).as_source_file().statements(),
+                |node: Id<Node>| visitor(node),
+                context,
                 None,
                 None,
-                None,
-                None,
-                None,
-            ))
-        }
+                Option::<
+                    fn(
+                        Option<Id<NodeArray>>,
+                        Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
+                        Option<&dyn Fn(Id<Node>) -> bool>,
+                        Option<usize>,
+                        Option<usize>,
+                    ) -> Option<Id<NodeArray>>,
+                >::None,
+                arena,
+            ),
+            None,
+            None,
+            None,
+            None,
+            None,
+        )),
         SyntaxKind::PartiallyEmittedExpression => {
             let node_ref = node.ref_(arena);
             let node_as_partially_emitted_expression = node_ref.as_partially_emitted_expression();

@@ -1096,7 +1096,12 @@ impl TypeChecker {
             self.set_flow_analysis_disabled(save_flow_analysis_disabled);
         } else {
             try_for_each(
-                &*released!(node.ref_(self).as_has_statements().statements()).ref_(self),
+                &*released!(node
+                    .ref_(self)
+                    .as_has_statements()
+                    .statements()
+                    .ref_(self)
+                    .clone()),
                 |&statement, _| -> io::Result<_> {
                     self.check_source_element(Some(statement))?;
                     Ok(Option::<()>::None)

@@ -1081,10 +1081,12 @@ impl TransformClassFields {
         &self,
         node: Id<Node>, /*ClassLikeDeclaration*/
     ) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_class_like_declaration = node_ref.as_class_like_declaration();
         if !for_each_bool(
-            &*node_as_class_like_declaration.members().ref_(self),
+            &*node
+                .ref_(self)
+                .as_class_like_declaration()
+                .members()
+                .ref_(self),
             |&member: &Id<Node>, _| self.does_class_element_need_transform(member),
         ) {
             return Some(

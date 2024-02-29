@@ -937,11 +937,9 @@ impl TypeChecker {
     ) -> io::Result<()> {
         self.check_grammar_class_like_declaration(node);
         self.check_decorators(node)?;
-        let node_ref = node.ref_(self);
-        let node_as_class_like_declaration = node_ref.as_class_like_declaration();
         self.check_collisions_for_declaration_name(
             node,
-            node_as_class_like_declaration.maybe_name(),
+            node.ref_(self).as_class_like_declaration().maybe_name(),
         );
         self.check_type_parameters(Some(&get_effective_type_parameter_declarations(node, self)))?;
         self.check_exports_on_merged_declarations(node)?;
@@ -1065,7 +1063,7 @@ impl TypeChecker {
                     self.check_type_assignable_to(
                         static_type,
                         self.get_type_without_signatures(static_base_type)?,
-                        Some(node_as_class_like_declaration.maybe_name().unwrap_or(node)),
+                        Some(node.ref_(self).as_class_like_declaration().maybe_name().unwrap_or(node)),
                         Some(&Diagnostics::Class_static_side_0_incorrectly_extends_base_class_static_side_1),
                         None, None,
                     )?;
@@ -1077,7 +1075,7 @@ impl TypeChecker {
                 {
                     if !self.is_mixin_constructor_type(static_type)? {
                         self.error(
-                            Some(node_as_class_like_declaration.maybe_name().unwrap_or(node)),
+                            Some(node.ref_(self).as_class_like_declaration().maybe_name().unwrap_or(node)),
                             &Diagnostics::A_mixin_class_must_have_a_constructor_with_a_single_rest_parameter_of_type_any,
                             None,
                         );
@@ -1094,7 +1092,7 @@ impl TypeChecker {
                         }) && !has_syntactic_modifier(node, ModifierFlags::Abstract, self)
                         {
                             self.error(
-                                Some(node_as_class_like_declaration.maybe_name().unwrap_or(node)),
+                                Some(node.ref_(self).as_class_like_declaration().maybe_name().unwrap_or(node)),
                                 &Diagnostics::A_mixin_class_that_extends_from_a_type_variable_containing_an_abstract_construct_signature_must_also_be_declared_abstract,
                                 None,
                             );

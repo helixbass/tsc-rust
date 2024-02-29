@@ -31,8 +31,6 @@ impl TransformClassFields {
         &self,
         node: Id<Node>, /*ClassDeclaration*/
     ) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_class_declaration = node_ref.as_class_declaration();
         let facts = self.get_class_facts(node);
         if facts != ClassFacts::None {
             self.get_class_lexical_environment().ref_mut(self).facts = facts;
@@ -80,10 +78,12 @@ impl TransformClassFields {
                 node,
                 Option::<Id<NodeArray>>::None,
                 node.ref_(self).maybe_modifiers(),
-                node_as_class_declaration.maybe_name(),
+                node.ref_(self).as_class_declaration().maybe_name(),
                 Option::<Id<NodeArray>>::None,
                 maybe_visit_nodes(
-                    node_as_class_declaration.maybe_heritage_clauses(),
+                    node.ref_(self)
+                        .as_class_declaration()
+                        .maybe_heritage_clauses(),
                     Some(|node: Id<Node>| self.heritage_clause_visitor(node)),
                     Some(|node: Id<Node>| is_heritage_clause(&node.ref_(self))),
                     None,

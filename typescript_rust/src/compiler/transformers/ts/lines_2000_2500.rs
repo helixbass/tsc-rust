@@ -325,8 +325,6 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*ParameterDeclaration*/
     ) -> io::Result<VisitResult> {
-        let node_ref = node.ref_(self);
-        let node_as_parameter_declaration = node_ref.as_parameter_declaration();
         if parameter_is_this_keyword(node, self) {
             return Ok(None);
         }
@@ -335,9 +333,12 @@ impl TransformTypeScript {
             node,
             Option::<Id<NodeArray>>::None,
             Option::<Id<NodeArray>>::None,
-            node_as_parameter_declaration.dot_dot_dot_token.clone(),
+            node.ref_(self)
+                .as_parameter_declaration()
+                .dot_dot_dot_token
+                .clone(),
             try_maybe_visit_node(
-                node_as_parameter_declaration.maybe_name(),
+                node.ref_(self).as_parameter_declaration().maybe_name(),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node: Id<Node>| is_binding_name(&node.ref_(self))),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -345,7 +346,9 @@ impl TransformTypeScript {
             None,
             None,
             try_maybe_visit_node(
-                node_as_parameter_declaration.maybe_initializer(),
+                node.ref_(self)
+                    .as_parameter_declaration()
+                    .maybe_initializer(),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

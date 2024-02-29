@@ -20,10 +20,10 @@ use crate::{
     get_original_node, impl_has_arena, is_arrow_function, is_get_accessor, is_identifier,
     is_modifier, is_set_accessor, is_simple_inlineable_expression, is_static_modifier,
     is_super_property, maybe_filter, maybe_visit_nodes, move_range_pos, ref_mut_unwrapped,
-    ref_unwrapped, set_comment_range, visit_function_body, visit_parameter_list, AllArenas,
-    AsDoubleDeref, CoreTransformationContext, EmitFlags, HasArena, HasInitializerInterface,
-    InArena, NamedDeclarationInterface, NodeCheckFlags, OptionInArena, ReadonlyTextRangeConcrete,
-    TransformNodesTransformationResult,
+    ref_unwrapped, released, set_comment_range, visit_function_body, visit_parameter_list,
+    AllArenas, AsDoubleDeref, CoreTransformationContext, EmitFlags, HasArena,
+    HasInitializerInterface, InArena, NamedDeclarationInterface, NodeCheckFlags, OptionInArena,
+    ReadonlyTextRangeConcrete, TransformNodesTransformationResult,
 };
 
 bitflags! {
@@ -582,10 +582,8 @@ impl TransformClassFields {
     }
 
     pub(super) fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_source_file = node_ref.as_source_file();
         let options = self.context.ref_(self).get_compiler_options();
-        if node_as_source_file.is_declaration_file()
+        if node.ref_(self).as_source_file().is_declaration_file()
             || self.use_define_for_class_fields
                 && get_emit_script_target(&options.ref_(self)) == ScriptTarget::ESNext
         {
@@ -607,7 +605,7 @@ impl TransformClassFields {
             .transform_flags()
             .intersects(TransformFlags::ContainsClassFields)
         {
-            match node.ref_(self).kind() {
+            match released!(node.ref_(self).kind()) {
                 SyntaxKind::ClassExpression | SyntaxKind::ClassDeclaration => {
                     return self.visit_class_like(node);
                 }

@@ -7,10 +7,11 @@ use crate::{
     create_get_symbol_accessibility_diagnostic_for_node, flatten, for_each_bool,
     get_effective_modifier_flags, get_factory, get_parse_tree_node, has_effective_modifier,
     is_binding_pattern, is_entity_name_expression, is_export_assignment, is_export_declaration,
-    is_external_module, is_internal_declaration, return_ok_default_if_none, some, try_map_defined,
-    try_visit_nodes, AllAccessorDeclarations, Debug_, GetSymbolAccessibilityDiagnostic, HasArena,
-    HasTypeInterface, InArena, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
-    NodeArrayOrVec, NodeInterface, OptionTry, SignatureDeclarationInterface, SyntaxKind,
+    is_external_module, is_internal_declaration, released, return_ok_default_if_none, some,
+    try_map_defined, try_visit_nodes, AllAccessorDeclarations, Debug_,
+    GetSymbolAccessibilityDiagnostic, HasArena, HasTypeInterface, InArena, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeInterface, OptionTry,
+    SignatureDeclarationInterface, SyntaxKind,
 };
 
 impl TransformDeclarations {
@@ -32,13 +33,15 @@ impl TransformDeclarations {
             return Ok(None);
         }
         let nodes = return_ok_default_if_none!(Some(try_visit_nodes(
-            input
-                .ref_(self)
-                .as_variable_statement()
-                .declaration_list
-                .ref_(self)
-                .as_variable_declaration_list()
-                .declarations,
+            released!(
+                input
+                    .ref_(self)
+                    .as_variable_statement()
+                    .declaration_list
+                    .ref_(self)
+                    .as_variable_declaration_list()
+                    .declarations
+            ),
             Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
             Option::<fn(Id<Node>) -> bool>::None,
             None,

@@ -259,20 +259,29 @@ impl NodeFactory {
         type_: Option<Id<Node /*TypeNode*/>>,
         initializer: Option<Id<Node /*Expression*/>>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_parameter_declaration = node_ref.as_parameter_declaration();
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
         let name = name.map(Into::into);
         if has_option_node_array_changed(node.ref_(self).maybe_decorators(), decorators.as_ref())
             || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
             || has_option_str_or_node_changed(
-                node_as_parameter_declaration.maybe_name().as_ref(),
+                node.ref_(self)
+                    .as_parameter_declaration()
+                    .maybe_name()
+                    .as_ref(),
                 name.as_ref(),
             )
-            || node_as_parameter_declaration.maybe_question_token() != question_token
-            || node_as_parameter_declaration.maybe_type() != type_
-            || node_as_parameter_declaration.maybe_initializer() != initializer
+            || node
+                .ref_(self)
+                .as_parameter_declaration()
+                .maybe_question_token()
+                != question_token
+            || node.ref_(self).as_parameter_declaration().maybe_type() != type_
+            || node
+                .ref_(self)
+                .as_parameter_declaration()
+                .maybe_initializer()
+                != initializer
         {
             self.update(
                 self.create_parameter_declaration(

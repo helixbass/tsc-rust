@@ -7949,6 +7949,7 @@ impl OptionInArena for Option<Id<Program>> {
 impl OptionInArena for Option<Id<NodeArray>> {
     type Item = NodeArray;
 
+    #[track_caller]
     fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<Ref<'a, NodeArray>> {
         self.map(|node_array| has_arena.node_array(node_array))
     }

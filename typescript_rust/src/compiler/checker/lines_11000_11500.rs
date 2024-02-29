@@ -674,8 +674,7 @@ impl TypeChecker {
             }
             if symbol.ref_(self).flags().intersects(SymbolFlags::Class) {
                 let class_type = self.get_declared_type_of_class_or_interface(symbol)?;
-                let symbol_ref = symbol.ref_(self);
-                let symbol_members = symbol_ref.maybe_members();
+                let symbol_members = symbol.ref_(self).maybe_members();
                 let mut construct_signatures = if let Some(symbol_members) = symbol_members.as_ref()
                 {
                     self.get_signatures_of_symbol(

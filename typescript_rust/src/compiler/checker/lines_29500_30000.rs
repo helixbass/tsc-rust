@@ -1073,12 +1073,12 @@ impl TypeChecker {
             {
                 self.check_type_arguments(
                     candidate_for_type_argument_error,
-                    &node
+                    &released!(node
                         .ref_(self)
                         .as_has_type_arguments()
-                        .maybe_type_arguments()
-                        .unwrap()
-                        .ref_(self),
+                        .maybe_type_arguments())
+                    .unwrap()
+                    .ref_(self),
                     true,
                     fallback_error,
                 )?;

@@ -354,14 +354,15 @@ impl TypeChecker {
                     && self.check_type_assignable_to(
                         type_arguments.as_ref().unwrap()[i],
                         self.instantiate_type(constraint, mapper.clone())?,
-                        node.ref_(self)
+                        released!(node
+                            .ref_(self)
                             .as_has_type_arguments()
                             .maybe_type_arguments()
                             .as_ref()
                             .unwrap()
                             .ref_(self)
                             .get(i)
-                            .copied(),
+                            .copied()),
                         Some(&Diagnostics::Type_0_does_not_satisfy_the_constraint_1),
                         None,
                         None,
@@ -412,9 +413,12 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*TypeReferenceNode | ExpressionWithTypeArguments*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_has_type_arguments = node_ref.as_has_type_arguments();
-        self.check_grammar_type_arguments(node, node_as_has_type_arguments.maybe_type_arguments());
+        self.check_grammar_type_arguments(
+            node,
+            node.ref_(self)
+                .as_has_type_arguments()
+                .maybe_type_arguments(),
+        );
         if node.ref_(self).kind() == SyntaxKind::TypeReference {
             if let Some(node_type_name_jsdoc_dot_pos) = node
                 .ref_(self)
@@ -436,7 +440,8 @@ impl TypeChecker {
             }
         }
         try_maybe_for_each(
-            node_as_has_type_arguments
+            node.ref_(self)
+                .as_has_type_arguments()
                 .maybe_type_arguments()
                 .refed(self)
                 .as_deref(),
@@ -447,7 +452,11 @@ impl TypeChecker {
         )?;
         let type_ = self.get_type_from_type_reference(node)?;
         if !self.is_error_type(type_) {
-            if node_as_has_type_arguments.maybe_type_arguments().is_some()
+            if node
+                .ref_(self)
+                .as_has_type_arguments()
+                .maybe_type_arguments()
+                .is_some()
                 && self.produce_diagnostics
             {
                 let type_parameters = self.get_type_parameters_for_type_reference(node)?;

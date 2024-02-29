@@ -1268,17 +1268,19 @@ impl TransformDeclarations {
                     )?
                 }
                 SyntaxKind::VariableDeclaration => {
-                    let input_ref = input.ref_(self);
-                    let input_as_variable_declaration = input_ref.as_variable_declaration();
                     if is_binding_pattern(
-                        input_as_variable_declaration
+                        input
+                            .ref_(self)
+                            .as_variable_declaration()
                             .maybe_name()
                             .refed(self)
                             .as_deref(),
                     ) {
                         return Ok(Some(
-                            self.recreate_binding_pattern(input_as_variable_declaration.name())?
-                                .into(),
+                            self.recreate_binding_pattern(
+                                input.ref_(self).as_variable_declaration().name(),
+                            )?
+                            .into(),
                         ));
                     }
                     should_enter_suppress_new_diagnostics_context_context = true;
@@ -1292,11 +1294,11 @@ impl TransformDeclarations {
                         old_within_object_literal_type,
                         Some(self.factory.ref_(self).update_variable_declaration(
                             input,
-                            input_as_variable_declaration.maybe_name(),
+                            input.ref_(self).as_variable_declaration().maybe_name(),
                             None,
                             self.ensure_type(
                                 input,
-                                input_as_variable_declaration.maybe_type(),
+                                input.ref_(self).as_variable_declaration().maybe_type(),
                                 None,
                             )?,
                             self.ensure_no_initializer(input)?,

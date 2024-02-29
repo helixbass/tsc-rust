@@ -6,9 +6,9 @@ use super::{IterationTypeKind, TypeFacts};
 use crate::{
     compiler::utilities_public::is_expression_of_optional_chain_root, create_symbol_table, every,
     find, get_check_flags, get_object_flags, is_optional_chain, is_outermost_optional_chain, last,
-    length, some, try_every, try_reduce_left_no_initial_value, CheckFlags, Debug_, ElementFlags,
-    HasArena, InArena, InterfaceTypeInterface, Node, NodeInterface, Number, ObjectFlags,
-    ObjectFlagsTypeInterface, OptionTry, PeekableExt, Signature, Symbol, SymbolFlags,
+    length, released, some, try_every, try_reduce_left_no_initial_value, CheckFlags, Debug_,
+    ElementFlags, HasArena, InArena, InterfaceTypeInterface, Node, NodeInterface, Number,
+    ObjectFlags, ObjectFlagsTypeInterface, OptionTry, PeekableExt, Signature, Symbol, SymbolFlags,
     SymbolInterface, SymbolTable, SyntaxKind, Ternary, TransientSymbolInterface, Type, TypeChecker,
     TypeFlags, TypeInterface, TypePredicate, UnionReduction,
 };
@@ -1149,9 +1149,11 @@ impl TypeChecker {
     ) -> Id<Symbol> {
         let symbol = self.alloc_symbol(
             self.create_symbol(
-                source.ref_(self).flags(),
-                source.ref_(self).escaped_name().to_owned(),
-                Some(get_check_flags(&source.ref_(self)) & CheckFlags::Readonly),
+                released!(source.ref_(self).flags()),
+                released!(source.ref_(self).escaped_name().to_owned()),
+                released!(Some(
+                    get_check_flags(&source.ref_(self)) & CheckFlags::Readonly
+                )),
             )
             .into(),
         );
@@ -1186,7 +1188,7 @@ impl TypeChecker {
             let original = self.get_type_of_symbol(property)?;
             let updated = f(original)?;
             members.insert(
-                property.ref_(self).escaped_name().to_owned(),
+                released!(property.ref_(self).escaped_name().to_owned()),
                 if updated == original {
                     property.clone()
                 } else {

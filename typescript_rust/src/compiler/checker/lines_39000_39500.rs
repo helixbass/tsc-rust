@@ -232,19 +232,21 @@ impl TypeChecker {
                 .refed(self)
                 .as_deref(),
             |&heritage_element: &Id<Node>, _| -> io::Result<Option<()>> {
-                let heritage_element_ref = heritage_element.ref_(self);
-                let heritage_element_as_expression_with_type_arguments =
-                    heritage_element_ref.as_expression_with_type_arguments();
                 if !is_entity_name_expression(
-                    heritage_element_as_expression_with_type_arguments.expression,
+                    heritage_element
+                        .ref_(self)
+                        .as_expression_with_type_arguments()
+                        .expression,
                     self,
                 ) || is_optional_chain(
-                    &heritage_element_as_expression_with_type_arguments
+                    &heritage_element
+                        .ref_(self)
+                        .as_expression_with_type_arguments()
                         .expression
                         .ref_(self),
                 ) {
                     self.error(
-                        Some(heritage_element_as_expression_with_type_arguments.expression),
+                        Some(heritage_element.ref_(self).as_expression_with_type_arguments().expression),
                         &Diagnostics::An_interface_can_only_extend_an_identifier_Slashqualified_name_with_optional_type_arguments,
                         None,
                     );
@@ -1024,7 +1026,7 @@ impl TypeChecker {
             }
         }
 
-        if let Some(node_body) = node.ref_(self).as_module_declaration().body {
+        if let Some(node_body) = released!(node.ref_(self).as_module_declaration().body) {
             self.check_source_element(Some(node_body))?;
             if !is_global_scope_augmentation(&node.ref_(self)) {
                 self.register_for_unused_identifiers_check(node);

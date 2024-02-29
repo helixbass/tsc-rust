@@ -80,9 +80,9 @@ impl TypeChecker {
                     .maybe_symbol()
                     .is_none()
                 {
-                    Some(self.get_type_of_expression(
-                        binary_expression.ref_(self).as_binary_expression().left,
-                    )?)
+                    Some(self.get_type_of_expression(released!(
+                        binary_expression.ref_(self).as_binary_expression().left
+                    ))?)
                 } else {
                     let decl = return_ok_default_if_none!(binary_expression
                         .ref_(self)
@@ -396,10 +396,12 @@ impl TypeChecker {
             if self.has_bindable_name(element)? {
                 return self.get_type_of_property_of_contextual_type(
                     type_,
-                    self.get_symbol_of_node(element)?
+                    &released!(self
+                        .get_symbol_of_node(element)?
                         .unwrap()
                         .ref_(self)
-                        .escaped_name(),
+                        .escaped_name()
+                        .to_owned()),
                 );
             }
             if let Some(element_name) = element.ref_(self).as_named_declaration().maybe_name() {
