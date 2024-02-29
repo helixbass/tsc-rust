@@ -353,7 +353,8 @@ impl TypeChecker {
             .maybe_resolved_properties()
             .is_none()
         {
-            let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None, self);
+            let members =
+                self.alloc_symbol_table(create_symbol_table(Option::<&[Id<Symbol>]>::None, self));
             for current in {
                 let types = type_
                     .ref_(self)
@@ -363,7 +364,10 @@ impl TypeChecker {
                 types
             } {
                 for prop in self.get_properties_of_type(current)? {
-                    if !members.contains_key(prop.ref_(self).escaped_name()) {
+                    if !members
+                        .ref_(self)
+                        .contains_key(prop.ref_(self).escaped_name())
+                    {
                         let combined_prop = self.get_property_of_union_or_intersection_type(
                             type_,
                             &released!(prop.ref_(self).escaped_name().to_owned()),
@@ -371,6 +375,7 @@ impl TypeChecker {
                         )?;
                         if let Some(combined_prop) = combined_prop {
                             members
+                                .ref_mut(self)
                                 .insert(prop.ref_(self).escaped_name().to_owned(), combined_prop);
                         }
                     }
@@ -385,7 +390,7 @@ impl TypeChecker {
                 .ref_(self)
                 .as_union_or_intersection_type_interface()
                 .set_resolved_properties(Some(
-                    self.alloc_vec_symbol(self.get_named_members(&members)?),
+                    self.alloc_vec_symbol(self.get_named_members(members)?),
                 ));
         }
         Ok(type_

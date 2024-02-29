@@ -768,13 +768,11 @@ impl TypeChecker {
         node: Id<Node>, /*MappedTypeNode*/
     ) -> io::Result<()> {
         self.check_grammar_mapped_type(node);
-        let node_ref = node.ref_(self);
-        let node_as_mapped_type_node = node_ref.as_mapped_type_node();
-        self.check_source_element(Some(node_as_mapped_type_node.type_parameter))?;
-        self.check_source_element(node_as_mapped_type_node.name_type)?;
-        self.check_source_element(node_as_mapped_type_node.type_)?;
+        self.check_source_element(Some(node.ref_(self).as_mapped_type_node().type_parameter))?;
+        self.check_source_element(node.ref_(self).as_mapped_type_node().name_type)?;
+        self.check_source_element(node.ref_(self).as_mapped_type_node().type_)?;
 
-        if node_as_mapped_type_node.type_.is_none() {
+        if node.ref_(self).as_mapped_type_node().type_.is_none() {
             self.report_implicit_any(node, self.any_type(), None)?;
         }
 
@@ -784,7 +782,7 @@ impl TypeChecker {
             self.check_type_assignable_to(
                 name_type,
                 self.keyof_constraint_type(),
-                node_as_mapped_type_node.name_type,
+                node.ref_(self).as_mapped_type_node().name_type,
                 None,
                 None,
                 None,
@@ -795,7 +793,7 @@ impl TypeChecker {
                 constraint_type,
                 self.keyof_constraint_type(),
                 get_effective_constraint_of_type_parameter(
-                    node_as_mapped_type_node.type_parameter,
+                    node.ref_(self).as_mapped_type_node().type_parameter,
                     self,
                 ),
                 None,

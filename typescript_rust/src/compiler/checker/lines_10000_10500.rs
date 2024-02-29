@@ -821,11 +821,10 @@ impl TypeChecker {
         {
             let symbol = type_.ref_(self).symbol();
             let members = self.get_members_of_symbol(symbol)?;
-            let members = members.ref_(self);
             type_
                 .ref_(self)
                 .as_interface_type()
-                .set_declared_properties(self.get_named_members(&*members)?);
+                .set_declared_properties(self.get_named_members(members)?);
             type_
                 .ref_(self)
                 .as_interface_type()
@@ -839,14 +838,16 @@ impl TypeChecker {
                 .as_interface_type()
                 .set_declared_index_infos(vec![]);
 
-            let signatures =
-                self.get_signatures_of_symbol(members.get(InternalSymbolName::Call).cloned())?;
+            let signatures = self.get_signatures_of_symbol(
+                members.ref_(self).get(InternalSymbolName::Call).cloned(),
+            )?;
             type_
                 .ref_(self)
                 .as_interface_type()
                 .set_declared_call_signatures(signatures);
-            let signatures =
-                self.get_signatures_of_symbol(members.get(InternalSymbolName::New).cloned())?;
+            let signatures = self.get_signatures_of_symbol(
+                members.ref_(self).get(InternalSymbolName::New).cloned(),
+            )?;
             type_
                 .ref_(self)
                 .as_interface_type()

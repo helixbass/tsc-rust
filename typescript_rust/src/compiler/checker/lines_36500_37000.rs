@@ -859,7 +859,9 @@ impl TypeChecker {
             type_,
             Some(node.ref_(self).as_if_statement().then_statement),
         )?;
-        self.check_source_element(Some(node.ref_(self).as_if_statement().then_statement))?;
+        self.check_source_element(Some(released!(
+            node.ref_(self).as_if_statement().then_statement
+        )))?;
 
         if node
             .ref_(self)

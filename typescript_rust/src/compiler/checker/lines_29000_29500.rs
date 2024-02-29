@@ -852,10 +852,8 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         let param_type =
             self.get_effective_first_argument_for_jsx_signature(signature.clone(), node)?;
-        let node_ref = node.ref_(self);
-        let node_as_jsx_opening_like_element = node_ref.as_jsx_opening_like_element();
         let attributes_type = self.check_expression_with_contextual_type(
-            node_as_jsx_opening_like_element.attributes(),
+            node.ref_(self).as_jsx_opening_like_element().attributes(),
             param_type,
             None,
             check_mode,
@@ -869,11 +867,11 @@ impl TypeChecker {
             param_type,
             relation,
             if report_errors {
-                Some(node_as_jsx_opening_like_element.tag_name())
+                Some(node.ref_(self).as_jsx_opening_like_element().tag_name())
             } else {
                 None
             },
-            Some(node_as_jsx_opening_like_element.attributes()),
+            Some(node.ref_(self).as_jsx_opening_like_element().attributes()),
             None,
             containing_message_chain,
             Some(error_output_container),

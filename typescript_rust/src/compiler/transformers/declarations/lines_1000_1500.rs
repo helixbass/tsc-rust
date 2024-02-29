@@ -15,11 +15,12 @@ use crate::{
     is_global_scope_augmentation, is_import_equals_declaration, is_omitted_expression,
     is_private_identifier, is_property_access_expression, is_source_file,
     is_string_a_non_contextual_keyword, is_type_node, is_type_parameter_declaration, map,
-    map_defined, maybe_concatenate, maybe_get_original_node_id, return_ok_default_if_none,
-    set_original_node, set_parent, some, try_flat_map, try_map, try_map_defined, try_maybe_map,
-    try_maybe_visit_node, try_maybe_visit_nodes, try_visit_node, try_visit_nodes,
-    unescape_leading_underscores, visit_nodes, AllArenas, ClassLikeDeclarationInterface, Debug_,
-    Diagnostics, GeneratedIdentifierFlags, GetOrInsertDefault, GetSymbolAccessibilityDiagnostic,
+    map_defined, maybe_concatenate, maybe_get_original_node_id, released,
+    return_ok_default_if_none, set_original_node, set_parent, some, try_flat_map, try_map,
+    try_map_defined, try_maybe_map, try_maybe_visit_node, try_maybe_visit_nodes, try_visit_node,
+    try_visit_nodes, unescape_leading_underscores, visit_nodes, AllArenas,
+    ClassLikeDeclarationInterface, Debug_, Diagnostics, GeneratedIdentifierFlags,
+    GetOrInsertDefault, GetSymbolAccessibilityDiagnostic,
     GetSymbolAccessibilityDiagnosticInterface, HasArena, HasQuestionTokenInterface,
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, InArena,
     InterfaceOrClassLikeDeclarationInterface, ModifierFlags, NamedDeclarationInterface, Node,
@@ -244,7 +245,7 @@ impl TransformDeclarations {
         }
 
         let previous_needs_declare = self.needs_declare();
-        Ok(match input.ref_(self).kind() {
+        Ok(match released!(input.ref_(self).kind()) {
             SyntaxKind::TypeAliasDeclaration => {
                 let input_ref = input.ref_(self);
                 let input_as_type_alias_declaration = input_ref.as_type_alias_declaration();
@@ -309,8 +310,6 @@ impl TransformDeclarations {
                 )
             }
             SyntaxKind::FunctionDeclaration => {
-                let input_ref = input.ref_(self);
-                let input_as_function_declaration = input_ref.as_function_declaration();
                 let clean = self.transform_top_level_declaration_cleanup(
                     input,
                     previous_enclosing_declaration,
@@ -323,20 +322,23 @@ impl TransformDeclarations {
                             Option::<Id<NodeArray>>::None,
                             self.ensure_modifiers(input),
                             None,
-                            input_as_function_declaration.maybe_name(),
+                            input.ref_(self).as_function_declaration().maybe_name(),
                             self.ensure_type_params(
                                 input,
-                                input_as_function_declaration.maybe_type_parameters(),
+                                input
+                                    .ref_(self)
+                                    .as_function_declaration()
+                                    .maybe_type_parameters(),
                             )?,
                             self.update_params_list(
                                 input,
-                                Some(input_as_function_declaration.parameters()),
+                                Some(input.ref_(self).as_function_declaration().parameters()),
                                 None,
                             )?
                             .unwrap(),
                             self.ensure_type(
                                 input,
-                                input_as_function_declaration.maybe_type(),
+                                input.ref_(self).as_function_declaration().maybe_type(),
                                 None,
                             )?,
                             None,
@@ -468,7 +470,7 @@ impl TransformDeclarations {
                     let namespace_decl = self.factory.ref_(self).create_module_declaration(
                         Option::<Id<NodeArray>>::None,
                         self.ensure_modifiers(input),
-                        input_as_function_declaration.name(),
+                        input.ref_(self).as_function_declaration().name(),
                         Some(
                             self.factory
                                 .ref_(self)

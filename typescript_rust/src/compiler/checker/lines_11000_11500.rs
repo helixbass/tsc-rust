@@ -607,7 +607,7 @@ impl TypeChecker {
                     TypeFlags::Object | TypeFlags::Intersection | TypeFlags::TypeVariable,
                 ) {
                     let members_new = self.alloc_symbol_table(create_symbol_table(
-                        Some(&*self.get_named_or_index_signature_members(&*members.ref_(self))?),
+                        Some(&*self.get_named_or_index_signature_members(members)?),
                         self,
                     ));
                     members = members_new;

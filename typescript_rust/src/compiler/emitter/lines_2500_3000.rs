@@ -171,19 +171,29 @@ impl Printer {
             node,
             None,
         );
-        let node_ref = node.ref_(self);
-        let node_as_parenthesized_expression = node_ref.as_parenthesized_expression();
         let indented = self.write_line_separators_and_indent_before(
-            node_as_parenthesized_expression.expression,
+            node.ref_(self).as_parenthesized_expression().expression,
             node,
         );
-        self.emit_expression(Some(node_as_parenthesized_expression.expression), None)?;
-        self.write_line_separators_after(node_as_parenthesized_expression.expression, node);
+        self.emit_expression(
+            Some(released!(
+                node.ref_(self).as_parenthesized_expression().expression
+            )),
+            None,
+        )?;
+        self.write_line_separators_after(
+            node.ref_(self).as_parenthesized_expression().expression,
+            node,
+        );
         self.decrease_indent_if(indented, None);
         self.emit_token_with_comment(
             SyntaxKind::CloseParenToken,
             /*node.expression ?*/
-            node_as_parenthesized_expression.expression.ref_(self).end(), /*: openParenPos*/
+            node.ref_(self)
+                .as_parenthesized_expression()
+                .expression
+                .ref_(self)
+                .end(), /*: openParenPos*/
             |str_| self.write_punctuation(str_),
             node,
             None,

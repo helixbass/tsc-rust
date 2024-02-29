@@ -12,8 +12,8 @@ use crate::{
     is_entity_name, is_identifier, is_identifier_type_reference, is_indexed_access_type_node,
     is_jsdoc_parameter_tag, is_rest_parameter, is_transient_symbol, length, maybe_filter,
     maybe_for_each_bool, modifiers_to_flags, module_specifiers, node_is_synthesized, out_file,
-    path_is_relative, set_comment_range, set_emit_flags, set_synthetic_leading_comments, some,
-    symbol_name, try_maybe_first_defined, try_maybe_map, try_visit_each_child,
+    path_is_relative, released, set_comment_range, set_emit_flags, set_synthetic_leading_comments,
+    some, symbol_name, try_maybe_first_defined, try_maybe_map, try_visit_each_child,
     unescape_leading_underscores, CheckFlags, CompilerOptions, Debug_, EmitFlags,
     GetOrInsertDefault, HasArena, HasInitializerInterface, InArena, IndexInfo, InternalSymbolName,
     ModifierFlags, ModuleResolutionKind, NamedDeclarationInterface, Node, NodeArray, NodeBuilder,
@@ -687,12 +687,12 @@ impl NodeBuilder {
         };
         let parameter_symbol_name: Option<String>;
         let name: StrOrRcNode<'_> = if let Some(parameter_declaration) = parameter_declaration {
-            if let Some(parameter_declaration_name) = parameter_declaration
+            if let Some(parameter_declaration_name) = released!(parameter_declaration
                 .ref_(self)
                 .as_named_declaration()
-                .maybe_name()
+                .maybe_name())
             {
-                match parameter_declaration_name.ref_(self).kind() {
+                match released!(parameter_declaration_name.ref_(self).kind()) {
                     SyntaxKind::Identifier => set_emit_flags(
                         get_factory(self).clone_node(parameter_declaration_name),
                         EmitFlags::NoAsciiEscaping,

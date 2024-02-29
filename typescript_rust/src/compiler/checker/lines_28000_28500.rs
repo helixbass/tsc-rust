@@ -13,12 +13,13 @@ use crate::{
     is_expression_node, is_function_like, is_identifier, is_method_declaration,
     is_named_declaration, is_part_of_type_query, is_private_identifier,
     is_property_access_expression, is_static, is_this_identifier, is_this_property,
-    is_write_access, maybe_for_each, maybe_get_source_file_of_node, should_preserve_const_enums,
-    symbol_name, unescape_leading_underscores, AssignmentDeclarationKind, AssignmentKind, Debug_,
-    Diagnostic, DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics,
-    ExternalEmitHelpers, FindAncestorCallbackReturn, HasArena, InArena, Node, NodeFlags,
-    NodeInterface, OptionTry, ScriptKind, ScriptTarget, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
+    is_write_access, maybe_for_each, maybe_get_source_file_of_node, released,
+    should_preserve_const_enums, symbol_name, unescape_leading_underscores,
+    AssignmentDeclarationKind, AssignmentKind, Debug_, Diagnostic, DiagnosticMessageChain,
+    DiagnosticRelatedInformation, Diagnostics, ExternalEmitHelpers, FindAncestorCallbackReturn,
+    HasArena, InArena, Node, NodeFlags, NodeInterface, OptionTry, ScriptKind, ScriptTarget, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -167,11 +168,11 @@ impl TypeChecker {
             } else {
                 self.check_property_access_expression_or_qualified_name(
                     node,
-                    node.ref_(self).as_property_access_expression().expression,
-                    self.check_non_null_expression(
-                        node.ref_(self).as_property_access_expression().expression,
-                    )?,
-                    node.ref_(self).as_property_access_expression().name,
+                    released!(node.ref_(self).as_property_access_expression().expression),
+                    self.check_non_null_expression(released!(
+                        node.ref_(self).as_property_access_expression().expression
+                    ))?,
+                    released!(node.ref_(self).as_property_access_expression().name),
                     check_mode,
                 )?
             },

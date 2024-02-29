@@ -783,8 +783,6 @@ impl TransformDeclarations {
             }
             return Ok(self.alloc_node(bundle.into()));
         }
-        let node_ref = node.ref_(self);
-        let node_as_source_file = node_ref.as_source_file();
 
         self.set_needs_declare(true);
         self.set_needs_scope_fix_marker(false);
@@ -836,7 +834,7 @@ impl TransformDeclarations {
             )));
         } else {
             let statements = try_visit_nodes(
-                node_as_source_file.statements(),
+                node.ref_(self).as_source_file().statements(),
                 Some(|node: Id<Node>| self.visit_declaration_statements(node)),
                 Option::<fn(Id<Node>) -> bool>::None,
                 None,
@@ -848,7 +846,7 @@ impl TransformDeclarations {
                     Some(self.transform_and_replace_late_painted_statements(statements)?),
                     None,
                 ),
-                Some(&*node_as_source_file.statements().ref_(self)),
+                Some(&*node.ref_(self).as_source_file().statements().ref_(self)),
                 self,
             );
             self.refs()
@@ -890,7 +888,7 @@ impl TransformDeclarations {
             Some(Rc::new(RefCell::new(
                 self.get_file_references_for_used_type_references(),
             ))),
-            Some(node_as_source_file.has_no_default_lib()),
+            Some(node.ref_(self).as_source_file().has_no_default_lib()),
             Some(Rc::new(RefCell::new(self.get_lib_references()))),
         );
         *updated

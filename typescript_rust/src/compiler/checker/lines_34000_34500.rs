@@ -914,10 +914,10 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*MethodDeclaration | MethodSignature*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_named_declaration = node_ref.as_named_declaration();
         if !self.check_grammar_method(node)? {
-            self.check_grammar_computed_property_name(node_as_named_declaration.name());
+            self.check_grammar_computed_property_name(
+                node.ref_(self).as_named_declaration().name(),
+            );
         }
 
         self.check_function_or_method_declaration(node)?;
@@ -934,14 +934,14 @@ impl TypeChecker {
                 Some(node),
                 &Diagnostics::Method_0_cannot_have_an_implementation_because_it_is_marked_abstract,
                 Some(vec![declaration_name_to_string(
-                    node_as_named_declaration.maybe_name(),
+                    node.ref_(self).as_named_declaration().maybe_name(),
                     self,
                 )
                 .into_owned()]),
             );
         }
 
-        if is_private_identifier(&node_as_named_declaration.name().ref_(self))
+        if is_private_identifier(&node.ref_(self).as_named_declaration().name().ref_(self))
             && get_containing_class(node, self).is_none()
         {
             self.error(

@@ -18,10 +18,10 @@ use crate::{
     try_for_each_entry_bool,
     try_get_class_implementing_or_extending_expression_with_type_arguments, try_map_defined,
     try_some, type_has_call_or_construct_signatures, walk_up_binding_elements_and_patterns,
-    CheckFlags, Debug_, InArena, IndexInfo, InterfaceTypeInterface, NamedDeclarationInterface,
-    Node, NodeCheckFlags, NodeFlags, NodeInterface, OptionTry, SignatureKind, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
-    TypeInterface, UnionOrIntersectionTypeInterface,
+    CheckFlags, Debug_, HasArena, InArena, IndexInfo, InterfaceTypeInterface,
+    NamedDeclarationInterface, Node, NodeCheckFlags, NodeFlags, NodeInterface, OptionTry,
+    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface,
+    Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -408,8 +408,10 @@ impl TypeChecker {
         type_: Id<Type>,
     ) -> io::Result<Vec<Id<Symbol>>> {
         let type_ = self.get_apparent_type(type_)?;
-        let mut props_by_name =
-            create_symbol_table(Some(&self.get_properties_of_type(type_)?), self);
+        let props_by_name = self.alloc_symbol_table(create_symbol_table(
+            Some(&self.get_properties_of_type(type_)?),
+            self,
+        ));
         let function_type = if !self
             .get_signatures_of_type(type_, SignatureKind::Call)?
             .is_empty()
@@ -427,14 +429,19 @@ impl TypeChecker {
             for_each(
                 self.get_properties_of_type(function_type)?,
                 |p: Id<Symbol>, _| -> Option<()> {
-                    if !props_by_name.contains_key(p.ref_(self).escaped_name()) {
-                        props_by_name.insert(p.ref_(self).escaped_name().to_owned(), p.clone());
+                    if !props_by_name
+                        .ref_(self)
+                        .contains_key(p.ref_(self).escaped_name())
+                    {
+                        props_by_name
+                            .ref_mut(self)
+                            .insert(p.ref_(self).escaped_name().to_owned(), p.clone());
                     }
                     None
                 },
             );
         }
-        self.get_named_members(&props_by_name)
+        self.get_named_members(props_by_name)
     }
 
     pub(super) fn type_has_call_or_construct_signatures(

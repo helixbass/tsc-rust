@@ -14,7 +14,7 @@ use crate::{
     is_external_module_name_relative, is_finite, is_global_scope_augmentation, is_identifier,
     is_infinity_or_nan_string, is_literal_expression, is_nan, is_optional_chain,
     is_private_identifier, is_static, is_string_literal_like, length, maybe_for_each,
-    maybe_get_source_file_of_node, node_is_missing, node_is_present, set_parent,
+    maybe_get_source_file_of_node, node_is_missing, node_is_present, released, set_parent,
     should_preserve_const_enums, AsDoubleDeref, Diagnostics, EnumKind,
     FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeParametersInterface, InArena,
     InterfaceTypeInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeCheckFlags,
@@ -178,17 +178,16 @@ impl TypeChecker {
             self.check_grammar_interface_declaration(node);
         }
 
-        let node_ref = node.ref_(self);
-        let node_as_interface_declaration = node_ref.as_interface_declaration();
         self.check_type_parameters(
-            node_as_interface_declaration
+            node.ref_(self)
+                .as_interface_declaration()
                 .maybe_type_parameters()
                 .refed(self)
                 .as_double_deref(),
         )?;
         if self.produce_diagnostics {
             self.check_type_name_is_reserved(
-                node_as_interface_declaration.name(),
+                node.ref_(self).as_interface_declaration().name(),
                 &Diagnostics::Interface_name_cannot_be_0,
             );
 
@@ -203,7 +202,7 @@ impl TypeChecker {
                 let type_with_this = self.get_type_with_this_argument(type_, None, None)?;
                 if self.check_inherited_properties_are_identical(
                     type_,
-                    node_as_interface_declaration.name(),
+                    node.ref_(self).as_interface_declaration().name(),
                 )? {
                     for &base_type in &self.get_base_types(type_)? {
                         self.check_type_assignable_to(
@@ -217,7 +216,7 @@ impl TypeChecker {
                                 },
                                 None,
                             )?,
-                            node_as_interface_declaration.maybe_name(),
+                            node.ref_(self).as_interface_declaration().maybe_name(),
                             Some(&Diagnostics::Interface_0_incorrectly_extends_interface_1),
                             None,
                             None,
@@ -256,7 +255,11 @@ impl TypeChecker {
         )?;
 
         try_for_each(
-            &*node_as_interface_declaration.members.ref_(self),
+            &*node
+                .ref_(self)
+                .as_interface_declaration()
+                .members
+                .ref_(self),
             |&member, _| -> io::Result<_> {
                 self.check_source_element(Some(member))?;
                 Ok(Option::<()>::None)
@@ -319,7 +322,9 @@ impl TypeChecker {
                 );
             }
         } else {
-            self.check_source_element(Some(node.ref_(self).as_type_alias_declaration().type_))?;
+            self.check_source_element(Some(released!(
+                node.ref_(self).as_type_alias_declaration().type_
+            )))?;
             self.register_for_unused_identifiers_check(node);
         }
 

@@ -216,9 +216,12 @@ impl TypeChecker {
         true
     }
 
-    pub(super) fn get_named_members(&self, members: &SymbolTable) -> io::Result<Vec<Id<Symbol>>> {
+    pub(super) fn get_named_members(
+        &self,
+        members: Id<SymbolTable>,
+    ) -> io::Result<Vec<Id<Symbol>>> {
         let mut results = vec![];
-        for (id, &symbol) in members {
+        for (id, &symbol) in &*members.ref_(self) {
             if self.is_named_member(symbol, id)? {
                 results.push(symbol.clone());
             }
@@ -236,10 +239,10 @@ impl TypeChecker {
 
     pub(super) fn get_named_or_index_signature_members(
         &self,
-        members: &SymbolTable,
+        members: Id<SymbolTable>,
     ) -> io::Result<Vec<Id<Symbol>>> {
         let result = self.get_named_members(members)?;
-        let index = self.get_index_symbol_from_symbol_table(members);
+        let index = self.get_index_symbol_from_symbol_table(&members.ref_(self));
         Ok(if let Some(index) = index {
             concatenate(result, vec![index])
         } else {
@@ -263,9 +266,7 @@ impl TypeChecker {
             index_infos,
         );
         if members != self.empty_symbols() {
-            type_.set_properties(
-                self.alloc_vec_symbol(self.get_named_members(&members.ref_(self))?),
-            );
+            type_.set_properties(self.alloc_vec_symbol(self.get_named_members(members)?));
         }
         // type_
 

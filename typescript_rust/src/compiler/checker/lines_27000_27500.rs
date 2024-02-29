@@ -290,8 +290,8 @@ impl TypeChecker {
                 let member = member.unwrap();
                 let attribute_symbol = self.alloc_symbol(
                     self.create_symbol(
-                        SymbolFlags::Property | member.ref_(self).flags(),
-                        member.ref_(self).escaped_name().to_owned(),
+                        SymbolFlags::Property | released!(member.ref_(self).flags()),
+                        released!(member.ref_(self).escaped_name().to_owned()),
                         None,
                     )
                     .into(),
