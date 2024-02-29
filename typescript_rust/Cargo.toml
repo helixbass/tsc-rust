@@ -24,8 +24,8 @@ base64 = "0.21.0"
 peekmore = { version = "1.2.1", features = ["smallvec"] }
 either_n = "0.2.0"
 id-arena = "2.2.1"
-# debug-cell = { git = "https://github.com/helixbass/debug-cell", rev = "b40e3d1" }
-debug-cell = { git = "https://github.com/helixbass/debug-cell", rev = "5d34baa" }
+debug-cell = { git = "https://github.com/helixbass/debug-cell", rev = "b40e3d1" }
+# debug-cell = { git = "https://github.com/helixbass/debug-cell", rev = "5d34baa" }
 indexmap = { workspace = true }
 
 [dev-dependencies]
