@@ -1650,10 +1650,12 @@ fn binary_expression_state_right<TMachine: BinaryExpressionStateMachine>(
         binary_expression_state_next_state(machine, BinaryExpressionState::Right),
     );
     let next_node = machine.on_right(
-        node_stack[stack_index]
-            .ref_(machine)
-            .as_binary_expression()
-            .right,
+        released!(
+            node_stack[stack_index]
+                .ref_(machine)
+                .as_binary_expression()
+                .right
+        ),
         user_state_stack[stack_index].clone().unwrap(),
         node_stack[stack_index],
     )?;

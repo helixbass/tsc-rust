@@ -18,10 +18,10 @@ impl TransformDeclarations {
         &self,
         input: Id<Node>, /*VariableStatement*/
     ) -> io::Result<Option<Id<Node>>> {
-        let input_ref = input.ref_(self);
-        let input_as_variable_statement = input_ref.as_variable_statement();
         if !for_each_bool(
-            &*input_as_variable_statement
+            &*input
+                .ref_(self)
+                .as_variable_statement()
                 .declaration_list
                 .ref_(self)
                 .as_variable_declaration_list()
@@ -32,7 +32,9 @@ impl TransformDeclarations {
             return Ok(None);
         }
         let nodes = return_ok_default_if_none!(Some(try_visit_nodes(
-            input_as_variable_statement
+            input
+                .ref_(self)
+                .as_variable_statement()
                 .declaration_list
                 .ref_(self)
                 .as_variable_declaration_list()
@@ -55,7 +57,7 @@ impl TransformDeclarations {
                         .create_node_array(self.ensure_modifiers(input), None),
                 ),
                 self.factory.ref_(self).update_variable_declaration_list(
-                    input_as_variable_statement.declaration_list,
+                    input.ref_(self).as_variable_statement().declaration_list,
                     nodes,
                 ),
             ),

@@ -1005,8 +1005,6 @@ impl TypeChecker {
         let in_destructuring_pattern = is_assignment_target(node, self);
         self.check_grammar_object_literal_expression(node, in_destructuring_pattern);
 
-        let node_ref = node.ref_(self);
-        let node_as_object_literal_expression = node_ref.as_object_literal_expression();
         let mut all_properties_table = if self.strict_null_checks {
             Some(create_symbol_table(Option::<&[Id<Symbol>]>::None, self))
         } else {
@@ -1045,7 +1043,12 @@ impl TypeChecker {
         let mut has_computed_number_property = false;
         let mut has_computed_symbol_property = false;
 
-        for elem in &*node_as_object_literal_expression.properties.ref_(self) {
+        for elem in &*node
+            .ref_(self)
+            .as_object_literal_expression()
+            .properties
+            .ref_(self)
+        {
             if let Some(elem_name) = elem
                 .ref_(self)
                 .as_named_declaration()
@@ -1057,7 +1060,12 @@ impl TypeChecker {
         }
 
         let mut offset = 0;
-        for &member_decl in &*node_as_object_literal_expression.properties.ref_(self) {
+        for &member_decl in &*node
+            .ref_(self)
+            .as_object_literal_expression()
+            .properties
+            .ref_(self)
+        {
             let mut member = self.get_symbol_of_node(member_decl)?;
             let computed_name_type = member_decl
                 .ref_(self)

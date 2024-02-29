@@ -17,8 +17,8 @@ use crate::{
     is_omitted_expression, is_private_identifier, is_semicolon_class_element,
     is_set_accessor_declaration, is_source_file, is_string_literal_like, is_tuple_type_node,
     is_type_alias_declaration, is_type_node, is_type_query_node, length, map_defined,
-    needs_scope_marker, return_ok_default_if_none, set_comment_range, set_emit_flags, some,
-    try_maybe_map, try_maybe_visit_each_child, try_maybe_visit_node, try_maybe_visit_nodes,
+    needs_scope_marker, released, return_ok_default_if_none, set_comment_range, set_emit_flags,
+    some, try_maybe_map, try_maybe_visit_each_child, try_maybe_visit_node, try_maybe_visit_nodes,
     try_visit_each_child, try_visit_node, visit_nodes, Debug_, EmitFlags,
     FunctionLikeDeclarationInterface, GetOrInsertDefault, GetSymbolAccessibilityDiagnostic,
     HasQuestionTokenInterface, HasTypeArgumentsInterface, HasTypeInterface,
@@ -831,7 +831,7 @@ impl TransformDeclarations {
         }
 
         if is_processed_component(&input.ref_(self)) {
-            return Ok(match input.ref_(self).kind() {
+            return Ok(match released!(input.ref_(self).kind()) {
                 SyntaxKind::ExpressionWithTypeArguments => {
                     let input_ref = input.ref_(self);
                     let input_as_expression_with_type_arguments =

@@ -716,18 +716,23 @@ impl NodeFactory {
         expression: Id<Node /*Expression*/>,
         argument_expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_element_access_expression = node_ref.as_element_access_expression();
         if is_element_access_chain(&node.ref_(self)) {
             return self.update_element_access_chain(
                 node,
                 expression,
-                node_as_element_access_expression.question_dot_token.clone(),
+                node.ref_(self)
+                    .as_element_access_expression()
+                    .question_dot_token
+                    .clone(),
                 argument_expression,
             );
         }
-        if node_as_element_access_expression.expression != expression
-            || node_as_element_access_expression.argument_expression != argument_expression
+        if node.ref_(self).as_element_access_expression().expression != expression
+            || node
+                .ref_(self)
+                .as_element_access_expression()
+                .argument_expression
+                != argument_expression
         {
             self.update(
                 self.create_element_access_expression(expression, argument_expression),

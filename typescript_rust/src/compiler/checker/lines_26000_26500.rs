@@ -10,7 +10,7 @@ use crate::{
     is_const_type_reference, is_identifier, is_in_js_file, is_jsdoc_type_tag, is_jsx_attribute,
     is_jsx_attribute_like, is_jsx_attributes, is_jsx_element, is_jsx_opening_element,
     is_object_literal_expression, is_object_literal_method, is_property_assignment,
-    is_property_declaration, is_property_signature, is_this_initialized_declaration, map,
+    is_property_declaration, is_property_signature, is_this_initialized_declaration, map, released,
     return_ok_default_if_none, some, try_filter, try_map, unescape_leading_underscores, AllArenas,
     AssignmentDeclarationKind, CheckFlags, ContextFlags, Debug_, HasArena, InArena,
     InferenceContext, InferenceInfo, JsxReferenceKind, Node, NodeFlags, NodeInterface, Number,
@@ -25,12 +25,11 @@ impl TypeChecker {
         binary_expression: Id<Node>, /*BinaryExpression*/
     ) -> io::Result<Option<Id<Type>>> {
         let kind = get_assignment_declaration_kind(binary_expression, self);
-        let binary_expression_ref = binary_expression.ref_(self);
-        let binary_expression_as_binary_expression = binary_expression_ref.as_binary_expression();
         Ok(match kind {
             AssignmentDeclarationKind::None | AssignmentDeclarationKind::ThisProperty => {
-                let lhs_symbol =
-                    self.get_symbol_for_expression(binary_expression_as_binary_expression.left)?;
+                let lhs_symbol = self.get_symbol_for_expression(
+                    binary_expression.ref_(self).as_binary_expression().left,
+                )?;
                 let decl = lhs_symbol
                     .and_then(|lhs_symbol| lhs_symbol.ref_(self).maybe_value_declaration());
                 if let Some(decl) = decl.filter(|decl| {
@@ -55,7 +54,7 @@ impl TypeChecker {
                                 .is_some()
                             {
                                 Some(self.get_type_of_expression(
-                                    binary_expression_as_binary_expression.left,
+                                    binary_expression.ref_(self).as_binary_expression().left,
                                 )?)
                             } else {
                                 None
@@ -65,7 +64,7 @@ impl TypeChecker {
                 }
                 if kind == AssignmentDeclarationKind::None {
                     return Ok(Some(self.get_type_of_expression(
-                        binary_expression_as_binary_expression.left,
+                        binary_expression.ref_(self).as_binary_expression().left,
                     )?));
                 }
                 self.get_contextual_type_for_this_property_assignment(binary_expression)?
@@ -73,22 +72,28 @@ impl TypeChecker {
             AssignmentDeclarationKind::Property => {
                 if self.is_possibly_aliased_this_property(binary_expression, Some(kind))? {
                     self.get_contextual_type_for_this_property_assignment(binary_expression)?
-                } else if binary_expression_as_binary_expression
+                } else if binary_expression
+                    .ref_(self)
+                    .as_binary_expression()
                     .left
                     .ref_(self)
                     .maybe_symbol()
                     .is_none()
                 {
-                    Some(self.get_type_of_expression(binary_expression_as_binary_expression.left)?)
+                    Some(self.get_type_of_expression(
+                        binary_expression.ref_(self).as_binary_expression().left,
+                    )?)
                 } else {
-                    let decl = return_ok_default_if_none!(binary_expression_as_binary_expression
+                    let decl = return_ok_default_if_none!(binary_expression
+                        .ref_(self)
+                        .as_binary_expression()
                         .left
                         .ref_(self)
                         .symbol()
                         .ref_(self)
                         .maybe_value_declaration());
                     let lhs = cast(
-                        Some(binary_expression_as_binary_expression.left),
+                        Some(binary_expression.ref_(self).as_binary_expression().left),
                         |node: &Id<Node>| is_access_expression(&node.ref_(self)),
                     );
                     let overall_annotation = get_effective_type_annotation_node(decl, self);
@@ -132,18 +137,18 @@ impl TypeChecker {
                     if is_in_js_file(Some(&decl.ref_(self))) {
                         None
                     } else {
-                        Some(
-                            self.get_type_of_expression(
-                                binary_expression_as_binary_expression.left,
-                            )?,
-                        )
+                        Some(self.get_type_of_expression(
+                            binary_expression.ref_(self).as_binary_expression().left,
+                        )?)
                     }
                 }
             }
             AssignmentDeclarationKind::ExportsProperty
             | AssignmentDeclarationKind::Prototype
             | AssignmentDeclarationKind::PrototypeProperty => {
-                let mut value_declaration = binary_expression_as_binary_expression
+                let mut value_declaration = binary_expression
+                    .ref_(self)
+                    .as_binary_expression()
                     .left
                     .ref_(self)
                     .maybe_symbol()
@@ -153,7 +158,9 @@ impl TypeChecker {
                             .maybe_value_declaration()
                     });
                 value_declaration = value_declaration.or_else(|| {
-                    binary_expression_as_binary_expression
+                    binary_expression
+                        .ref_(self)
+                        .as_binary_expression()
                         .maybe_symbol()
                         .and_then(|binary_expression_symbol| {
                             binary_expression_symbol
@@ -169,7 +176,9 @@ impl TypeChecker {
             AssignmentDeclarationKind::ModuleExports => {
                 let mut value_declaration: Option<Id<Node>> = None;
                 value_declaration = value_declaration.or_else(|| {
-                    binary_expression_as_binary_expression
+                    binary_expression
+                        .ref_(self)
+                        .as_binary_expression()
                         .maybe_symbol()
                         .and_then(|binary_expression_symbol| {
                             binary_expression_symbol
@@ -898,7 +907,7 @@ impl TypeChecker {
             return Ok(Some(node_contextual_type));
         }
         let parent = node.ref_(self).parent();
-        Ok(match parent.ref_(self).kind() {
+        Ok(match released!(parent.ref_(self).kind()) {
             SyntaxKind::VariableDeclaration
             | SyntaxKind::Parameter
             | SyntaxKind::PropertyDeclaration

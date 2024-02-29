@@ -10,7 +10,7 @@ use crate::{
     is_binding_pattern, is_computed_non_literal_name, is_defaulted_expando_initializer,
     is_expression, is_function_like, is_identifier, is_import_call, is_in_js_file,
     is_jsx_opening_like_element, is_parameter, is_private_identifier,
-    is_property_access_expression, is_static, last_or_undefined, maybe_is_class_like,
+    is_property_access_expression, is_static, last_or_undefined, maybe_is_class_like, released,
     return_ok_none_if_none, try_for_each, walk_up_parenthesized_expressions, AccessFlags,
     ContextFlags, FunctionFlags, HasInitializerInterface, InArena, NamedDeclarationInterface, Node,
     NodeInterface, Number, ObjectFlags, OptionInArena, OptionTry, Symbol, SymbolInterface,
@@ -727,12 +727,13 @@ impl TypeChecker {
         context_flags: Option<ContextFlags>,
     ) -> io::Result<Option<Id<Type>>> {
         let binary_expression = node.ref_(self).parent();
-        let binary_expression_ref = binary_expression.ref_(self);
-        let binary_expression_as_binary_expression = binary_expression_ref.as_binary_expression();
-        let left = binary_expression_as_binary_expression.left;
-        let operator_token = binary_expression_as_binary_expression.operator_token;
-        let right = binary_expression_as_binary_expression.right;
-        Ok(match operator_token.ref_(self).kind() {
+        let left = binary_expression.ref_(self).as_binary_expression().left;
+        let operator_token = binary_expression
+            .ref_(self)
+            .as_binary_expression()
+            .operator_token;
+        let right = binary_expression.ref_(self).as_binary_expression().right;
+        Ok(match released!(operator_token.ref_(self).kind()) {
             SyntaxKind::EqualsToken
             | SyntaxKind::AmpersandAmpersandEqualsToken
             | SyntaxKind::BarBarEqualsToken

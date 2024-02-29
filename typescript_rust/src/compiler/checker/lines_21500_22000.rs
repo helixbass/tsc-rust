@@ -67,7 +67,7 @@ impl TypeChecker {
             {
                 let source_prop = self.get_property_of_type_(
                     source,
-                    target_prop.ref_(self).escaped_name(),
+                    &released!(target_prop.ref_(self).escaped_name().to_owned()),
                     None,
                 )?;
                 match source_prop {
