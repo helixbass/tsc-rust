@@ -1406,7 +1406,7 @@ pub fn try_for_each_child<TError>(
                 Some(node.ref_(arena).as_qualified_name().right),
             )?;
         }
-        SyntaxKind::TypeParameterDeclaration => {
+        SyntaxKind::TypeParameter => {
             try_visit_node(
                 &mut cb_node,
                 Some(node.ref_(arena).as_type_parameter_declaration().name()),
@@ -1487,7 +1487,7 @@ pub fn try_for_each_child<TError>(
                 Some(node.ref_(arena).as_spread_assignment().expression),
             )?;
         }
-        SyntaxKind::ParameterDeclaration => {
+        SyntaxKind::Parameter => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -1701,7 +1701,7 @@ pub fn try_for_each_child<TError>(
                 node.ref_(arena).as_binding_element().maybe_initializer(),
             )?
         }
-        SyntaxKind::FunctionTypeNode => {
+        SyntaxKind::FunctionType => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -1733,7 +1733,7 @@ pub fn try_for_each_child<TError>(
                 node.ref_(arena).as_function_type_node().maybe_type(),
             )?;
         }
-        SyntaxKind::ConstructorTypeNode => {
+        SyntaxKind::ConstructorType => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -1765,7 +1765,7 @@ pub fn try_for_each_child<TError>(
                 node.ref_(arena).as_constructor_type_node().maybe_type(),
             )?;
         }
-        SyntaxKind::CallSignatureDeclaration => {
+        SyntaxKind::CallSignature => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -1803,7 +1803,7 @@ pub fn try_for_each_child<TError>(
                     .maybe_type(),
             )?;
         }
-        SyntaxKind::ConstructSignatureDeclaration => {
+        SyntaxKind::ConstructSignature => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -1841,7 +1841,7 @@ pub fn try_for_each_child<TError>(
                     .maybe_type(),
             )?;
         }
-        SyntaxKind::IndexSignatureDeclaration => {
+        SyntaxKind::IndexSignature => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -1973,7 +1973,7 @@ pub fn try_for_each_child<TError>(
                 node.ref_(arena).as_method_signature().maybe_type(),
             )?;
         }
-        SyntaxKind::ConstructorDeclaration => {
+        SyntaxKind::Constructor => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -2031,7 +2031,7 @@ pub fn try_for_each_child<TError>(
                 node.ref_(arena).as_constructor_declaration().maybe_body(),
             )?
         }
-        SyntaxKind::GetAccessorDeclaration => {
+        SyntaxKind::GetAccessor => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -2089,7 +2089,7 @@ pub fn try_for_each_child<TError>(
                 node.ref_(arena).as_get_accessor_declaration().maybe_body(),
             )?
         }
-        SyntaxKind::SetAccessorDeclaration => {
+        SyntaxKind::SetAccessor => {
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -2341,7 +2341,7 @@ pub fn try_for_each_child<TError>(
                 Some(node.ref_(arena).as_class_static_block_declaration().body),
             )?;
         }
-        SyntaxKind::TypeReferenceNode => {
+        SyntaxKind::TypeReference => {
             try_visit_node(
                 &mut cb_node,
                 Some(node.ref_(arena).as_type_reference_node().type_name.clone()),
@@ -2355,7 +2355,7 @@ pub fn try_for_each_child<TError>(
                 arena,
             )?
         }
-        SyntaxKind::TypePredicateNode => {
+        SyntaxKind::TypePredicate => {
             try_visit_node(
                 &mut cb_node,
                 node.ref_(arena)
@@ -2372,39 +2372,39 @@ pub fn try_for_each_child<TError>(
                 node.ref_(arena).as_type_predicate_node().type_.clone(),
             )?;
         }
-        SyntaxKind::TypeQueryNode => try_visit_node(
+        SyntaxKind::TypeQuery => try_visit_node(
             &mut cb_node,
             Some(node.ref_(arena).as_type_query_node().expr_name),
         )?,
-        SyntaxKind::TypeLiteralNode => try_visit_nodes(
+        SyntaxKind::TypeLiteral => try_visit_nodes(
             &mut cb_node,
             cb_nodes.as_mut(),
             Some(node.ref_(arena).as_type_literal_node().members),
             arena,
         )?,
-        SyntaxKind::ArrayTypeNode => try_visit_node(
+        SyntaxKind::ArrayType => try_visit_node(
             &mut cb_node,
             Some(node.ref_(arena).as_array_type_node().element_type.clone()),
         )?,
-        SyntaxKind::TupleTypeNode => try_visit_nodes(
+        SyntaxKind::TupleType => try_visit_nodes(
             &mut cb_node,
             cb_nodes.as_mut(),
             Some(node.ref_(arena).as_tuple_type_node().elements),
             arena,
         )?,
-        SyntaxKind::UnionTypeNode => try_visit_nodes(
+        SyntaxKind::UnionType => try_visit_nodes(
             &mut cb_node,
             cb_nodes.as_mut(),
             Some(node.ref_(arena).as_union_type_node().types),
             arena,
         )?,
-        SyntaxKind::IntersectionTypeNode => try_visit_nodes(
+        SyntaxKind::IntersectionType => try_visit_nodes(
             &mut cb_node,
             cb_nodes.as_mut(),
             Some(node.ref_(arena).as_intersection_type_node().types),
             arena,
         )?,
-        SyntaxKind::ConditionalTypeNode => {
+        SyntaxKind::ConditionalType => {
             try_visit_node(
                 &mut cb_node,
                 Some(node.ref_(arena).as_conditional_type_node().check_type),
@@ -2422,13 +2422,13 @@ pub fn try_for_each_child<TError>(
                 Some(node.ref_(arena).as_conditional_type_node().false_type),
             )?;
         }
-        SyntaxKind::InferTypeNode => {
+        SyntaxKind::InferType => {
             try_visit_node(
                 &mut cb_node,
                 Some(node.ref_(arena).as_infer_type_node().type_parameter),
             )?;
         }
-        SyntaxKind::ImportTypeNode => {
+        SyntaxKind::ImportType => {
             try_visit_node(
                 &mut cb_node,
                 Some(node.ref_(arena).as_import_type_node().argument),
@@ -2446,15 +2446,15 @@ pub fn try_for_each_child<TError>(
                 arena,
             )?
         }
-        SyntaxKind::ParenthesizedTypeNode => try_visit_node(
+        SyntaxKind::ParenthesizedType => try_visit_node(
             &mut cb_node,
             Some(node.ref_(arena).as_parenthesized_type_node().type_),
         )?,
-        SyntaxKind::TypeOperatorNode => try_visit_node(
+        SyntaxKind::TypeOperator => try_visit_node(
             &mut cb_node,
             Some(node.ref_(arena).as_type_operator_node().type_),
         )?,
-        SyntaxKind::IndexedAccessTypeNode => {
+        SyntaxKind::IndexedAccessType => {
             try_visit_node(
                 &mut cb_node,
                 Some(node.ref_(arena).as_indexed_access_type_node().object_type),
@@ -2464,7 +2464,7 @@ pub fn try_for_each_child<TError>(
                 Some(node.ref_(arena).as_indexed_access_type_node().index_type),
             )?;
         }
-        SyntaxKind::MappedTypeNode => {
+        SyntaxKind::MappedType => {
             try_visit_node(
                 &mut cb_node,
                 node.ref_(arena)
@@ -2498,7 +2498,7 @@ pub fn try_for_each_child<TError>(
                 arena,
             )?
         }
-        SyntaxKind::LiteralTypeNode => try_visit_node(
+        SyntaxKind::LiteralType => try_visit_node(
             &mut cb_node,
             Some(node.ref_(arena).as_literal_type_node().literal),
         )?,
@@ -2656,7 +2656,7 @@ pub fn try_for_each_child<TError>(
                 Some(node.ref_(arena).as_tagged_template_expression().template),
             )?;
         }
-        SyntaxKind::TypeAssertion => {
+        SyntaxKind::TypeAssertionExpression => {
             try_visit_node(
                 &mut cb_node,
                 Some(node.ref_(arena).as_type_assertion().type_),
@@ -3628,13 +3628,13 @@ pub fn try_for_each_child<TError>(
                 Some(node.ref_(arena).as_jsx_closing_element().tag_name),
             )?;
         }
-        SyntaxKind::OptionalTypeNode => {
+        SyntaxKind::OptionalType => {
             try_visit_node(
                 &mut cb_node,
                 Some(node.ref_(arena).as_optional_type_node().type_),
             )?;
         }
-        SyntaxKind::RestTypeNode => {
+        SyntaxKind::RestType => {
             try_visit_node(
                 &mut cb_node,
                 Some(node.ref_(arena).as_rest_type_node().type_),
@@ -3646,7 +3646,12 @@ pub fn try_for_each_child<TError>(
                 Some(node.ref_(arena).as_jsdoc_type_expression().type_),
             )?;
         }
-        SyntaxKind::BaseJSDocUnaryType => {
+        SyntaxKind::JSDocUnknownType
+        | SyntaxKind::JSDocNonNullableType
+        | SyntaxKind::JSDocNullableType
+        | SyntaxKind::JSDocOptionalType
+        | SyntaxKind::JSDocVariadicType
+        | SyntaxKind::JSDocNamepathType => {
             try_visit_node(
                 &mut cb_node,
                 node.ref_(arena).as_base_jsdoc_unary_type().type_.clone(),
@@ -3664,7 +3669,7 @@ pub fn try_for_each_child<TError>(
                 node.ref_(arena).as_jsdoc_function_type().maybe_type(),
             )?;
         }
-        SyntaxKind::JSDoc => {
+        SyntaxKind::JSDocComment => {
             if let Some(StringOrNodeArray::NodeArray(comment)) =
                 node.ref_(arena).as_jsdoc().comment.as_ref()
             {
@@ -3708,7 +3713,7 @@ pub fn try_for_each_child<TError>(
                 Some(node.ref_(arena).as_jsdoc_member_name().right),
             )?;
         }
-        SyntaxKind::JSDocPropertyLikeTag => {
+        SyntaxKind::JSDocParameterTag | SyntaxKind::JSDocPropertyTag => {
             try_visit_node(
                 &mut cb_node,
                 Some(node.ref_(arena).as_jsdoc_property_like_tag().tag_name()),
@@ -3753,7 +3758,15 @@ pub fn try_for_each_child<TError>(
                 }
             }
         }
-        SyntaxKind::BaseJSDocTag => {
+        SyntaxKind::JSDocAuthorTag
+        | SyntaxKind::JSDocClassTag
+        | SyntaxKind::JSDocPublicTag
+        | SyntaxKind::JSDocPrivateTag
+        | SyntaxKind::JSDocProtectedTag
+        | SyntaxKind::JSDocReadonlyTag
+        | SyntaxKind::JSDocOverrideTag
+        | SyntaxKind::JSDocDeprecatedTag
+        | SyntaxKind::JSDocTag => {
             try_visit_node(
                 &mut cb_node,
                 Some(node.ref_(arena).as_base_jsdoc_tag().tag_name()),
@@ -3769,8 +3782,13 @@ pub fn try_for_each_child<TError>(
                 &mut cb_node,
                 Some(node.ref_(arena).as_jsdoc_implements_tag().tag_name()),
             )?;
-            try_visit_node(&mut cb_node, Some(node.ref_(arena).class))?;
-            if let Some(StringOrNodeArray::NodeArray(comment)) = node.ref_(arena).maybe_comment() {
+            try_visit_node(
+                &mut cb_node,
+                Some(node.ref_(arena).as_jsdoc_implements_tag().class),
+            )?;
+            if let Some(StringOrNodeArray::NodeArray(comment)) =
+                node.ref_(arena).as_jsdoc_implements_tag().maybe_comment()
+            {
                 try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(*comment), arena)?;
             }
         }
@@ -3873,7 +3891,10 @@ pub fn try_for_each_child<TError>(
                 try_visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(*comment), arena)?;
             }
         }
-        SyntaxKind::BaseJSDocTypeLikeTag => {
+        SyntaxKind::JSDocTypeTag
+        | SyntaxKind::JSDocReturnTag
+        | SyntaxKind::JSDocThisTag
+        | SyntaxKind::JSDocEnumTag => {
             try_visit_node(
                 &mut cb_node,
                 Some(node.ref_(arena).as_base_jsdoc_type_like_tag().tag_name()),
