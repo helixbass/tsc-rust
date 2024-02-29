@@ -373,9 +373,7 @@ impl NodeFactory {
         node: Id<Node>, /*ExpressionStatement*/
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_expression_statement = node_ref.as_expression_statement();
-        if node_as_expression_statement.expression != expression {
+        if node.ref_(self).as_expression_statement().expression != expression {
             self.update(self.create_expression_statement(expression), node)
         } else {
             node

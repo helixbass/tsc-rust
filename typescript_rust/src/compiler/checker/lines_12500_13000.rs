@@ -894,9 +894,6 @@ impl TypeChecker {
         if signature.ref_(self).maybe_instantiations().is_none() {
             *signature.ref_(self).maybe_instantiations() = Some(HashMap::new());
         }
-        let signature_ref = signature.ref_(self);
-        let mut instantiations = signature_ref.maybe_instantiations();
-        let instantiations = instantiations.as_mut().unwrap();
         let id = self.get_type_list_id(type_arguments);
         let mut instantiation = signature
             .ref_(self)

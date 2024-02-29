@@ -1486,8 +1486,7 @@ impl CheckTypeRelatedTo {
             .ref_(arena)
             .exclude_properties(&properties, excluded_properties)
         {
-            let target_prop_ref = target_prop.ref_(arena);
-            let name = target_prop_ref.escaped_name();
+            let ref name = target_prop.ref_(arena).escaped_name().to_owned();
             if !target_prop
                 .ref_(arena)
                 .flags()

@@ -861,14 +861,12 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*ModuleDeclaration*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_module_declaration = node_ref.as_module_declaration();
         if self.produce_diagnostics {
             let is_global_augmentation = is_global_scope_augmentation(&node.ref_(self));
             let in_ambient_context = node.ref_(self).flags().intersects(NodeFlags::Ambient);
             if is_global_augmentation && !in_ambient_context {
                 self.error(
-                    Some(node_as_module_declaration.name),
+                    Some(node.ref_(self).as_module_declaration().name),
                     &Diagnostics::Augmentations_for_the_global_scope_should_have_declare_modifier_unless_they_appear_in_already_ambient_context,
                     None,
                 );
@@ -886,21 +884,26 @@ impl TypeChecker {
 
             if !self.check_grammar_decorators_and_modifiers(node) {
                 if !in_ambient_context
-                    && node_as_module_declaration.name.ref_(self).kind()
+                    && node
+                        .ref_(self)
+                        .as_module_declaration()
+                        .name
+                        .ref_(self)
+                        .kind()
                         == SyntaxKind::StringLiteral
                 {
                     self.grammar_error_on_node(
-                        node_as_module_declaration.name,
+                        node.ref_(self).as_module_declaration().name,
                         &Diagnostics::Only_ambient_modules_can_use_quoted_names,
                         None,
                     );
                 }
             }
 
-            if is_identifier(&node_as_module_declaration.name.ref_(self)) {
+            if is_identifier(&node.ref_(self).as_module_declaration().name.ref_(self)) {
                 self.check_collisions_for_declaration_name(
                     node,
-                    Some(node_as_module_declaration.name),
+                    Some(node.ref_(self).as_module_declaration().name),
                 );
             }
 
@@ -932,7 +935,7 @@ impl TypeChecker {
                         )
                     {
                         self.error(
-                            Some(node_as_module_declaration.name),
+                            Some(node.ref_(self).as_module_declaration().name),
                             &Diagnostics::A_namespace_declaration_cannot_be_in_a_different_file_from_a_class_or_function_with_which_it_is_merged,
                             None,
                         );
@@ -940,7 +943,7 @@ impl TypeChecker {
                         < first_non_ambient_class_or_func.ref_(self).pos()
                     {
                         self.error(
-                            Some(node_as_module_declaration.name),
+                            Some(node.ref_(self).as_module_declaration().name),
                             &Diagnostics::A_namespace_declaration_cannot_be_located_prior_to_a_class_or_function_with_which_it_is_merged,
                             None,
                         );
@@ -971,7 +974,7 @@ impl TypeChecker {
                             .flags()
                             .intersects(SymbolFlags::Transient);
                     if check_body {
-                        if let Some(node_body) = node_as_module_declaration.body {
+                        if let Some(node_body) = node.ref_(self).as_module_declaration().body {
                             for &statement in
                                 &*node_body.ref_(self).as_module_block().statements.ref_(self)
                             {
@@ -985,15 +988,15 @@ impl TypeChecker {
                 } else if self.is_global_source_file(node.ref_(self).parent()) {
                     if is_global_augmentation {
                         self.error(
-                            Some(node_as_module_declaration.name),
+                            Some(node.ref_(self).as_module_declaration().name),
                             &Diagnostics::Augmentations_for_the_global_scope_can_only_be_directly_nested_in_external_modules_or_ambient_module_declarations,
                             None,
                         );
                     } else if is_external_module_name_relative(&get_text_of_identifier_or_literal(
-                        &node_as_module_declaration.name.ref_(self),
+                        &node.ref_(self).as_module_declaration().name.ref_(self),
                     )) {
                         self.error(
-                            Some(node_as_module_declaration.name),
+                            Some(node.ref_(self).as_module_declaration().name),
                             &Diagnostics::Ambient_module_declaration_cannot_specify_relative_module_name,
                             None,
                         );
@@ -1001,13 +1004,13 @@ impl TypeChecker {
                 } else {
                     if is_global_augmentation {
                         self.error(
-                            Some(node_as_module_declaration.name),
+                            Some(node.ref_(self).as_module_declaration().name),
                             &Diagnostics::Augmentations_for_the_global_scope_can_only_be_directly_nested_in_external_modules_or_ambient_module_declarations,
                             None,
                         );
                     } else {
                         self.error(
-                            Some(node_as_module_declaration.name),
+                            Some(node.ref_(self).as_module_declaration().name),
                             &Diagnostics::Ambient_modules_cannot_be_nested_in_other_modules_or_namespaces,
                             None,
                         );
@@ -1016,7 +1019,7 @@ impl TypeChecker {
             }
         }
 
-        if let Some(node_body) = node_as_module_declaration.body {
+        if let Some(node_body) = node.ref_(self).as_module_declaration().body {
             self.check_source_element(Some(node_body))?;
             if !is_global_scope_augmentation(&node.ref_(self)) {
                 self.register_for_unused_identifiers_check(node);

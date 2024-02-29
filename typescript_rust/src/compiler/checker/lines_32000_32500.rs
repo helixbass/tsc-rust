@@ -12,7 +12,7 @@ use crate::{
     is_binary_expression, is_bindable_object_define_property_call, is_call_expression,
     is_class_static_block_declaration, is_effective_external_module, is_function_expression,
     is_in_top_level_context, is_object_literal_method, is_private_identifier,
-    is_property_access_expression, is_property_assignment, parse_pseudo_big_int,
+    is_property_access_expression, is_property_assignment, parse_pseudo_big_int, released,
     skip_outer_expressions, skip_parentheses, token_to_string, try_every, try_some, AssignmentKind,
     CheckFlags, Debug_, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformation, Diagnostics,
     ExternalEmitHelpers, FunctionFlags, HasArena, InArena, LiteralLikeNodeInterface, ModifierFlags,
@@ -194,7 +194,9 @@ impl TypeChecker {
         let return_type = self.get_return_type_from_annotation(node)?;
         self.check_all_code_paths_in_non_void_function_return_or_throw(node, return_type)?;
 
-        if let Some(node_body) = node.ref_(self).as_function_like_declaration().maybe_body() {
+        if let Some(node_body) =
+            released!(node.ref_(self).as_function_like_declaration().maybe_body())
+        {
             if get_effective_return_type_node(node, self).is_none() {
                 self.get_return_type_of_signature(self.get_signature_from_declaration_(node)?)?;
             }
