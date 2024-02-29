@@ -19,11 +19,11 @@ use crate::{
     is_parameter, is_parameter_property_declaration, is_private_identifier,
     is_private_identifier_class_element_declaration, is_type_only_import_or_export_declaration,
     is_variable_declaration, last, node_is_missing, node_is_present, parameter_is_this_keyword,
-    range_of_node, range_of_type_parameters, symbol_name, try_add_to_set, try_cast, try_for_each,
-    CharacterCodes, Debug_, Diagnostic, Diagnostics, FunctionFlags, HasArena, InArena,
-    JSDocTagInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface,
-    OptionInArena, OptionTry, ScriptTarget, SignatureDeclarationInterface, SymbolFlags,
-    SymbolInterface, SyntaxKind, TextRange, TypeChecker,
+    range_of_node, range_of_type_parameters, released, symbol_name, try_add_to_set, try_cast,
+    try_for_each, CharacterCodes, Debug_, Diagnostic, Diagnostics, FunctionFlags, HasArena,
+    InArena, JSDocTagInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeFlags,
+    NodeInterface, OptionInArena, OptionTry, ScriptTarget, SignatureDeclarationInterface,
+    SymbolFlags, SymbolInterface, SyntaxKind, TextRange, TypeChecker,
 };
 
 impl TypeChecker {
@@ -1082,7 +1082,7 @@ impl TypeChecker {
         if is_function_or_module_block(node, self) {
             let save_flow_analysis_disabled = self.flow_analysis_disabled();
             try_for_each(
-                &*node.ref_(self).as_has_statements().statements().ref_(self),
+                &*released!(node.ref_(self).as_has_statements().statements()).ref_(self),
                 |&statement, _| -> io::Result<_> {
                     self.check_source_element(Some(statement))?;
                     Ok(Option::<()>::None)

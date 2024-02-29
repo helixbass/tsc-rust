@@ -9,7 +9,7 @@ use super::{
 use crate::{
     create_symbol_table, get_effective_return_type_node, get_effective_type_annotation_node,
     get_function_flags, is_import_call, is_omitted_expression, is_transient_symbol, last,
-    node_is_missing, push_if_unique_eq, some, try_for_each_return_statement,
+    node_is_missing, push_if_unique_eq, released, some, try_for_each_return_statement,
     try_for_each_yield_expression, CheckFlags, Diagnostics, FunctionFlags, HasArena,
     HasTypeInterface, InArena, InferenceContext, NamedDeclarationInterface, Node, NodeFlags,
     NodeInterface, OptionInArena, OptionTry, Signature, Symbol, SymbolFlags, SymbolInterface,
@@ -859,10 +859,11 @@ impl TypeChecker {
         let mut has_return_with_no_expression = self.function_has_implicit_return(func)?;
         let mut has_return_of_type_never = false;
         try_for_each_return_statement(
-            func.ref_(self)
+            released!(func
+                .ref_(self)
                 .as_function_like_declaration()
                 .maybe_body()
-                .unwrap(),
+                .unwrap()),
             |return_statement: Id<Node>| -> io::Result<_> {
                 let expr = return_statement.ref_(self).as_return_statement().expression;
                 if let Some(expr) = expr {
