@@ -2019,9 +2019,7 @@ impl CheckTypeRelatedTo {
                     result = Self::is_related_to(
                         self_,
                         arena,
-                        self_
-                            .ref_(arena)
-                            .type_checker
+                        released!(self_.ref_(arena).type_checker)
                             .ref_(arena)
                             .get_type_with_this_argument(constraint.unwrap(), Some(source), None)?,
                         target,
@@ -2422,16 +2420,12 @@ impl CheckTypeRelatedTo {
                     &save_error_info,
                     &mut variance_check_failed,
                     Some(
-                        &*self_
-                            .ref_(arena)
-                            .type_checker
+                        &*released!(self_.ref_(arena).type_checker)
                             .ref_(arena)
                             .get_type_arguments(source)?,
                     ),
                     Some(
-                        &*self_
-                            .ref_(arena)
-                            .type_checker
+                        &*released!(self_.ref_(arena).type_checker)
                             .ref_(arena)
                             .get_type_arguments(target)?,
                     ),

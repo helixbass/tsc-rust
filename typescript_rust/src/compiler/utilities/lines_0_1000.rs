@@ -901,8 +901,8 @@ pub fn is_file_level_unique_name(
     name: &str,
     has_global_name: Option<impl FnOnce(&str) -> bool>,
 ) -> bool {
-    (match has_global_name {
-        None => true,
+    !(match has_global_name {
+        None => false,
         Some(has_global_name) => has_global_name(name),
     }) && !(*source_file.as_source_file().identifiers())
         .borrow()
