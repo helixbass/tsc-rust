@@ -107,12 +107,15 @@ impl NodeBuilder {
         type_: Id<Type>, /*MappedType*/
     ) -> io::Result<Id<Node>> {
         Debug_.assert(type_.ref_(self).flags().intersects(TypeFlags::Object), None);
-        let type_declaration_ref = type_.ref_(self).as_mapped_type().declaration.ref_(self);
-        let type_declaration_as_mapped_type_node = type_declaration_ref.as_mapped_type_node();
-        let readonly_token: Option<Id<Node>> = type_declaration_as_mapped_type_node
+        let type_declaration = type_.ref_(self).as_mapped_type().declaration;
+        let readonly_token: Option<Id<Node>> = type_declaration
+            .ref_(self)
+            .as_mapped_type_node()
             .readonly_token
             .map(|readonly_token| get_factory(self).create_token(readonly_token.ref_(self).kind()));
-        let question_token: Option<Id<Node>> = type_declaration_as_mapped_type_node
+        let question_token: Option<Id<Node>> = type_declaration
+            .ref_(self)
+            .as_mapped_type_node()
             .question_token
             .map(|question_token| get_factory(self).create_token(question_token.ref_(self).kind()));
         let appropriate_constraint_type_node: Id<Node /*TypeNode*/>;
@@ -152,17 +155,21 @@ impl NodeBuilder {
             context,
             Some(appropriate_constraint_type_node),
         )?;
-        let name_type_node: Option<Id<Node>> =
-            if type_declaration_as_mapped_type_node.name_type.is_some() {
-                self.type_to_type_node_helper(
-                    self.type_checker
-                        .ref_(self)
-                        .get_name_type_from_mapped_type(type_)?,
-                    context,
-                )?
-            } else {
-                None
-            };
+        let name_type_node: Option<Id<Node>> = if type_declaration
+            .ref_(self)
+            .as_mapped_type_node()
+            .name_type
+            .is_some()
+        {
+            self.type_to_type_node_helper(
+                self.type_checker
+                    .ref_(self)
+                    .get_name_type_from_mapped_type(type_)?,
+                context,
+            )?
+        } else {
+            None
+        };
         let template_type_node: Option<Id<Node>> = self.type_to_type_node_helper(
             Some(
                 self.type_checker.ref_(self).remove_missing_type(

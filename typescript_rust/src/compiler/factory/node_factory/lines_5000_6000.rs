@@ -526,9 +526,10 @@ impl NodeFactory {
             self.update(
                 self.create_partially_emitted_expression(
                     expression,
-                    node.ref_(self)
+                    released!(node
+                        .ref_(self)
                         .as_partially_emitted_expression()
-                        .maybe_original(),
+                        .maybe_original()),
                 ),
                 node,
             )

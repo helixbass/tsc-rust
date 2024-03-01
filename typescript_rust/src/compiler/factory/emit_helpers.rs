@@ -7,8 +7,8 @@ use crate::{
     PrivateIdentifierKind, TransformationContext, _d, compare_values,
     create_expression_from_entity_name, get_emit_flags, get_emit_script_target,
     get_property_name_of_binding_or_assignment_element, impl_has_arena, is_call_expression,
-    is_computed_property_name, is_identifier, AllArenas, CoreTransformationContext, Debug_,
-    EmitHelperBase, EmitHelperTextCallback, GeneratedIdentifierFlags, HasArena, InArena,
+    is_computed_property_name, is_identifier, per_arena, AllArenas, CoreTransformationContext,
+    Debug_, EmitHelperBase, EmitHelperTextCallback, GeneratedIdentifierFlags, HasArena, InArena,
     MapOrDefault, NodeInterface, ReadonlyTextRange, ScopedEmitHelperBuilder, ScriptTarget,
     SyntaxKind, TransformNodesTransformationResult, UnscopedEmitHelperBuilder, VecExt,
 };
@@ -710,15 +710,7 @@ impl EmitHelperTextCallback for HelperString {
 
 macro_rules! lazy_emit_helper {
     ($initializer:expr, $arena:expr $(,)?) => {{
-        use std::cell::OnceCell;
-
-        use id_arena::Id;
-
-        thread_local! {
-            static LAZY_HELPER: OnceCell<Id<EmitHelper>> = OnceCell::new();
-        }
-        LAZY_HELPER
-            .with(|lazy_helper| *lazy_helper.get_or_init(|| $arena.alloc_emit_helper($initializer)))
+        per_arena!(EmitHelper, $arena, $arena.alloc_emit_helper($initializer))
     }};
 }
 

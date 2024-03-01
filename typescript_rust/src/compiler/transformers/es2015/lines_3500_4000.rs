@@ -565,7 +565,7 @@ impl TransformES2015 {
                                     None,
                                 ),
                                 Option::<Id<NodeArray>>::None,
-                                call.ref_(self).as_call_expression().arguments.clone(),
+                                released!(call.ref_(self).as_call_expression().arguments),
                             ),
                             None,
                         ),

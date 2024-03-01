@@ -860,12 +860,12 @@ impl TransformES2015 {
         bound_value: Id<Node>, /*Expression*/
         converted_loop_body_statements: Option<&[Id<Node /*Statement*/>]>,
     ) -> io::Result<Id<Node>> {
-        let node_ref = node.ref_(self);
-        let node_as_for_of_statement = node_ref.as_for_of_statement();
         let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
-        let initializer = node_as_for_of_statement.initializer;
+        let initializer = node.ref_(self).as_for_of_statement().initializer;
         if is_variable_declaration_list(&initializer.ref_(self)) {
-            if node_as_for_of_statement
+            if node
+                .ref_(self)
+                .as_for_of_statement()
                 .initializer
                 .ref_(self)
                 .flags()
@@ -910,7 +910,7 @@ impl TransformES2015 {
                     .ref_(self)
                     .create_variable_declaration_list(declarations.clone(), None)
                     .set_text_range(
-                        Some(&*node_as_for_of_statement.initializer.ref_(self)),
+                        Some(&*node.ref_(self).as_for_of_statement().initializer.ref_(self)),
                         self,
                     )
                     .set_source_map_range(
@@ -1024,7 +1024,7 @@ impl TransformES2015 {
                 })
             } else {
                 let statement = try_visit_node(
-                    node_as_for_of_statement.statement,
+                    node.ref_(self).as_for_of_statement().statement,
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_statement(node, self)),
                     Some(|nodes: &[Id<Node>]| self.factory.ref_(self).lift_to_block(nodes)),
@@ -1172,15 +1172,14 @@ impl TransformES2015 {
                         Some(&*node.ref_(self).as_for_of_statement().expression.ref_(self)),
                         self,
                     ))),
-                Some(
-                    self.factory
-                        .ref_(self)
-                        .create_postfix_increment(counter)
-                        .set_text_range(
-                            Some(&*node.ref_(self).as_for_of_statement().expression.ref_(self)),
-                            self,
-                        ),
-                ),
+                Some(released!(self
+                    .factory
+                    .ref_(self)
+                    .create_postfix_increment(counter)
+                    .set_text_range(
+                        Some(&*node.ref_(self).as_for_of_statement().expression.ref_(self)),
+                        self,
+                    ))),
                 self.convert_for_of_statement_head(
                     node,
                     self.factory

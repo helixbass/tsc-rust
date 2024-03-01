@@ -187,22 +187,18 @@ impl TransformES2015 {
                 None,
                 None,
             );
-        for span in &*node
-            .ref_(self)
-            .as_template_expression()
-            .template_spans
-            .ref_(self)
+        for span in &*released!(node.ref_(self).as_template_expression().template_spans).ref_(self)
         {
-            let span_ref = span.ref_(self);
-            let span_as_template_span = span_ref.as_template_span();
             let mut args = vec![try_visit_node(
-                span_as_template_span.expression,
+                span.ref_(self).as_template_span().expression,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?];
 
-            if !span_as_template_span
+            if !span
+                .ref_(self)
+                .as_template_span()
                 .literal
                 .ref_(self)
                 .as_template_literal_like_node()
@@ -211,7 +207,8 @@ impl TransformES2015 {
             {
                 args.push(
                     self.factory.ref_(self).create_string_literal(
-                        span_as_template_span
+                        span.ref_(self)
+                            .as_template_span()
                             .literal
                             .ref_(self)
                             .as_template_literal_like_node()

@@ -905,12 +905,12 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*TemplateLiteralTypeNode*/
     ) -> io::Result<()> {
-        for span in &*released!(
-            node.ref_(self)
-                .as_template_literal_type_node()
-                .template_spans
-        )
-        .ref_(self)
+        for span in &*released!(node
+            .ref_(self)
+            .as_template_literal_type_node()
+            .template_spans
+            .ref_(self)
+            .clone())
         {
             self.check_source_element(Some(span.ref_(self).as_template_literal_type_span().type_))?;
             let type_ = self

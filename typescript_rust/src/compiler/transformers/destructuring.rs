@@ -1020,7 +1020,7 @@ fn flatten_object_binding_or_assignment_pattern(
                     flatten_context,
                     element,
                     Some(rhs_value),
-                    &*element.ref_(arena),
+                    &released!(ReadonlyTextRangeConcrete::from(&*element.ref_(arena))),
                     None,
                     arena,
                 )?;

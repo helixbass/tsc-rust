@@ -310,7 +310,8 @@ impl TransformES2015 {
                 self.factory
                     .ref_(self)
                     .create_type_check(self.factory.ref_(self).clone_node(name), "undefined"),
-                self.factory
+                released!(self
+                    .factory
                     .ref_(self)
                     .create_block(
                         vec![self
@@ -345,7 +346,7 @@ impl TransformES2015 {
                             | EmitFlags::NoTokenSourceMaps
                             | EmitFlags::NoComments,
                         self,
-                    ),
+                    )),
                 None,
             )
             .start_on_new_line(self)
@@ -467,18 +468,17 @@ impl TransformES2015 {
                         None,
                     )
                     .set_text_range(Some(&*parameter.ref_(self)), self))),
-                Some(
-                    self.factory
-                        .ref_(self)
-                        .create_less_than(
-                            temp.clone(),
-                            self.factory.ref_(self).create_property_access_expression(
-                                self.factory.ref_(self).create_identifier("arguments"),
-                                "length",
-                            ),
-                        )
-                        .set_text_range(Some(&*parameter.ref_(self)), self),
-                ),
+                Some(released!(self
+                    .factory
+                    .ref_(self)
+                    .create_less_than(
+                        temp.clone(),
+                        self.factory.ref_(self).create_property_access_expression(
+                            self.factory.ref_(self).create_identifier("arguments"),
+                            "length",
+                        ),
+                    )
+                    .set_text_range(Some(&*parameter.ref_(self)), self))),
                 Some(
                     self.factory
                         .ref_(self)
