@@ -560,7 +560,7 @@ impl NodeFactory {
             self.update(
                 self.create_object_literal_expression(
                     Some(properties),
-                    node.ref_(self).as_object_literal_expression().multi_line,
+                    released!(node.ref_(self).as_object_literal_expression().multi_line),
                 ),
                 node,
             )

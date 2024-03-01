@@ -877,7 +877,7 @@ impl TransformES2015 {
             &mut statements,
             Some(
                 &try_visit_nodes(
-                    constructor_body.ref_(self).as_block().statements,
+                    released!(constructor_body.ref_(self).as_block().statements),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_statement(node, self)),
                     None,

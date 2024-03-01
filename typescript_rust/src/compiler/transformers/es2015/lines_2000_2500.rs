@@ -352,10 +352,12 @@ impl TransformES2015 {
             }
 
             let declarations: Vec<Id<Node>> = try_flat_map(
-                Some(
-                    &*released!(node.ref_(self).as_variable_declaration_list().declarations)
-                        .ref_(self),
-                ),
+                Some(&*released!(node
+                    .ref_(self)
+                    .as_variable_declaration_list()
+                    .declarations
+                    .ref_(self)
+                    .clone())),
                 |&declaration: &Id<Node>, _| -> io::Result<_> {
                     Ok(if node.ref_(self).flags().intersects(NodeFlags::Let) {
                         self.visit_variable_declaration_in_let_declaration_list(declaration)?

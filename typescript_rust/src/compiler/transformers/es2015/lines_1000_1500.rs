@@ -6,7 +6,7 @@ use super::TransformES2015;
 use crate::{
     get_emit_flags, insert_statement_after_custom_prologue,
     insert_statements_after_custom_prologue, is_binding_pattern, is_expression, last_or_undefined,
-    some, try_flatten_destructuring_binding, try_visit_node, EmitFlags, FlattenLevel,
+    released, some, try_flatten_destructuring_binding, try_visit_node, EmitFlags, FlattenLevel,
     GeneratedIdentifierFlags, HasInitializerInterface, InArena, Matches, NamedDeclarationInterface,
     Node, NodeArray, NodeExt, NodeInterface, Number, OptionInArena, SyntaxKind,
 };
@@ -126,7 +126,7 @@ impl TransformES2015 {
                         Option::<Id<NodeArray>>::None,
                         Option::<Id<NodeArray>>::None,
                         None,
-                        node.ref_(self).as_parameter_declaration().maybe_name(),
+                        released!(node.ref_(self).as_parameter_declaration().maybe_name()),
                         None,
                         None,
                         None,
@@ -442,76 +442,76 @@ impl TransformES2015 {
                 .set_emit_flags(EmitFlags::CustomPrologue, self),
         );
 
-        let for_statement =
-            self.factory
-                .ref_(self)
-                .create_for_statement(
-                    Some(
-                        self.factory
-                            .ref_(self)
-                            .create_variable_declaration_list(
-                                vec![self.factory.ref_(self).create_variable_declaration(
-                                    Some(temp.clone()),
-                                    None,
-                                    None,
-                                    Some(self.factory.ref_(self).create_numeric_literal(
-                                        Number::new(rest_index as f64),
-                                        None,
-                                    )),
-                                )],
-                                None,
-                            )
-                            .set_text_range(Some(&*parameter.ref_(self)), self),
-                    ),
-                    Some(
-                        self.factory
-                            .ref_(self)
-                            .create_less_than(
-                                temp.clone(),
-                                self.factory.ref_(self).create_property_access_expression(
-                                    self.factory.ref_(self).create_identifier("arguments"),
-                                    "length",
-                                ),
-                            )
-                            .set_text_range(Some(&*parameter.ref_(self)), self),
-                    ),
-                    Some(
-                        self.factory
-                            .ref_(self)
-                            .create_postfix_increment(temp.clone())
-                            .set_text_range(Some(&*parameter.ref_(self)), self),
-                    ),
-                    self.factory.ref_(self).create_block(
-                        vec![self
-                            .factory
-                            .ref_(self)
-                            .create_expression_statement(self.factory.ref_(self).create_assignment(
-                                self.factory.ref_(self).create_element_access_expression(
-                                    expression_name.clone(),
-                                    if rest_index == 0 {
-                                        temp.clone()
-                                    } else {
-                                        self.factory.ref_(self).create_subtract(
-                                            temp.clone(),
-                                            self.factory.ref_(self).create_numeric_literal(
-                                                Number::new(rest_index as f64),
-                                                None,
-                                            ),
-                                        )
-                                    },
-                                ),
-                                self.factory.ref_(self).create_element_access_expression(
-                                    self.factory.ref_(self).create_identifier("arguments"),
-                                    temp.clone(),
-                                ),
-                            ))
-                            .set_text_range(Some(&*parameter.ref_(self)), self)
-                            .start_on_new_line(self)],
+        let for_statement = self
+            .factory
+            .ref_(self)
+            .create_for_statement(
+                Some(released!(self
+                    .factory
+                    .ref_(self)
+                    .create_variable_declaration_list(
+                        vec![self.factory.ref_(self).create_variable_declaration(
+                            Some(temp.clone()),
+                            None,
+                            None,
+                            Some(
+                                self.factory
+                                    .ref_(self)
+                                    .create_numeric_literal(Number::new(rest_index as f64), None,)
+                            ),
+                        )],
                         None,
-                    ),
-                )
-                .set_emit_flags(EmitFlags::CustomPrologue, self)
-                .start_on_new_line(self);
+                    )
+                    .set_text_range(Some(&*parameter.ref_(self)), self))),
+                Some(
+                    self.factory
+                        .ref_(self)
+                        .create_less_than(
+                            temp.clone(),
+                            self.factory.ref_(self).create_property_access_expression(
+                                self.factory.ref_(self).create_identifier("arguments"),
+                                "length",
+                            ),
+                        )
+                        .set_text_range(Some(&*parameter.ref_(self)), self),
+                ),
+                Some(
+                    self.factory
+                        .ref_(self)
+                        .create_postfix_increment(temp.clone())
+                        .set_text_range(Some(&*parameter.ref_(self)), self),
+                ),
+                self.factory.ref_(self).create_block(
+                    vec![self
+                        .factory
+                        .ref_(self)
+                        .create_expression_statement(self.factory.ref_(self).create_assignment(
+                            self.factory.ref_(self).create_element_access_expression(
+                                expression_name.clone(),
+                                if rest_index == 0 {
+                                    temp.clone()
+                                } else {
+                                    self.factory.ref_(self).create_subtract(
+                                        temp.clone(),
+                                        self.factory.ref_(self).create_numeric_literal(
+                                            Number::new(rest_index as f64),
+                                            None,
+                                        ),
+                                    )
+                                },
+                            ),
+                            self.factory.ref_(self).create_element_access_expression(
+                                self.factory.ref_(self).create_identifier("arguments"),
+                                temp.clone(),
+                            ),
+                        ))
+                        .set_text_range(Some(&*parameter.ref_(self)), self)
+                        .start_on_new_line(self)],
+                    None,
+                ),
+            )
+            .set_emit_flags(EmitFlags::CustomPrologue, self)
+            .start_on_new_line(self);
 
         prologue_statements.push(for_statement);
 

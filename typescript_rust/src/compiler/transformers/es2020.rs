@@ -6,7 +6,7 @@ use crate::{
     cast, chain_bundle, impl_has_arena, is_call_chain, is_expression, is_identifier,
     is_non_null_chain, is_optional_chain, is_parenthesized_expression,
     is_simple_copiable_expression, is_synthetic_reference, is_tagged_template_expression,
-    maybe_visit_each_child, set_original_node, skip_parentheses,
+    maybe_visit_each_child, released, set_original_node, skip_parentheses,
     skip_partially_emitted_expressions, visit_each_child, visit_node, visit_nodes, AllArenas,
     CoreTransformationContext, Debug_, HasArena, InArena, Node, NodeArray, NodeExt, NodeFactory,
     NodeInterface, SyntaxKind, TransformFlags, TransformNodesTransformationResult, Transformer,
@@ -54,7 +54,7 @@ impl TransformES2020 {
         {
             return Some(node.into());
         }
-        match node.ref_(self).kind() {
+        match released!(node.ref_(self).kind()) {
             SyntaxKind::CallExpression => {
                 let updated = self.visit_non_optional_call_expression(node, false);
                 Debug_.assert_not_node(
@@ -260,23 +260,22 @@ impl TransformES2020 {
         node: Id<Node>, /*CallExpression*/
         capture_this_arg: bool,
     ) -> Id<Node /*Expression*/> {
-        let node_ref = node.ref_(self);
-        let node_as_call_expression = node_ref.as_call_expression();
         if is_optional_chain(&node.ref_(self)) {
             return self.visit_optional_expression(node, capture_this_arg, false);
         }
-        if is_parenthesized_expression(&node_as_call_expression.expression.ref_(self))
+        if is_parenthesized_expression(&node.ref_(self).as_call_expression().expression.ref_(self))
             && is_optional_chain(
-                &skip_parentheses(node_as_call_expression.expression, None, self).ref_(self),
+                &skip_parentheses(node.ref_(self).as_call_expression().expression, None, self)
+                    .ref_(self),
             )
         {
             let expression = self.visit_non_optional_parenthesized_expression(
-                node_as_call_expression.expression,
+                node.ref_(self).as_call_expression().expression,
                 true,
                 false,
             );
             let args = visit_nodes(
-                node_as_call_expression.arguments,
+                node.ref_(self).as_call_expression().arguments,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 None,
@@ -382,7 +381,7 @@ impl TransformES2020 {
         let mut this_arg: Option<Id<Node /*Expression*/>> = Default::default();
         for (i, segment) in chain.iter().enumerate() {
             let segment = *segment;
-            match segment.ref_(self).kind() {
+            match released!(segment.ref_(self).kind()) {
                 SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
                     if i == chain.len() - 1 && capture_this_arg {
                         if !is_simple_copiable_expression(&right_expression.ref_(self)) {
@@ -400,31 +399,32 @@ impl TransformES2020 {
                             this_arg = Some(right_expression.clone());
                         }
                     }
-                    right_expression =
-                        if segment.ref_(self).kind() == SyntaxKind::PropertyAccessExpression {
-                            self.factory.ref_(self).create_property_access_expression(
-                                right_expression,
-                                visit_node(
-                                    segment.ref_(self).as_property_access_expression().name,
-                                    Some(|node: Id<Node>| self.visitor(node)),
-                                    Some(|node: Id<Node>| is_identifier(&node.ref_(self))),
-                                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
-                                ),
-                            )
-                        } else {
-                            self.factory.ref_(self).create_element_access_expression(
-                                right_expression,
-                                visit_node(
-                                    segment
-                                        .ref_(self)
-                                        .as_element_access_expression()
-                                        .argument_expression,
-                                    Some(|node: Id<Node>| self.visitor(node)),
-                                    Some(|node| is_expression(node, self)),
-                                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
-                                ),
-                            )
-                        };
+                    right_expression = if segment.ref_(self).kind()
+                        == SyntaxKind::PropertyAccessExpression
+                    {
+                        self.factory.ref_(self).create_property_access_expression(
+                            right_expression,
+                            visit_node(
+                                released!(segment.ref_(self).as_property_access_expression().name),
+                                Some(|node: Id<Node>| self.visitor(node)),
+                                Some(|node: Id<Node>| is_identifier(&node.ref_(self))),
+                                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
+                            ),
+                        )
+                    } else {
+                        self.factory.ref_(self).create_element_access_expression(
+                            right_expression,
+                            visit_node(
+                                segment
+                                    .ref_(self)
+                                    .as_element_access_expression()
+                                    .argument_expression,
+                                Some(|node: Id<Node>| self.visitor(node)),
+                                Some(|node| is_expression(node, self)),
+                                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
+                            ),
+                        )
+                    };
                 }
                 SyntaxKind::CallExpression => {
                     if i == 0 && left_this_arg.is_some() {

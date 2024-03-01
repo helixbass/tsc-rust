@@ -182,7 +182,12 @@ impl TransformES2015 {
         statements: &mut Vec<Id<Node /*Statement*/>>,
         node: Id<Node>, /*ClassExpression | ClassDeclaration*/
     ) -> io::Result<()> {
-        for &member in &*released!(node.ref_(self).as_class_like_declaration().members()).ref_(self)
+        for &member in &*released!(node
+            .ref_(self)
+            .as_class_like_declaration()
+            .members()
+            .ref_(self)
+            .clone())
         {
             match released!(member.ref_(self).kind()) {
                 SyntaxKind::SemicolonClassElement => {

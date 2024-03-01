@@ -170,14 +170,17 @@ impl TransformModule {
             .get(id_text(&*name.ref_(self)));
         if let Some(export_specifiers) = export_specifiers {
             for export_specifier in export_specifiers {
-                let export_specifier_ref = export_specifier.ref_(self);
-                let export_specifier_as_export_specifier =
-                    export_specifier_ref.as_export_specifier();
                 self.append_export_statement(
                     statements,
-                    export_specifier_as_export_specifier.name,
+                    released!(export_specifier.ref_(self).as_export_specifier().name),
                     name,
-                    Some(&*export_specifier_as_export_specifier.name.ref_(self)),
+                    Some(&released!(ReadonlyTextRangeConcrete::from(
+                        &*export_specifier
+                            .ref_(self)
+                            .as_export_specifier()
+                            .name
+                            .ref_(self)
+                    ))),
                     None,
                     live_binding,
                 );

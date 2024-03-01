@@ -570,11 +570,9 @@ impl NodeFactory {
         expression: Id<Node /*Expression*/>,
         statement: Id<Node /*Statement*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_for_in_statement = node_ref.as_for_in_statement();
-        if node_as_for_in_statement.initializer != initializer
-            || node_as_for_in_statement.expression != expression
-            || node_as_for_in_statement.statement != statement
+        if node.ref_(self).as_for_in_statement().initializer != initializer
+            || node.ref_(self).as_for_in_statement().expression != expression
+            || node.ref_(self).as_for_in_statement().statement != statement
         {
             self.update(
                 self.create_for_in_statement(initializer, expression, statement),

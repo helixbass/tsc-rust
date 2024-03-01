@@ -362,11 +362,9 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*CallExpression*/
     ) -> io::Result<VisitResult> {
-        let node_ref = node.ref_(self);
-        let node_as_call_expression = node_ref.as_call_expression();
         let body = cast_present(
             cast_present(
-                skip_outer_expressions(node_as_call_expression.expression, None, self),
+                skip_outer_expressions(node.ref_(self).as_call_expression().expression, None, self),
                 |node: &Id<Node>| is_arrow_function(&node.ref_(self)),
             )
             .ref_(self)
@@ -375,13 +373,11 @@ impl TransformES2015 {
             .unwrap(),
             |node: &Id<Node>| is_block(&node.ref_(self)),
         );
-        let body_ref = body.ref_(self);
-        let body_as_block = body_ref.as_block();
 
         let saved_converted_loop_state = self.maybe_converted_loop_state();
         self.set_converted_loop_state(None);
         let body_statements = try_visit_nodes(
-            body_as_block.statements,
+            released!(body.ref_(self).as_block().statements),
             Some(|node: Id<Node>| self.class_wrapper_statement_visitor(node)),
             Some(|node| is_statement(node, self)),
             None,
@@ -532,7 +528,7 @@ impl TransformES2015 {
             self.factory
                 .ref_(self)
                 .restore_outer_expressions(
-                    Some(node_as_call_expression.expression),
+                    Some(node.ref_(self).as_call_expression().expression),
                     self.factory.ref_(self).restore_outer_expressions(
                         variable_as_variable_declaration.maybe_initializer(),
                         self.factory.ref_(self).restore_outer_expressions(

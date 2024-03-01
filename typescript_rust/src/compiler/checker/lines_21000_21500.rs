@@ -195,7 +195,7 @@ impl TypeChecker {
         let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None, self);
         for prop in self.get_properties_of_object_type(type_)? {
             members.insert(
-                prop.ref_(self).escaped_name().to_owned(),
+                released!(prop.ref_(self).escaped_name().to_owned()),
                 self.get_widened_property(prop, context.clone())?,
             );
         }
@@ -863,9 +863,9 @@ impl TypeChecker {
                 map(&inferences, |&inference: &Id<InferenceInfo>, _| {
                     self.alloc_inference_info(self.clone_inference_info(inference))
                 }),
-                context.ref_(self).signature.clone(),
-                context.ref_(self).flags(),
-                context.ref_(self).compare_types.clone(),
+                released!(context.ref_(self).signature),
+                released!(context.ref_(self).flags()),
+                released!(context.ref_(self).compare_types),
             ))
         } else {
             None

@@ -91,8 +91,6 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*GetAccessorDeclaration*/
     ) -> io::Result<VisitResult> {
-        let node_ref = node.ref_(self);
-        let node_as_get_accessor_declaration = node_ref.as_get_accessor_declaration();
         if !self.should_emit_accessor_declaration(node) {
             return Ok(None);
         }
@@ -100,7 +98,7 @@ impl TransformTypeScript {
             node,
             Option::<Id<NodeArray>>::None,
             maybe_visit_nodes(
-                node.ref_(self).maybe_modifiers(),
+                released!(node.ref_(self).maybe_modifiers()),
                 Some(|node: Id<Node>| self.modifier_visitor(node)),
                 Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                 None,
@@ -109,7 +107,9 @@ impl TransformTypeScript {
             ),
             self.visit_property_name_of_class_element(node)?,
             try_visit_parameter_list(
-                Some(node_as_get_accessor_declaration.parameters()),
+                released!(Some(
+                    node.ref_(self).as_get_accessor_declaration().parameters()
+                )),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
@@ -118,7 +118,7 @@ impl TransformTypeScript {
             None,
             Some(
                 try_visit_function_body(
-                    node_as_get_accessor_declaration.maybe_body(),
+                    released!(node.ref_(self).as_get_accessor_declaration().maybe_body()),
                     |node: Id<Node>| self.visitor(node),
                     &*self.context.ref_(self),
                     self,
@@ -548,7 +548,7 @@ impl TransformTypeScript {
         node: Id<Node>, /*NonNullExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
         let expression = try_visit_node(
-            node.ref_(self).as_non_null_expression().expression,
+            released!(node.ref_(self).as_non_null_expression().expression),
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_left_hand_side_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

@@ -488,20 +488,19 @@ impl TypeChecker {
                     None,
                     None,
                 )?;
-                context.ref_(self).set_return_mapper(
-                    if some(
-                        Some(&**return_context.ref_(self).inferences()),
-                        Some(|inference: &Id<InferenceInfo>| {
-                            self.has_inference_candidates(&inference.ref_(self))
-                        }),
-                    ) {
-                        self.get_mapper_from_context(
-                            self.clone_inferred_part_of_context(return_context),
-                        )
-                    } else {
-                        None
-                    },
-                );
+                let return_mapper = if some(
+                    Some(&**return_context.ref_(self).inferences()),
+                    Some(|inference: &Id<InferenceInfo>| {
+                        self.has_inference_candidates(&inference.ref_(self))
+                    }),
+                ) {
+                    self.get_mapper_from_context(
+                        self.clone_inferred_part_of_context(return_context),
+                    )
+                } else {
+                    None
+                };
+                context.ref_(self).set_return_mapper(return_mapper);
             }
         }
 

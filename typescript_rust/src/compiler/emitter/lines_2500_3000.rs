@@ -989,27 +989,35 @@ impl Printer {
             node,
             None,
         );
-        let node_ref = node.ref_(self);
-        let node_as_for_in_statement = node_ref.as_for_in_statement();
-        self.emit_for_binding(Some(node_as_for_in_statement.initializer))?;
+        self.emit_for_binding(Some(released!(
+            node.ref_(self).as_for_in_statement().initializer
+        )))?;
         self.write_space();
         self.emit_token_with_comment(
             SyntaxKind::InKeyword,
-            node_as_for_in_statement.initializer.ref_(self).end(),
+            node.ref_(self)
+                .as_for_in_statement()
+                .initializer
+                .ref_(self)
+                .end(),
             |text: &str| self.write_keyword(text),
             node,
             None,
         );
         self.write_space();
-        self.emit_expression(Some(node_as_for_in_statement.expression), None)?;
+        self.emit_expression(Some(node.ref_(self).as_for_in_statement().expression), None)?;
         self.emit_token_with_comment(
             SyntaxKind::CloseParenToken,
-            node_as_for_in_statement.expression.ref_(self).end(),
+            node.ref_(self)
+                .as_for_in_statement()
+                .expression
+                .ref_(self)
+                .end(),
             |text: &str| self.write_punctuation(text),
             node,
             None,
         );
-        self.emit_embedded_statement(node, node_as_for_in_statement.statement)?;
+        self.emit_embedded_statement(node, node.ref_(self).as_for_in_statement().statement)?;
 
         Ok(())
     }

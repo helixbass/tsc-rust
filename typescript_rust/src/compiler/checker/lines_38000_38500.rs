@@ -73,15 +73,15 @@ impl TypeChecker {
             self.check_expression(node.ref_(self).as_switch_statement().expression, None, None)?;
         let expression_is_literal = self.is_literal_type(expression_type);
         try_for_each(
-            &*released!(
-                node.ref_(self)
-                    .as_switch_statement()
-                    .case_block
-                    .ref_(self)
-                    .as_case_block()
-                    .clauses
-            )
-            .ref_(self),
+            &*released!(node
+                .ref_(self)
+                .as_switch_statement()
+                .case_block
+                .ref_(self)
+                .as_case_block()
+                .clauses
+                .ref_(self)
+                .clone()),
             |&clause: &Id<Node>, _| -> io::Result<Option<()>> {
                 if clause.ref_(self).kind() == SyntaxKind::DefaultClause
                     && !has_duplicate_default_clause
@@ -119,7 +119,7 @@ impl TypeChecker {
                         self.check_type_comparable_to(
                             case_type,
                             compared_expression_type,
-                            clause.ref_(self).as_case_clause().expression,
+                            released!(clause.ref_(self).as_case_clause().expression),
                             None,
                             None,
                         )?;

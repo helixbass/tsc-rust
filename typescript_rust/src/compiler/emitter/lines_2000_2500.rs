@@ -1090,7 +1090,9 @@ impl Printer {
         node: Id<Node>, /*ElementAccessExpression*/
     ) -> io::Result<()> {
         self.emit_expression(
-            Some(node.ref_(self).as_element_access_expression().expression),
+            released!(Some(
+                node.ref_(self).as_element_access_expression().expression
+            )),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(
                     self.parenthesizer(),

@@ -1903,8 +1903,6 @@ impl TransformES2018 {
         &self,
         node: Id<Node>, /*FunctionDeclaration*/
     ) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_function_declaration = node_ref.as_function_declaration();
         let saved_enclosing_function_flags = self.maybe_enclosing_function_flags();
         self.set_enclosing_function_flags(Some(FunctionFlags::Normal));
         let updated = self.factory.ref_(self).update_function_declaration(
@@ -1935,12 +1933,14 @@ impl TransformES2018 {
             {
                 None
             } else {
-                node_as_function_declaration.maybe_asterisk_token()
+                node.ref_(self)
+                    .as_function_declaration()
+                    .maybe_asterisk_token()
             },
-            node_as_function_declaration.maybe_name(),
+            node.ref_(self).as_function_declaration().maybe_name(),
             Option::<Id<NodeArray>>::None,
             visit_parameter_list(
-                Some(node_as_function_declaration.parameters()),
+                Some(node.ref_(self).as_function_declaration().parameters()),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
