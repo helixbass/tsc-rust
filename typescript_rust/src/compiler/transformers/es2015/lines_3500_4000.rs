@@ -313,17 +313,16 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*CallExpression*/
     ) -> io::Result<VisitResult> {
-        let node_ref = node.ref_(self);
-        let node_as_call_expression = node_ref.as_call_expression();
         if get_emit_flags(node, self).intersects(EmitFlags::TypeScriptClassWrapper) {
             return self.visit_type_script_class_wrapper(node);
         }
 
-        let expression = skip_outer_expressions(node_as_call_expression.expression, None, self);
+        let expression =
+            skip_outer_expressions(node.ref_(self).as_call_expression().expression, None, self);
         if expression.ref_(self).kind() == SyntaxKind::SuperKeyword
             || is_super_property(expression, self)
             || some(
-                Some(&*node_as_call_expression.arguments.ref_(self)),
+                Some(&*node.ref_(self).as_call_expression().arguments.ref_(self)),
                 Some(|argument: &Id<Node>| is_spread_element(&argument.ref_(self))),
             )
         {
@@ -339,14 +338,14 @@ impl TransformES2015 {
                 .update_call_expression(
                     node,
                     try_visit_node(
-                        node_as_call_expression.expression,
+                        node.ref_(self).as_call_expression().expression,
                         Some(|node: Id<Node>| self.call_expression_visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     Option::<Id<NodeArray>>::None,
                     try_visit_nodes(
-                        node_as_call_expression.arguments,
+                        node.ref_(self).as_call_expression().arguments,
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         None,

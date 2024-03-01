@@ -470,7 +470,7 @@ impl TypeChecker {
                         .clone()
                         .unwrap(),
                     Some(signature.clone()),
-                    context.ref_(self).flags(),
+                    released!(context.ref_(self).flags()),
                     None,
                 );
                 let return_source_type = self.instantiate_type(

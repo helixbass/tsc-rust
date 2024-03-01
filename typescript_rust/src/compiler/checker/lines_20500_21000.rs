@@ -34,7 +34,8 @@ impl TypeChecker {
         {
             return Ok(Ternary::False);
         }
-        if let Some(ref target_type_parameters) = target.ref_(self).maybe_type_parameters().clone()
+        if let Some(ref target_type_parameters) =
+            released!(target.ref_(self).maybe_type_parameters().clone())
         {
             let source_type_parameters = source.ref_(self).maybe_type_parameters().clone().unwrap();
             let mapper = self.create_type_mapper(
