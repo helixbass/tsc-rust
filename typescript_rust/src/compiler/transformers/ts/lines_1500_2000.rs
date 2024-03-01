@@ -378,9 +378,7 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*HeritageClause*/
     ) -> io::Result<Option<Id<Node /*HeritageClause*/>>> {
-        let node_ref = node.ref_(self);
-        let node_as_heritage_clause = node_ref.as_heritage_clause();
-        if node_as_heritage_clause.token == SyntaxKind::ImplementsKeyword {
+        if node.ref_(self).as_heritage_clause().token == SyntaxKind::ImplementsKeyword {
             return Ok(None);
         }
         try_maybe_visit_each_child(
@@ -401,9 +399,11 @@ impl TransformTypeScript {
             .update_expression_with_type_arguments(
                 node,
                 try_visit_node(
-                    node.ref_(self)
-                        .as_expression_with_type_arguments()
-                        .expression,
+                    released!(
+                        node.ref_(self)
+                            .as_expression_with_type_arguments()
+                            .expression
+                    ),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_left_hand_side_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

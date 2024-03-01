@@ -28,7 +28,7 @@ use crate::{
 impl NodeBuilder {
     pub(super) fn conditional_type_to_type_node(
         &self,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         type_: Id<Type>, /*ConditionalType*/
     ) -> io::Result<Id<Node>> {
         let check_type_node = self
@@ -37,8 +37,9 @@ impl NodeBuilder {
                 context,
             )?
             .unwrap();
-        let save_infer_type_parameters = context.infer_type_parameters.ref_(self).clone();
-        *context.infer_type_parameters.ref_mut(self) = type_
+        let save_infer_type_parameters =
+            context.ref_(self).infer_type_parameters.ref_(self).clone();
+        *context.ref_(self).infer_type_parameters.ref_mut(self) = type_
             .ref_(self)
             .as_conditional_type()
             .root
@@ -51,7 +52,7 @@ impl NodeBuilder {
                 context,
             )?
             .unwrap();
-        *context.infer_type_parameters.ref_mut(self) = save_infer_type_parameters;
+        *context.ref_(self).infer_type_parameters.ref_mut(self) = save_infer_type_parameters;
         let true_type_node = self.type_to_type_node_or_circularity_elision(
             context,
             self.type_checker
@@ -64,7 +65,7 @@ impl NodeBuilder {
                 .ref_(self)
                 .get_false_type_from_conditional_type(type_)?,
         )?;
-        context.increment_approximate_length_by(15);
+        context.ref_(self).increment_approximate_length_by(15);
         Ok(get_factory(self).create_conditional_type_node(
             check_type_node,
             extends_type_node,
@@ -75,18 +76,22 @@ impl NodeBuilder {
 
     pub(super) fn type_to_type_node_or_circularity_elision(
         &self,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         type_: Id<Type>,
     ) -> io::Result<Id<Node>> {
         if type_.ref_(self).flags().intersects(TypeFlags::Union) {
-            if matches!(context.visited_types.borrow().as_ref(), Some(visited_types) if visited_types.contains(&self.type_checker.ref_(self).get_type_id(type_)))
+            if matches!(context.ref_(self).visited_types.borrow().as_ref(), Some(visited_types) if visited_types.contains(&self.type_checker.ref_(self).get_type_id(type_)))
             {
                 if !context
+                    .ref_(self)
                     .flags()
                     .intersects(NodeBuilderFlags::AllowAnonymousIdentifier)
                 {
-                    context.encountered_error.set(true);
-                    context.tracker_ref().report_cyclic_structure_error();
+                    context.ref_(self).encountered_error.set(true);
+                    context
+                        .ref_(self)
+                        .tracker_ref()
+                        .report_cyclic_structure_error();
                 }
                 return Ok(self.create_elided_information_placeholder(context));
             }
@@ -103,7 +108,7 @@ impl NodeBuilder {
 
     pub(super) fn create_mapped_type_node_from_type(
         &self,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         type_: Id<Type>, /*MappedType*/
     ) -> io::Result<Id<Node>> {
         Debug_.assert(type_.ref_(self).flags().intersects(TypeFlags::Object), None);
@@ -192,7 +197,7 @@ impl NodeBuilder {
             template_type_node,
             Option::<Id<NodeArray>>::None,
         );
-        context.increment_approximate_length_by(10);
+        context.ref_(self).increment_approximate_length_by(10);
         Ok(set_emit_flags(
             mapped_type_node,
             EmitFlags::SingleLine,
@@ -203,7 +208,7 @@ impl NodeBuilder {
     #[allow(clippy::if_same_then_else)]
     pub(super) fn create_anonymous_type_node(
         &self,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         type_: Id<Type>, /*ObjectType*/
     ) -> io::Result<Id<Node>> {
         let type_id = type_.ref_(self).id();
@@ -230,6 +235,7 @@ impl NodeBuilder {
                     symbol.ref_(self).maybe_value_declaration(),
                     Some(value_declaration) if value_declaration.ref_(self).kind() == SyntaxKind::ClassExpression
                 ) && context
+                    .ref_(self)
                     .flags()
                     .intersects(NodeBuilderFlags::WriteClassExpressionAsTypeLiteral))
                 || symbol
@@ -239,7 +245,7 @@ impl NodeBuilder {
                 || self.should_write_type_of_function_symbol(symbol, context, type_id)?
             {
                 self.symbol_to_type_node(symbol, context, is_instance_type, None)?
-            } else if matches!(context.visited_types.borrow().as_ref(), Some(visited_types) if visited_types.contains(&type_id))
+            } else if matches!(context.ref_(self).visited_types.borrow().as_ref(), Some(visited_types) if visited_types.contains(&type_id))
             {
                 let type_alias = self
                     .type_checker
@@ -263,7 +269,7 @@ impl NodeBuilder {
     pub(super) fn should_write_type_of_function_symbol(
         &self,
         symbol: Id<Symbol>,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         type_id: TypeId,
     ) -> io::Result<bool> {
         let is_static_method_symbol = symbol.ref_(self).flags().intersects(SymbolFlags::Method)
@@ -285,15 +291,17 @@ impl NodeBuilder {
                     ));
         if is_static_method_symbol || is_non_local_function_symbol {
             return Ok((context
+                .ref_(self)
                 .flags()
                 .intersects(NodeBuilderFlags::UseTypeOfFunction)
-                || matches!(context.visited_types.borrow().as_ref(), Some(visited_types) if visited_types.contains(&type_id)))
+                || matches!(context.ref_(self).visited_types.borrow().as_ref(), Some(visited_types) if visited_types.contains(&type_id)))
                 && (!context
+                    .ref_(self)
                     .flags()
                     .intersects(NodeBuilderFlags::UseStructuralFallback)
                     || self.type_checker.ref_(self).is_value_symbol_accessible(
                         symbol,
-                        context.maybe_enclosing_declaration(),
+                        context.ref_(self).maybe_enclosing_declaration(),
                     )?));
         }
         Ok(false)
@@ -302,7 +310,7 @@ impl NodeBuilder {
     #[allow(dead_code)]
     pub(super) fn visit_and_transform_type(
         &self,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         type_: Id<Type>,
         mut transform: impl FnMut(Id<Type>) -> Id<Node>,
     ) -> Id<Node> {
@@ -312,7 +320,7 @@ impl NodeBuilder {
 
     pub(super) fn try_visit_and_transform_type(
         &self,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         type_: Id<Type>,
         mut transform: impl FnMut(Id<Type>) -> io::Result<Id<Node>>,
     ) -> io::Result<Id<Node>> {
@@ -361,13 +369,14 @@ impl NodeBuilder {
         } else {
             None
         };
-        if context.visited_types.borrow().is_none() {
-            *context.visited_types.borrow_mut() = Some(HashSet::new());
+        if context.ref_(self).visited_types.borrow().is_none() {
+            *context.ref_(self).visited_types.borrow_mut() = Some(HashSet::new());
         }
-        if id.is_some() && context.symbol_depth.borrow().is_none() {
-            *context.symbol_depth.borrow_mut() = Some(HashMap::new());
+        if id.is_some() && context.ref_(self).symbol_depth.borrow().is_none() {
+            *context.ref_(self).symbol_depth.borrow_mut() = Some(HashMap::new());
         }
         let links = context
+            .ref_(self)
             .maybe_enclosing_declaration()
             .map(|enclosing_declaration| {
                 self.type_checker
@@ -377,7 +386,7 @@ impl NodeBuilder {
         let key = format!(
             "{}|{}",
             self.type_checker.ref_(self).get_type_id(type_),
-            context.flags().bits()
+            context.ref_(self).flags().bits()
         );
         if let Some(links) = links {
             let mut links = links.ref_mut(self);
@@ -396,15 +405,18 @@ impl NodeBuilder {
         });
         if let Some(cached_result) = cached_result.as_ref() {
             if cached_result.truncating == Some(true) {
-                context.truncating.set(Some(true));
+                context.ref_(self).truncating.set(Some(true));
             }
-            context.increment_approximate_length_by(cached_result.added_length);
+            context
+                .ref_(self)
+                .increment_approximate_length_by(cached_result.added_length);
             return Ok(self.deep_clone_or_reuse_node(cached_result.node));
         }
         let mut depth: Option<usize> = None;
         if let Some(id) = id.as_ref() {
             depth = Some(
                 context
+                    .ref_(self)
                     .symbol_depth
                     .borrow()
                     .as_ref()
@@ -417,6 +429,7 @@ impl NodeBuilder {
                 return Ok(self.create_elided_information_placeholder(context));
             }
             context
+                .ref_(self)
                 .symbol_depth
                 .borrow_mut()
                 .as_mut()
@@ -424,15 +437,18 @@ impl NodeBuilder {
                 .insert(id.clone(), depth.unwrap() + 1);
         }
         context
+            .ref_(self)
             .visited_types
             .borrow_mut()
             .as_mut()
             .unwrap()
             .insert(type_id);
-        let start_length = context.approximate_length.get();
+        let start_length = context.ref_(self).approximate_length.get();
         let result = transform(type_)?;
-        let added_length = context.approximate_length.get() - start_length;
-        if !context.reported_diagnostic.get() && !context.encountered_error.get() {
+        let added_length = context.ref_(self).approximate_length.get() - start_length;
+        if !context.ref_(self).reported_diagnostic.get()
+            && !context.ref_(self).encountered_error.get()
+        {
             if let Some(links) = links {
                 links
                     .ref_mut(self)
@@ -442,7 +458,8 @@ impl NodeBuilder {
                     .insert(
                         key,
                         NodeLinksSerializedType {
-                            truncating: if matches!(context.truncating.get(), Some(true)) {
+                            truncating: if matches!(context.ref_(self).truncating.get(), Some(true))
+                            {
                                 Some(true)
                             } else {
                                 None
@@ -454,6 +471,7 @@ impl NodeBuilder {
             }
         }
         context
+            .ref_(self)
             .visited_types
             .borrow_mut()
             .as_mut()
@@ -461,6 +479,7 @@ impl NodeBuilder {
             .remove(&type_id);
         if let Some(id) = id {
             context
+                .ref_(self)
                 .symbol_depth
                 .borrow_mut()
                 .as_mut()
@@ -489,7 +508,7 @@ impl NodeBuilder {
 
     pub(super) fn create_type_node_from_object_type(
         &self,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         type_: Id<Type>, /*ObjectType*/
     ) -> io::Result<Id<Node>> {
         if self.type_checker.ref_(self).is_generic_mapped_type(type_)?
@@ -531,7 +550,7 @@ impl NodeBuilder {
                     .construct_signatures()
                     .is_empty()
             {
-                context.increment_approximate_length_by(2);
+                context.ref_(self).increment_approximate_length_by(2);
                 return Ok(set_emit_flags(
                     get_factory(self).create_type_literal_node(Option::<Id<NodeArray>>::None),
                     EmitFlags::SingleLine,
@@ -622,6 +641,7 @@ impl NodeBuilder {
                     - abstract_signatures.len())
                 + resolved.ref_(self).as_resolved_type().index_infos().len()
                 + if context
+                    .ref_(self)
                     .flags()
                     .intersects(NodeBuilderFlags::WriteClassExpressionAsTypeLiteral)
                 {
@@ -665,15 +685,18 @@ impl NodeBuilder {
                 .unwrap());
         }
 
-        let saved_flags = context.flags();
-        context.set_flags(context.flags() | NodeBuilderFlags::InObjectTypeLiteral);
+        let saved_flags = context.ref_(self).flags();
+        context
+            .ref_(self)
+            .set_flags(context.ref_(self).flags() | NodeBuilderFlags::InObjectTypeLiteral);
         let members = self.create_type_nodes_from_resolved_type(context, resolved)?;
-        context.set_flags(saved_flags);
+        context.ref_(self).set_flags(saved_flags);
         let type_literal_node = get_factory(self).create_type_literal_node(members);
-        context.increment_approximate_length_by(2);
+        context.ref_(self).increment_approximate_length_by(2);
         set_emit_flags(
             type_literal_node,
             if context
+                .ref_(self)
                 .flags()
                 .intersects(NodeBuilderFlags::MultilineObjectLiterals)
             {
@@ -688,7 +711,7 @@ impl NodeBuilder {
 
     pub(super) fn type_reference_to_type_node(
         &self,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         type_: Id<Type>, /*TypeReference*/
     ) -> io::Result<Option<Id<Node>>> {
         let type_arguments = self.type_checker.ref_(self).get_type_arguments(type_)?;
@@ -698,6 +721,7 @@ impl NodeBuilder {
                 || type_target == self.type_checker.ref_(self).global_readonly_array_type()
             {
                 if context
+                    .ref_(self)
                     .flags()
                     .intersects(NodeBuilderFlags::WriteArrayAsGenericType)
                 {
@@ -825,8 +849,9 @@ impl NodeBuilder {
                         }));
                     }
                 }
-                if context.encountered_error.get()
+                if context.ref_(self).encountered_error.get()
                     || context
+                        .ref_(self)
                         .flags()
                         .intersects(NodeBuilderFlags::AllowEmptyTuple)
                 {
@@ -842,9 +867,10 @@ impl NodeBuilder {
                         tuple_type_node
                     }));
                 }
-                context.encountered_error.set(true);
+                context.ref_(self).encountered_error.set(true);
                 return Ok(None);
             } else if context
+                .ref_(self)
                 .flags()
                 .intersects(NodeBuilderFlags::WriteClassExpressionAsTypeLiteral)
                 && matches!(
@@ -853,7 +879,7 @@ impl NodeBuilder {
                 )
                 && !self.type_checker.ref_(self).is_value_symbol_accessible(
                     type_.ref_(self).symbol(),
-                    context.maybe_enclosing_declaration(),
+                    context.ref_(self).maybe_enclosing_declaration(),
                 )?
             {
                 Some(self.create_anonymous_type_node(context, type_)?)
@@ -887,9 +913,9 @@ impl NodeBuilder {
                                 context,
                                 None,
                             )?;
-                            let flags = context.flags();
-                            context.set_flags(
-                                context.flags()
+                            let flags = context.ref_(self).flags();
+                            context.ref_(self).set_flags(
+                                context.ref_(self).flags()
                                     | NodeBuilderFlags::ForbidIndexedAccessSymbolReferences,
                             );
                             let ref_ = self.symbol_to_type_node(
@@ -898,7 +924,7 @@ impl NodeBuilder {
                                 SymbolFlags::Type,
                                 type_argument_slice.as_deref(),
                             )?;
-                            context.set_flags(flags);
+                            context.ref_(self).set_flags(flags);
                             result_type = match result_type {
                                 None => Some(ref_),
                                 Some(result_type) => {
@@ -921,9 +947,10 @@ impl NodeBuilder {
                         None,
                     )?;
                 }
-                let flags = context.flags();
-                context.set_flags(
-                    context.flags() | NodeBuilderFlags::ForbidIndexedAccessSymbolReferences,
+                let flags = context.ref_(self).flags();
+                context.ref_(self).set_flags(
+                    context.ref_(self).flags()
+                        | NodeBuilderFlags::ForbidIndexedAccessSymbolReferences,
                 );
                 let final_ref = self.symbol_to_type_node(
                     type_.ref_(self).symbol(),
@@ -931,7 +958,7 @@ impl NodeBuilder {
                     SymbolFlags::Type,
                     type_argument_nodes.as_deref(),
                 )?;
-                context.set_flags(flags);
+                context.ref_(self).set_flags(flags);
                 Some(match result_type {
                     None => final_ref,
                     Some(result_type) => self.append_reference_to_type(result_type, final_ref),
@@ -1039,7 +1066,7 @@ impl NodeBuilder {
 
     pub(super) fn create_type_nodes_from_resolved_type(
         &self,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         resolved_type: Id<Type>, /*ResolvedType*/
     ) -> io::Result<Option<Vec<Id<Node /*TypeElement*/>>>> {
         if self.check_truncation_length(context) {
@@ -1110,6 +1137,7 @@ impl NodeBuilder {
         for &property_symbol in &released!(properties.ref_(self).clone()) {
             i += 1;
             if context
+                .ref_(self)
                 .flags()
                 .intersects(NodeBuilderFlags::WriteClassExpressionAsTypeLiteral)
             {
@@ -1125,6 +1153,7 @@ impl NodeBuilder {
                 /*&& context.tracker.reportPrivateInBaseOfClassExpression*/
                 {
                     context
+                        .ref_(self)
                         .tracker_ref()
                         .report_private_in_base_of_class_expression(&unescape_leading_underscores(
                             property_symbol.ref_(self).escaped_name(),
@@ -1156,10 +1185,14 @@ impl NodeBuilder {
 
     pub(super) fn create_elided_information_placeholder(
         &self,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
     ) -> Id<Node> {
-        context.increment_approximate_length_by(3);
-        if !context.flags().intersects(NodeBuilderFlags::NoTruncation) {
+        context.ref_(self).increment_approximate_length_by(3);
+        if !context
+            .ref_(self)
+            .flags()
+            .intersects(NodeBuilderFlags::NoTruncation)
+        {
             return get_factory(self).create_type_reference_node(
                 get_factory(self).create_identifier("..."),
                 Option::<Id<NodeArray>>::None,
@@ -1176,21 +1209,32 @@ impl NodeBuilder {
     pub(super) fn should_use_placeholder_for_property(
         &self,
         property_symbol: Id<Symbol>,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
     ) -> bool {
         get_check_flags(&property_symbol.ref_(self)).intersects(CheckFlags::ReverseMapped)
             && (contains(
-                context.reverse_mapped_stack.ref_(self).as_deref(),
+                context
+                    .ref_(self)
+                    .reverse_mapped_stack
+                    .ref_(self)
+                    .as_deref(),
                 &property_symbol,
             ) || matches!(
-                context.reverse_mapped_stack.ref_(self).as_ref(),
+                context.ref_(self).reverse_mapped_stack.ref_(self).as_ref(),
                 Some(reverse_mapped_stack) if reverse_mapped_stack.get(0).is_some()
             ) && !get_object_flags(
-                &*last(context.reverse_mapped_stack.ref_(self).as_deref().unwrap())
-                    .ref_(self)
-                    .as_reverse_mapped_symbol()
-                    .property_type
-                    .ref_(self),
+                &*last(
+                    context
+                        .ref_(self)
+                        .reverse_mapped_stack
+                        .ref_(self)
+                        .as_deref()
+                        .unwrap(),
+                )
+                .ref_(self)
+                .as_reverse_mapped_symbol()
+                .property_type
+                .ref_(self),
             )
             .intersects(ObjectFlags::Anonymous))
     }
@@ -1198,7 +1242,7 @@ impl NodeBuilder {
     pub(super) fn add_property_to_element_list(
         &self,
         property_symbol: Id<Symbol>,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         type_elements: &mut Vec<Id<Node /*TypeElement*/>>,
     ) -> io::Result<()> {
         let property_is_reverse_mapped =
@@ -1210,9 +1254,9 @@ impl NodeBuilder {
                 .ref_(self)
                 .get_non_missing_type_of_symbol(property_symbol)?
         };
-        let save_enclosing_declaration = context.maybe_enclosing_declaration();
-        context.set_enclosing_declaration(None);
-        if context.tracker_ref().is_track_symbol_supported()
+        let save_enclosing_declaration = context.ref_(self).maybe_enclosing_declaration();
+        context.ref_(self).set_enclosing_declaration(None);
+        if context.ref_(self).tracker_ref().is_track_symbol_supported()
             && get_check_flags(&property_symbol.ref_(self)).intersects(CheckFlags::Late)
             && self
                 .type_checker
@@ -1257,21 +1301,25 @@ impl NodeBuilder {
                     }
                 }
             } else if context
+                .ref_(self)
                 .tracker_ref()
                 .is_report_non_serializable_property_supported()
             {
-                context.tracker_ref().report_non_serializable_property(
-                    &self.type_checker.ref_(self).symbol_to_string_(
-                        property_symbol,
-                        Option::<Id<Node>>::None,
-                        None,
-                        None,
-                        None,
-                    )?,
-                );
+                context
+                    .ref_(self)
+                    .tracker_ref()
+                    .report_non_serializable_property(
+                        &self.type_checker.ref_(self).symbol_to_string_(
+                            property_symbol,
+                            Option::<Id<Node>>::None,
+                            None,
+                            None,
+                            None,
+                        )?,
+                    );
             }
         }
-        context.set_enclosing_declaration(
+        context.ref_(self).set_enclosing_declaration(
             property_symbol
                 .ref_(self)
                 .maybe_value_declaration()
@@ -1287,8 +1335,12 @@ impl NodeBuilder {
                 .or_else(|| save_enclosing_declaration.clone()),
         );
         let property_name = self.get_property_name_node_for_symbol(property_symbol, context)?;
-        context.set_enclosing_declaration(save_enclosing_declaration.clone());
-        context.increment_approximate_length_by(symbol_name(property_symbol, self).len() + 1);
+        context
+            .ref_(self)
+            .set_enclosing_declaration(save_enclosing_declaration.clone());
+        context
+            .ref_(self)
+            .increment_approximate_length_by(symbol_name(property_symbol, self).len() + 1);
         let optional_token: Option<Id<Node>> = if property_symbol
             .ref_(self)
             .flags()
@@ -1342,6 +1394,7 @@ impl NodeBuilder {
             } else {
                 if property_is_reverse_mapped {
                     context
+                        .ref_(self)
                         .reverse_mapped_stack
                         .ref_mut(self)
                         .get_or_insert_default_()
@@ -1363,6 +1416,7 @@ impl NodeBuilder {
                 };
                 if property_is_reverse_mapped {
                     context
+                        .ref_(self)
                         .reverse_mapped_stack
                         .ref_mut(self)
                         .as_mut()
@@ -1383,7 +1437,7 @@ impl NodeBuilder {
                 None
             };
             if modifiers.is_some() {
-                context.increment_approximate_length_by(9);
+                context.ref_(self).increment_approximate_length_by(9);
             }
             let property_signature = get_factory(self).create_property_signature(
                 modifiers,

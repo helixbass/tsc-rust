@@ -216,7 +216,7 @@ impl TypeChecker {
     pub(super) fn get_name_of_symbol_from_name_type(
         &self,
         symbol: Id<Symbol>,
-        context: Option<&NodeBuilderContext>,
+        context: Option<Id<NodeBuilderContext>>,
     ) -> Option<String> {
         let name_type = self.get_symbol_links(symbol).ref_(self).name_type?;
         if name_type
@@ -265,20 +265,22 @@ impl TypeChecker {
     pub(super) fn get_name_of_symbol_as_written(
         &self,
         symbol: Id<Symbol>,
-        context: Option<&NodeBuilderContext>,
+        context: Option<Id<NodeBuilderContext>>,
     ) -> Cow<'static, str> {
         if let Some(context) = context {
             if symbol.ref_(self).escaped_name() == InternalSymbolName::Default
                 && !context
+                    .ref_(self)
                     .flags()
                     .intersects(NodeBuilderFlags::UseAliasDefinedOutsideCurrentScope)
                 && (!context
+                    .ref_(self)
                     .flags()
                     .intersects(NodeBuilderFlags::InInitialEntityName)
                     || match symbol.ref_(self).maybe_declarations().as_deref() {
                         None => true,
                         Some(symbol_declarations) => matches!(
-                            context.maybe_enclosing_declaration(),
+                            context.ref_(self).maybe_enclosing_declaration(),
                             Some(context_enclosing_declaration) if
                                 find_ancestor(symbol_declarations.get(0).copied(), |declaration| self.is_default_binding_context(declaration), self) ==
                                 find_ancestor(Some(context_enclosing_declaration), |declaration| self.is_default_binding_context(declaration), self)
@@ -346,12 +348,13 @@ impl TypeChecker {
                     | SyntaxKind::FunctionExpression
                     | SyntaxKind::ArrowFunction => {
                         if let Some(context) = context {
-                            if !context.encountered_error()
+                            if !context.ref_(self).encountered_error()
                                 && !context
+                                    .ref_(self)
                                     .flags()
                                     .intersects(NodeBuilderFlags::AllowAnonymousIdentifier)
                             {
-                                context.set_encountered_error(true);
+                                context.ref_(self).set_encountered_error(true);
                             }
                         }
                         return if declaration.ref_(self).kind() == SyntaxKind::ClassExpression {

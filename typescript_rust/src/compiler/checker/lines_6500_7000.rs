@@ -50,7 +50,7 @@ impl NodeBuilder {
     pub(super) fn symbol_table_to_declaration_statements_(
         &self,
         symbol_table: Id<SymbolTable>,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         bundled: Option<bool>,
     ) -> io::Result<Vec<Id<Node /*Statement*/>>> {
         SymbolTableToDeclarationStatements::new(
@@ -87,15 +87,15 @@ pub struct SymbolTableToDeclarationStatements {
 
 impl SymbolTableToDeclarationStatements {
     pub fn new(
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         type_checker: Id<TypeChecker>,
         node_builder: &NodeBuilder,
         symbol_table: Id<SymbolTable>,
         bundled: Option<bool>,
         arena: &impl HasArena,
     ) -> Id<Self> {
-        let oldcontext = context.arena_id();
-        let mut context = context.clone();
+        let oldcontext = context;
+        let mut context = context.ref_(arena).clone();
         context.used_symbol_names = Rc::new(RefCell::new(Some(
             match oldcontext.ref_(arena).maybe_used_symbol_names().as_ref() {
                 None => Default::default(),
@@ -992,7 +992,7 @@ impl SymbolTableToDeclarationStatements {
                                                 Some(&*name),
                                                 None,
                                                 Some(self.node_builder.ref_(self).serialize_type_for_declaration(
-                                                    &self.context().ref_(self),
+                                                    self.context(),
                                                     type_,
                                                     symbol,
                                                     Some(self.enclosing_declaration),
@@ -1122,7 +1122,7 @@ impl SymbolTableToDeclarationStatements {
                                         .ref_(self)
                                         .get_specifier_for_module_symbol(
                                             resolved_module,
-                                            &self.context().ref_(self),
+                                            self.context(),
                                         )?,
                                     None,
                                     None,
@@ -1228,7 +1228,7 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
         if accessible_result.accessibility == SymbolAccessibility::Accessible {
             let chain = match self.node_builder.lookup_symbol_chain_worker(
                 sym,
-                &self.context.ref_(self),
+                self.context,
                 Some(meaning),
                 None,
             ) {

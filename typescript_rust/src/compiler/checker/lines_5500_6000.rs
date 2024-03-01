@@ -83,7 +83,7 @@ impl NodeBuilder {
     pub(super) fn map_to_type_nodes(
         &self,
         types: Option<&[Id<Type>]>,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         is_bare_list: Option<bool>,
     ) -> io::Result<Option<Vec<Id<Node /*TypeNode*/>>>> {
         if let Some(types) = types {
@@ -110,6 +110,7 @@ impl NodeBuilder {
                     }
                 }
                 let may_have_name_collisions = !context
+                    .ref_(self)
                     .flags()
                     .intersects(NodeBuilderFlags::UseFullyQualifiedType);
                 let mut seen_names: Option<UnderscoreEscapedMultiMap<(Id<Type>, usize)>> =
@@ -134,7 +135,7 @@ impl NodeBuilder {
                         }
                         break;
                     }
-                    context.increment_approximate_length_by(2);
+                    context.ref_(self).increment_approximate_length_by(2);
                     let type_node = self.type_to_type_node_helper(Some(type_), context)?;
                     if let Some(type_node) = type_node {
                         result.push(type_node);
@@ -157,10 +158,10 @@ impl NodeBuilder {
                 }
 
                 if let Some(seen_names) = seen_names {
-                    let save_context_flags = context.flags.get();
-                    context
-                        .flags
-                        .set(context.flags.get() | NodeBuilderFlags::UseFullyQualifiedType);
+                    let save_context_flags = context.ref_(self).flags.get();
+                    context.ref_(self).flags.set(
+                        context.ref_(self).flags.get() | NodeBuilderFlags::UseFullyQualifiedType,
+                    );
                     for types in seen_names.0.values() {
                         if !array_is_homogeneous(types, |(a, _), (b, _)| {
                             self.types_are_same_reference(*a, *b)
@@ -172,7 +173,7 @@ impl NodeBuilder {
                             }
                         }
                     }
-                    context.flags.set(save_context_flags);
+                    context.ref_(self).flags.set(save_context_flags);
                 }
 
                 return Ok(Some(result));
@@ -192,7 +193,7 @@ impl NodeBuilder {
     pub(super) fn index_info_to_index_signature_declaration_helper(
         &self,
         index_info: Id<IndexInfo>,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         type_node: Option<Id<Node> /*TypeNode*/>,
     ) -> io::Result<Id<Node /*IndexSignatureDeclaration*/>> {
         let name = get_name_from_index_info(index_info, self).unwrap_or_else(|| Cow::Borrowed("x"));
@@ -214,7 +215,9 @@ impl NodeBuilder {
         // if (!indexInfo.type && !(context.flags & NodeBuilderFlags.AllowEmptyIndexInfoType)) {
         //     context.encounteredError = true;
         // }
-        context.increment_approximate_length_by(name.len() + 4);
+        context
+            .ref_(self)
+            .increment_approximate_length_by(name.len() + 4);
         Ok(get_factory(self).create_index_signature(
             Option::<Id<NodeArray>>::None,
             if index_info.ref_(self).is_readonly {
@@ -233,20 +236,24 @@ impl NodeBuilder {
         &self,
         signature: Id<Signature>,
         kind: SyntaxKind,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         options: Option<SignatureToSignatureDeclarationOptions<impl Fn(Id<Symbol>)>>,
     ) -> io::Result<Id<Node /*SignatureDeclaration*/>> {
         let suppress_any = context
+            .ref_(self)
             .flags()
             .intersects(NodeBuilderFlags::SuppressAnyReturnType);
         if suppress_any {
-            context.set_flags(context.flags() & !NodeBuilderFlags::SuppressAnyReturnType);
+            context
+                .ref_(self)
+                .set_flags(context.ref_(self).flags() & !NodeBuilderFlags::SuppressAnyReturnType);
         }
-        context.increment_approximate_length_by(3);
+        context.ref_(self).increment_approximate_length_by(3);
         let mut type_parameters: Option<Vec<Id<Node /*TypeParameterDeclaration(*/>>> = None;
         let mut _type_arguments: Option<Vec<Id<Node /*TypeNode(*/>>> = None;
         let mut passed_if_condition = false;
         if context
+            .ref_(self)
             .flags()
             .intersects(NodeBuilderFlags::WriteTypeArgumentsOfSignature)
         {
@@ -567,11 +574,13 @@ impl NodeBuilder {
     pub(super) fn type_parameter_to_declaration_with_constraint(
         &self,
         type_: Id<Type>, /*TypeParameter*/
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         constraint_node: Option<Id<Node>>,
     ) -> io::Result<Id<Node /*TypeParameterDeclaration*/>> {
-        let saved_context_flags = context.flags();
-        context.set_flags(context.flags() & !NodeBuilderFlags::WriteTypeParametersInQualifiedName);
+        let saved_context_flags = context.ref_(self).flags();
+        context.ref_(self).set_flags(
+            context.ref_(self).flags() & !NodeBuilderFlags::WriteTypeParametersInQualifiedName,
+        );
         let name = self.type_parameter_to_name(type_, context)?;
         let default_parameter = self
             .type_checker
@@ -580,7 +589,7 @@ impl NodeBuilder {
         let default_parameter_node = default_parameter.try_and_then(|default_parameter| {
             self.type_to_type_node_helper(Some(default_parameter), context)
         })?;
-        context.set_flags(saved_context_flags);
+        context.ref_(self).set_flags(saved_context_flags);
         Ok(get_factory(self).create_type_parameter_declaration(
             name,
             constraint_node,
@@ -591,7 +600,7 @@ impl NodeBuilder {
     pub(super) fn type_parameter_to_declaration_(
         &self,
         type_: Id<Type>, /*TypeParameter*/
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         constraint: Option<Id<Type>>,
     ) -> io::Result<Id<Node /*TypeParameterDeclaration*/>> {
         let constraint = constraint.try_or_else(|| {
@@ -607,7 +616,7 @@ impl NodeBuilder {
     pub(super) fn symbol_to_parameter_declaration_(
         &self,
         parameter_symbol: Id<Symbol>,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         preserve_modifier_flags: Option<bool>,
         private_symbol_visitor: Option<&impl Fn(Id<Symbol>)>,
         bundled_imports: Option<bool>,
@@ -634,6 +643,7 @@ impl NodeBuilder {
                 .get_optional_type_(parameter_type, None)?;
         }
         if context
+            .ref_(self)
             .flags()
             .intersects(NodeBuilderFlags::NoUndefinedOptionalParameterType)
             && matches!(
@@ -651,12 +661,13 @@ impl NodeBuilder {
             context,
             parameter_type,
             parameter_symbol,
-            context.maybe_enclosing_declaration(),
+            context.ref_(self).maybe_enclosing_declaration(),
             private_symbol_visitor,
             bundled_imports,
         )?;
 
         let modifiers: Option<Vec<Id<Node>>> = if !context
+            .ref_(self)
             .flags()
             .intersects(NodeBuilderFlags::OmitParameterModifiers)
             && preserve_modifier_flags == Some(true)
@@ -738,13 +749,15 @@ impl NodeBuilder {
             Some(parameter_type_node),
             None,
         );
-        context.increment_approximate_length_by(symbol_name(parameter_symbol, self).len() + 3);
+        context
+            .ref_(self)
+            .increment_approximate_length_by(symbol_name(parameter_symbol, self).len() + 3);
         Ok(parameter_node)
     }
 
     pub(super) fn clone_binding_name(
         &self,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         node: Id<Node>, /*BindingName*/
     ) -> io::Result<Id<Node /*BIndingName*/>> {
         self.elide_initializer_and_set_emit_flags(context, node)
@@ -752,16 +765,16 @@ impl NodeBuilder {
 
     pub(super) fn elide_initializer_and_set_emit_flags(
         &self,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         node: Id<Node>,
     ) -> io::Result<Id<Node>> {
-        if context.tracker_ref().is_track_symbol_supported()
+        if context.ref_(self).tracker_ref().is_track_symbol_supported()
             && is_computed_property_name(&node.ref_(self))
             && self.type_checker.ref_(self).is_late_bindable_name(node)?
         {
             self.track_computed_name(
                 node.ref_(self).as_computed_property_name().expression,
-                context.maybe_enclosing_declaration(),
+                context.ref_(self).maybe_enclosing_declaration(),
                 context,
             )?;
         }
@@ -801,9 +814,9 @@ impl NodeBuilder {
         &self,
         access_expression: Id<Node>, /*EntityNameOrEntityNameExpression*/
         enclosing_declaration: Option<Id<Node>>,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
     ) -> io::Result<()> {
-        if !context.tracker_ref().is_track_symbol_supported() {
+        if !context.ref_(self).tracker_ref().is_track_symbol_supported() {
             return Ok(());
         }
         let first_identifier = get_first_identifier(access_expression, self);
@@ -817,9 +830,11 @@ impl NodeBuilder {
             None,
         )?;
         if let Some(name) = name {
-            context
-                .tracker_ref()
-                .track_symbol(name, enclosing_declaration, SymbolFlags::Value);
+            context.ref_(self).tracker_ref().track_symbol(
+                name,
+                enclosing_declaration,
+                SymbolFlags::Value,
+            );
         }
 
         Ok(())
@@ -828,13 +843,13 @@ impl NodeBuilder {
     pub(super) fn lookup_symbol_chain(
         &self,
         symbol: Id<Symbol>,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
         yield_module_symbol: Option<bool>,
     ) -> io::Result<Vec<Id<Symbol>>> {
-        context.tracker_ref().track_symbol(
+        context.ref_(self).tracker_ref().track_symbol(
             symbol,
-            context.maybe_enclosing_declaration(),
+            context.ref_(self).maybe_enclosing_declaration(),
             // TODO: it looks like this is a place where the Typescript version "lied", I don't
             // know if we should "bubble down" the "real" Option<SymbolFlags> type into the
             // signature of .track_symbol()?
@@ -846,7 +861,7 @@ impl NodeBuilder {
     pub(super) fn lookup_symbol_chain_worker(
         &self,
         symbol: Id<Symbol>,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
         yield_module_symbol: Option<bool>,
     ) -> io::Result<Vec<Id<Symbol>>> {
@@ -856,11 +871,13 @@ impl NodeBuilder {
             .flags()
             .intersects(SymbolFlags::TypeParameter);
         if !is_type_parameter
-            && (context.maybe_enclosing_declaration().is_some()
+            && (context.ref_(self).maybe_enclosing_declaration().is_some()
                 || context
+                    .ref_(self)
                     .flags()
                     .intersects(NodeBuilderFlags::UseFullyQualifiedType))
             && !context
+                .ref_(self)
                 .flags()
                 .intersects(NodeBuilderFlags::DoNotIncludeSymbolChain)
         {
@@ -877,7 +894,7 @@ impl NodeBuilder {
 
     pub(super) fn get_symbol_chain(
         &self,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         yield_module_symbol: Option<bool>,
         symbol: Id<Symbol>,
         meaning: Option<SymbolFlags>,
@@ -886,11 +903,12 @@ impl NodeBuilder {
         let mut accessible_symbol_chain =
             self.type_checker.ref_(self).get_accessible_symbol_chain(
                 Some(symbol),
-                context.maybe_enclosing_declaration(),
+                context.ref_(self).maybe_enclosing_declaration(),
                 // TODO: ...again here not sure where/how to "stop bubbling down" the actual
                 // Option<SymbolFlags> type
                 meaning.unwrap(),
                 context
+                    .ref_(self)
                     .flags()
                     .intersects(NodeBuilderFlags::UseOnlyExternalAliasing),
                 None,
@@ -900,7 +918,7 @@ impl NodeBuilder {
             None => true,
             Some(accessible_symbol_chain) => self.type_checker.ref_(self).needs_qualification(
                 accessible_symbol_chain[0],
-                context.maybe_enclosing_declaration(),
+                context.ref_(self).maybe_enclosing_declaration(),
                 if accessible_symbol_chain.len() == 1 {
                     // TODO: ...and here
                     meaning.unwrap()
@@ -916,7 +934,7 @@ impl NodeBuilder {
                 accessible_symbol_chain
                     .as_ref()
                     .map_or(symbol, |accessible_symbol_chain| accessible_symbol_chain[0]),
-                context.maybe_enclosing_declaration(),
+                context.ref_(self).maybe_enclosing_declaration(),
                 // TODO: ...or here
                 meaning.unwrap(),
             )?;
@@ -1056,7 +1074,7 @@ impl NodeBuilder {
     pub(super) fn type_parameters_to_type_parameter_declarations(
         &self,
         symbol: Id<Symbol>,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
     ) -> io::Result<Option<Id<NodeArray> /*<TypeParameterDeclaration>*/>> {
         let mut type_parameter_nodes: Option<Id<NodeArray> /*TypeParameterDeclaration*/> = None;
         let target_symbol = self.type_checker.ref_(self).get_target_symbol(symbol);
@@ -1086,13 +1104,13 @@ impl NodeBuilder {
         &self,
         chain: &[Id<Symbol>],
         index: usize,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
     ) -> io::Result<Option<Vec<Id<Node>>>> {
         Debug_.assert(/*chain && 0 <= index &&*/ index < chain.len(), None);
         let symbol = chain[index];
         let symbol_id = get_symbol_id(&symbol.ref_(self));
         if matches!(
-            (*context.type_parameter_symbol_list).borrow().as_ref(),
+            (*context.ref_(self).type_parameter_symbol_list).borrow().as_ref(),
             Some(context_type_parameter_symbol_list) if context_type_parameter_symbol_list.contains(
                 &symbol_id
             )
@@ -1100,6 +1118,7 @@ impl NodeBuilder {
             return Ok(None);
         }
         context
+            .ref_(self)
             .type_parameter_symbol_list
             .borrow_mut()
             .get_or_insert_default_()
@@ -1108,6 +1127,7 @@ impl NodeBuilder {
             Vec<Id<Node /*TypeNode[] | TypeParameterDeclaration[]*/>>,
         > = None;
         if context
+            .ref_(self)
             .flags()
             .intersects(NodeBuilderFlags::WriteTypeParametersInQualifiedName)
             && index < chain.len() - 1
@@ -1172,7 +1192,7 @@ impl NodeBuilder {
     pub(super) fn get_specifier_for_module_symbol(
         &self,
         symbol: Id<Symbol>,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
     ) -> io::Result<String> {
         let mut file = get_declaration_of_kind(symbol, SyntaxKind::SourceFile, self);
         if file.is_none() {
@@ -1196,6 +1216,7 @@ impl NodeBuilder {
         }
         if file.is_none() {
             if context
+                .ref_(self)
                 .tracker_ref()
                 .is_track_referenced_ambient_module_supported()
             {
@@ -1206,6 +1227,7 @@ impl NodeBuilder {
                 if length(ambient_decls.as_deref()) > 0 {
                     for &decl in ambient_decls.as_ref().unwrap() {
                         context
+                            .ref_(self)
                             .tracker_ref()
                             .track_referenced_ambient_module(decl, symbol)?;
                     }
@@ -1217,8 +1239,11 @@ impl NodeBuilder {
                     .to_owned());
             }
         }
-        if context.maybe_enclosing_declaration().is_none()
-            || !context.tracker_ref().is_module_resolver_host_supported()
+        if context.ref_(self).maybe_enclosing_declaration().is_none()
+            || !context
+                .ref_(self)
+                .tracker_ref()
+                .is_module_resolver_host_supported()
         {
             if ambient_module_symbol_regex.is_match(symbol.ref_(self).escaped_name()) {
                 return Ok(symbol.ref_(self).escaped_name()
@@ -1235,7 +1260,7 @@ impl NodeBuilder {
             .clone());
         }
         let context_file = get_source_file_of_node(
-            get_original_node(context.enclosing_declaration(), self),
+            get_original_node(context.ref_(self).enclosing_declaration(), self),
             self,
         );
         let links = self.type_checker.ref_(self).get_symbol_links(symbol);
@@ -1254,8 +1279,11 @@ impl NodeBuilder {
                 out_file(&self.type_checker.ref_(self).compiler_options.ref_(self)),
                 Some(out_file) if !out_file.is_empty()
             );
-            let context_tracker = context.tracker_ref();
-            let module_resolver_host = context_tracker.module_resolver_host().unwrap();
+            let module_resolver_host = context
+                .ref_(self)
+                .tracker_ref()
+                .module_resolver_host()
+                .unwrap();
             let specifier_compiler_options = if is_bundle {
                 self.alloc_compiler_options(CompilerOptions {
                     base_url: Some(
@@ -1321,7 +1349,7 @@ impl NodeBuilder {
     pub(super) fn symbol_to_type_node(
         &self,
         symbol: Id<Symbol>,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         meaning: SymbolFlags,
         override_type_arguments: Option<&[Id<Node /*TypeNode*/>]>,
     ) -> io::Result<Id<Node /*TypeNode*/>> {
@@ -1331,6 +1359,7 @@ impl NodeBuilder {
             Some(meaning),
             Some(
                 !context
+                    .ref_(self)
                     .flags()
                     .intersects(NodeBuilderFlags::UseAliasDefinedOutsideCurrentScope),
             ),
@@ -1361,6 +1390,7 @@ impl NodeBuilder {
                 .try_or_else(|| self.lookup_type_parameter_nodes(&chain, 0, context))?;
             let specifier = self.get_specifier_for_module_symbol(chain[0], context)?;
             if !context
+                .ref_(self)
                 .flags()
                 .intersects(NodeBuilderFlags::AllowNodeModulesRelativePaths)
                 && get_emit_module_resolution_kind(
@@ -1368,8 +1398,9 @@ impl NodeBuilder {
                 ) != ModuleResolutionKind::Classic
                 && specifier.contains("/node_modules/")
             {
-                context.set_encountered_error(true);
+                context.ref_(self).set_encountered_error(true);
                 context
+                    .ref_(self)
                     .tracker_ref()
                     .report_likely_unsafe_import_required_error(&specifier);
             }
@@ -1377,9 +1408,12 @@ impl NodeBuilder {
                 get_factory(self).create_string_literal(specifier.clone(), None, None),
             );
             context
+                .ref_(self)
                 .tracker_ref()
                 .track_external_module_symbol_of_import_type_node(chain[0]);
-            context.increment_approximate_length_by(specifier.len() + 10);
+            context
+                .ref_(self)
+                .increment_approximate_length_by(specifier.len() + 10);
             if match non_root_parts {
                 None => true,
                 Some(non_root_parts) => is_entity_name(&non_root_parts.ref_(self)),

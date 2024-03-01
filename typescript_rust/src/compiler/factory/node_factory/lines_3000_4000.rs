@@ -59,12 +59,16 @@ impl NodeFactory {
         expression: Id<Node>, /*Expression*/
         type_arguments: Option<impl Into<NodeArrayOrVec>>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_expression_with_type_arguments = node_ref.as_expression_with_type_arguments();
         let type_arguments = type_arguments.map(Into::into);
-        if node_as_expression_with_type_arguments.expression != expression
+        if node
+            .ref_(self)
+            .as_expression_with_type_arguments()
+            .expression
+            != expression
             || has_option_node_array_changed(
-                node_as_expression_with_type_arguments.maybe_type_arguments(),
+                node.ref_(self)
+                    .as_expression_with_type_arguments()
+                    .maybe_type_arguments(),
                 type_arguments.as_ref(),
             )
         {

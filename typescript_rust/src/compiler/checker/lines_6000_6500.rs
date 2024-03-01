@@ -32,7 +32,7 @@ use crate::{
 impl NodeBuilder {
     pub(super) fn create_access_from_symbol_chain(
         &self,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         override_type_arguments: Option<&[Id<Node /*TypeNode*/>]>,
         chain: &[Id<Symbol>],
         index: usize,
@@ -52,20 +52,24 @@ impl NodeBuilder {
         };
         let mut symbol_name: Option<String> = None;
         if index == 0 {
-            context.set_flags(context.flags() | NodeBuilderFlags::InInitialEntityName);
+            context
+                .ref_(self)
+                .set_flags(context.ref_(self).flags() | NodeBuilderFlags::InInitialEntityName);
             symbol_name = Some(
                 self.type_checker
                     .ref_(self)
                     .get_name_of_symbol_as_written(symbol, Some(context))
                     .into_owned(),
             );
-            context.increment_approximate_length_by(
+            context.ref_(self).increment_approximate_length_by(
                 symbol_name
                     .as_ref()
                     .map_or(0, |symbol_name| symbol_name.len())
                     + 1,
             );
-            context.set_flags(context.flags() ^ NodeBuilderFlags::InInitialEntityName);
+            context
+                .ref_(self)
+                .set_flags(context.ref_(self).flags() ^ NodeBuilderFlags::InInitialEntityName);
         } else {
             if let Some(&parent) = parent
             /*&& getExportsOfSymbol(parent)*/
@@ -99,9 +103,12 @@ impl NodeBuilder {
             );
         }
         let symbol_name = symbol_name.unwrap();
-        context.increment_approximate_length_by(symbol_name.len() + 1);
+        context
+            .ref_(self)
+            .increment_approximate_length_by(symbol_name.len() + 1);
 
         if !context
+            .ref_(self)
             .flags()
             .intersects(NodeBuilderFlags::ForbidIndexedAccessSymbolReferences)
         {
@@ -169,11 +176,11 @@ impl NodeBuilder {
     pub(super) fn type_parameter_shadows_name_in_scope(
         &self,
         escaped_name: &str, /*__String*/
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         type_: Id<Type>, /*TypeParameter*/
     ) -> io::Result<bool> {
         let result = self.type_checker.ref_(self).resolve_name_(
-            context.maybe_enclosing_declaration(),
+            context.ref_(self).maybe_enclosing_declaration(),
             escaped_name,
             SymbolFlags::Type,
             None,
@@ -201,14 +208,15 @@ impl NodeBuilder {
     pub(super) fn type_parameter_to_name(
         &self,
         type_: Id<Type>, /*TypeParameter*/
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
     ) -> io::Result<Id<Node>> {
         if context
+            .ref_(self)
             .flags()
             .intersects(NodeBuilderFlags::GenerateNamesForShadowedTypeParams)
         {
             if let Some(context_type_parameter_names) =
-                context.type_parameter_names.ref_(self).as_ref()
+                context.ref_(self).type_parameter_names.ref_(self).as_ref()
             {
                 let cached = context_type_parameter_names
                     .get(&self.type_checker.ref_(self).get_type_id(type_));
@@ -228,11 +236,14 @@ impl NodeBuilder {
             return Ok(get_factory(self).create_identifier("(Missing type parameter)"));
         }
         if context
+            .ref_(self)
             .flags()
             .intersects(NodeBuilderFlags::GenerateNamesForShadowedTypeParams)
         {
             let rawtext = result.ref_(self).as_identifier().escaped_text.clone();
-            let mut i = (*context.type_parameter_names_by_text_next_name_count)
+            let mut i = (*context
+                .ref_(self)
+                .type_parameter_names_by_text_next_name_count)
                 .borrow()
                 .as_ref()
                 .and_then(|context_type_parameter_names_by_text_next_name_count| {
@@ -243,7 +254,7 @@ impl NodeBuilder {
                 .unwrap_or(0);
             let mut text = rawtext.clone();
             while matches!(
-                (*context.type_parameter_names_by_text_next_name_count).borrow().as_ref(),
+                (*context.ref_(self).type_parameter_names_by_text_next_name_count).borrow().as_ref(),
                 Some(context_type_parameter_names_by_text_next_name_count) if context_type_parameter_names_by_text_next_name_count.contains_key(&text)
             ) || self.type_parameter_shadows_name_in_scope(&text, context, type_)?
             {
@@ -258,11 +269,13 @@ impl NodeBuilder {
                 );
             }
             context
+                .ref_(self)
                 .type_parameter_names_by_text_next_name_count
                 .borrow_mut()
                 .get_or_insert_default_()
                 .insert(rawtext.clone(), i);
             context
+                .ref_(self)
                 .type_parameter_names
                 .ref_mut(self)
                 .get_or_insert_default_()
@@ -271,6 +284,7 @@ impl NodeBuilder {
                     result.clone(),
                 );
             context
+                .ref_(self)
                 .type_parameter_names_by_text
                 .borrow_mut()
                 .get_or_insert_default_()
@@ -282,7 +296,7 @@ impl NodeBuilder {
     pub(super) fn symbol_to_name(
         &self,
         symbol: Id<Symbol>,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
         expects_identifier: bool,
     ) -> io::Result<Id<Node /*EntityName*/>> {
@@ -290,19 +304,20 @@ impl NodeBuilder {
 
         if expects_identifier
             && chain.len() != 1
-            && !context.encountered_error()
+            && !context.ref_(self).encountered_error()
             && !context
+                .ref_(self)
                 .flags()
                 .intersects(NodeBuilderFlags::AllowQualifiedNameInPlaceOfIdentifier)
         {
-            context.set_encountered_error(true);
+            context.ref_(self).set_encountered_error(true);
         }
         self.create_entity_name_from_symbol_chain(context, &chain, chain.len() - 1)
     }
 
     pub(super) fn create_entity_name_from_symbol_chain(
         &self,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         chain: &[Id<Symbol>],
         index: usize,
     ) -> io::Result<Id<Node /*EntityName*/>> {
@@ -310,14 +325,18 @@ impl NodeBuilder {
         let symbol = chain[index];
 
         if index == 0 {
-            context.set_flags(context.flags() | NodeBuilderFlags::InInitialEntityName);
+            context
+                .ref_(self)
+                .set_flags(context.ref_(self).flags() | NodeBuilderFlags::InInitialEntityName);
         }
         let symbol_name = self
             .type_checker
             .ref_(self)
             .get_name_of_symbol_as_written(symbol, Some(context));
         if index == 0 {
-            context.set_flags(context.flags() ^ NodeBuilderFlags::InInitialEntityName);
+            context
+                .ref_(self)
+                .set_flags(context.ref_(self).flags() ^ NodeBuilderFlags::InInitialEntityName);
         }
 
         let identifier: Id<Node> = set_emit_flags(
@@ -340,7 +359,7 @@ impl NodeBuilder {
     pub(super) fn symbol_to_expression_(
         &self,
         symbol: Id<Symbol>,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
     ) -> io::Result<Id<Node>> {
         let chain = self.lookup_symbol_chain(symbol, context, meaning, None)?;
@@ -350,7 +369,7 @@ impl NodeBuilder {
 
     pub(super) fn create_expression_from_symbol_chain(
         &self,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         chain: &[Id<Symbol>],
         index: usize,
     ) -> io::Result<Id<Node /*Expression*/>> {
@@ -358,7 +377,9 @@ impl NodeBuilder {
         let symbol = chain[index];
 
         if index == 0 {
-            context.set_flags(context.flags() | NodeBuilderFlags::InInitialEntityName);
+            context
+                .ref_(self)
+                .set_flags(context.ref_(self).flags() | NodeBuilderFlags::InInitialEntityName);
         }
         let mut symbol_name = self
             .type_checker
@@ -366,7 +387,9 @@ impl NodeBuilder {
             .get_name_of_symbol_as_written(symbol, Some(context))
             .into_owned();
         if index == 0 {
-            context.set_flags(context.flags() ^ NodeBuilderFlags::InInitialEntityName);
+            context
+                .ref_(self)
+                .set_flags(context.ref_(self).flags() ^ NodeBuilderFlags::InInitialEntityName);
         }
         let mut first_char = symbol_name.chars().next().unwrap();
 
@@ -498,7 +521,7 @@ impl NodeBuilder {
     pub(super) fn get_property_name_node_for_symbol(
         &self,
         symbol: Id<Symbol>,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
     ) -> io::Result<Id<Node>> {
         let single_quote = length(symbol.ref_(self).maybe_declarations().as_deref()) > 0
             && every(
@@ -530,7 +553,7 @@ impl NodeBuilder {
     pub(super) fn get_property_name_node_for_symbol_from_name_type(
         &self,
         symbol: Id<Symbol>,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         single_quote: Option<bool>,
     ) -> io::Result<Option<Id<Node>>> {
         let Some(name_type) = self
@@ -715,7 +738,7 @@ impl NodeBuilder {
 
     pub(super) fn serialize_type_for_declaration(
         &self,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         type_: Id<Type>,
         symbol: Id<Symbol>,
         enclosing_declaration: Option<Id<Node>>,
@@ -756,7 +779,7 @@ impl NodeBuilder {
                 }
             }
         }
-        let old_flags = context.flags();
+        let old_flags = context.ref_(self).flags();
         if type_
             .ref_(self)
             .flags()
@@ -765,7 +788,7 @@ impl NodeBuilder {
                 type_.ref_(self).maybe_symbol(),
                 Some(type_symbol) if type_symbol == symbol
             )
-            && match context.maybe_enclosing_declaration() {
+            && match context.ref_(self).maybe_enclosing_declaration() {
                 None => true,
                 Some(context_enclosing_declaration) => some(
                     symbol.ref_(self).maybe_declarations().as_deref(),
@@ -776,23 +799,27 @@ impl NodeBuilder {
                 ),
             }
         {
-            context.set_flags(context.flags() | NodeBuilderFlags::AllowUniqueESSymbolType);
+            context
+                .ref_(self)
+                .set_flags(context.ref_(self).flags() | NodeBuilderFlags::AllowUniqueESSymbolType);
         }
         let result = self.type_to_type_node_helper(Some(type_), context)?;
-        context.set_flags(old_flags);
+        context.ref_(self).set_flags(old_flags);
         Ok(result.unwrap())
     }
 
     pub(super) fn serialize_return_type_for_signature(
         &self,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         type_: Id<Type>,
         signature: Id<Signature>,
         include_private_symbol: Option<&impl Fn(Id<Symbol>)>,
         bundled: Option<bool>,
     ) -> io::Result<Id<Node>> {
         if !self.type_checker.ref_(self).is_error_type(type_) {
-            if let Some(context_enclosing_declaration) = context.maybe_enclosing_declaration() {
+            if let Some(context_enclosing_declaration) =
+                context.ref_(self).maybe_enclosing_declaration()
+            {
                 let annotation =
                     signature
                         .ref_(self)
@@ -851,7 +878,7 @@ impl NodeBuilder {
     pub(super) fn track_existing_entity_name(
         &self,
         node: Id<Node>, /*EntityNameOrEntityNameExpression*/
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         include_private_symbol: Option<&impl Fn(Id<Symbol>)>,
     ) -> io::Result<TrackExistingEntityNameReturn> {
         let mut introduces_error = false;
@@ -888,7 +915,7 @@ impl NodeBuilder {
                 .ref_(self)
                 .is_symbol_accessible(
                     Some(sym),
-                    context.maybe_enclosing_declaration(),
+                    context.ref_(self).maybe_enclosing_declaration(),
                     SymbolFlags::All,
                     false,
                 )?
@@ -897,9 +924,9 @@ impl NodeBuilder {
             {
                 introduces_error = true;
             } else {
-                context.tracker_ref().track_symbol(
+                context.ref_(self).tracker_ref().track_symbol(
                     sym,
-                    context.maybe_enclosing_declaration(),
+                    context.ref_(self).maybe_enclosing_declaration(),
                     SymbolFlags::All,
                 );
                 if let Some(include_private_symbol) = include_private_symbol {
@@ -941,7 +968,7 @@ impl NodeBuilder {
 
     pub(super) fn serialize_existing_type_node(
         &self,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         existing: Id<Node>, /*TypeNode*/
         include_private_symbol: Option<&impl Fn(Id<Symbol>)>,
         _bundled: Option<bool>,
@@ -981,7 +1008,7 @@ impl NodeBuilder {
 
     pub(super) fn visit_existing_node_tree_symbols(
         &self,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
         had_error: &mut bool,
         include_private_symbol: Option<&impl Fn(Id<Symbol>)>,
         file: Option<Id<Node>>,

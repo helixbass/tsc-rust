@@ -743,7 +743,7 @@ impl NodeBuilder {
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Id<Box<dyn SymbolTracker>>>,
-        cb: impl FnOnce(&NodeBuilderContext) -> Option<TReturn>,
+        cb: impl FnOnce(Id<NodeBuilderContext>) -> Option<TReturn>,
     ) -> Option<TReturn> {
         Debug_.assert(
             match enclosing_declaration {
@@ -775,17 +775,17 @@ impl NodeBuilder {
         context
             .ref_(self)
             .set_tracker(self.alloc_symbol_tracker(Box::new(context_tracker)));
-        let context = context.ref_(self);
-        let resulting_node = cb(&context);
-        if context.truncating.get() == Some(true)
+        let resulting_node = cb(context);
+        if context.ref_(self).truncating.get() == Some(true)
             && context
+                .ref_(self)
                 .flags
                 .get()
                 .intersects(NodeBuilderFlags::NoTruncation)
         {
-            context.tracker_ref().report_truncation_error();
+            context.ref_(self).tracker_ref().report_truncation_error();
         }
-        if context.encountered_error() {
+        if context.ref_(self).encountered_error() {
             None
         } else {
             resulting_node
@@ -797,7 +797,7 @@ impl NodeBuilder {
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Id<Box<dyn SymbolTracker>>>,
-        cb: impl FnOnce(&NodeBuilderContext) -> io::Result<Option<TReturn>>,
+        cb: impl FnOnce(Id<NodeBuilderContext>) -> io::Result<Option<TReturn>>,
     ) -> io::Result<Option<TReturn>> {
         Debug_.assert(
             match enclosing_declaration {
@@ -829,60 +829,70 @@ impl NodeBuilder {
         context
             .ref_(self)
             .set_tracker(self.alloc_symbol_tracker(Box::new(context_tracker)));
-        let context = context.ref_(self);
-        let resulting_node = cb(&context)?;
-        if context.truncating.get() == Some(true)
+        let resulting_node = cb(context)?;
+        if context.ref_(self).truncating.get() == Some(true)
             && context
+                .ref_(self)
                 .flags
                 .get()
                 .intersects(NodeBuilderFlags::NoTruncation)
         {
-            context.tracker_ref().report_truncation_error();
+            context.ref_(self).tracker_ref().report_truncation_error();
         }
-        Ok(if context.encountered_error() {
+        Ok(if context.ref_(self).encountered_error() {
             None
         } else {
             resulting_node
         })
     }
 
-    pub(super) fn check_truncation_length(&self, context: &NodeBuilderContext) -> bool {
-        if matches!(context.truncating.get(), Some(true)) {
+    pub(super) fn check_truncation_length(&self, context: Id<NodeBuilderContext>) -> bool {
+        if matches!(context.ref_(self).truncating.get(), Some(true)) {
             return true;
         }
-        context.truncating.set(Some(
-            context.approximate_length.get()
-                > if context.flags().intersects(NodeBuilderFlags::NoTruncation) {
+        context.ref_(self).truncating.set(Some(
+            context.ref_(self).approximate_length.get()
+                > if context
+                    .ref_(self)
+                    .flags()
+                    .intersects(NodeBuilderFlags::NoTruncation)
+                {
                     no_truncation_maximum_truncation_length
                 } else {
                     default_maximum_truncation_length
                 },
         ));
-        context.truncating.get().unwrap()
+        context.ref_(self).truncating.get().unwrap()
     }
 
     pub(super) fn type_to_type_node_helper(
         &self,
         type_: Option<Id<Type>>,
-        context: &NodeBuilderContext,
+        context: Id<NodeBuilderContext>,
     ) -> io::Result<Option<Id<Node>>> {
         if let Some(_cancellation_token) = self.type_checker.ref_(self).maybe_cancellation_token()
         /*&& cancellationToken.throwIfCancellationRequested*/
         {
             // cancellationToken.throwIfCancellationRequested();
         }
-        let in_type_alias = context.flags().intersects(NodeBuilderFlags::InTypeAlias);
-        context.set_flags(context.flags() & !NodeBuilderFlags::InTypeAlias);
+        let in_type_alias = context
+            .ref_(self)
+            .flags()
+            .intersects(NodeBuilderFlags::InTypeAlias);
+        context
+            .ref_(self)
+            .set_flags(context.ref_(self).flags() & !NodeBuilderFlags::InTypeAlias);
 
         if type_.is_none() {
             if !context
+                .ref_(self)
                 .flags()
                 .intersects(NodeBuilderFlags::AllowEmptyUnionOrIntersection)
             {
-                context.set_encountered_error(true);
+                context.ref_(self).set_encountered_error(true);
                 return Ok(None);
             }
-            context.increment_approximate_length_by(3);
+            context.ref_(self).increment_approximate_length_by(3);
             return Ok(Some(
                 self.alloc_node(
                     KeywordTypeNode::from(
@@ -895,6 +905,7 @@ impl NodeBuilder {
         let mut type_ = type_.unwrap();
 
         if !context
+            .ref_(self)
             .flags()
             .intersects(NodeBuilderFlags::NoTypeReduction)
         {
@@ -928,7 +939,7 @@ impl NodeBuilder {
                 );
                 return Ok(Some(ret));
             }
-            context.increment_approximate_length_by(3);
+            context.ref_(self).increment_approximate_length_by(3);
             return Ok(Some(
                 self.alloc_node(
                     KeywordTypeNode::from(get_factory(self).create_keyword_type_node_raw(
@@ -953,7 +964,7 @@ impl NodeBuilder {
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::String) {
-            context.increment_approximate_length_by(6);
+            context.ref_(self).increment_approximate_length_by(6);
             return Ok(Some(
                 self.alloc_node(
                     KeywordTypeNode::from(
@@ -964,7 +975,7 @@ impl NodeBuilder {
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::Number) {
-            context.increment_approximate_length_by(6);
+            context.ref_(self).increment_approximate_length_by(6);
             return Ok(Some(
                 self.alloc_node(
                     KeywordTypeNode::from(
@@ -975,7 +986,7 @@ impl NodeBuilder {
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::BigInt) {
-            context.increment_approximate_length_by(6);
+            context.ref_(self).increment_approximate_length_by(6);
             return Ok(Some(
                 self.alloc_node(
                     KeywordTypeNode::from(
@@ -988,7 +999,7 @@ impl NodeBuilder {
         if type_.ref_(self).flags().intersects(TypeFlags::Boolean)
             && type_.ref_(self).maybe_alias_symbol().is_none()
         {
-            context.increment_approximate_length_by(7);
+            context.ref_(self).increment_approximate_length_by(7);
             return Ok(Some(
                 self.alloc_node(
                     KeywordTypeNode::from(
@@ -1073,13 +1084,16 @@ impl NodeBuilder {
             .intersects(TypeFlags::StringLiteral)
         {
             let value = type_.ref_(self).as_string_literal_type().value.clone();
-            context.increment_approximate_length_by(value.len() + 2);
+            context
+                .ref_(self)
+                .increment_approximate_length_by(value.len() + 2);
             return Ok(Some(
                 get_factory(self).create_literal_type_node(set_emit_flags(
                     get_factory(self).create_string_literal(
                         value,
                         Some(
                             context
+                                .ref_(self)
                                 .flags()
                                 .intersects(NodeBuilderFlags::UseSingleQuotesForStringLiteralType),
                         ),
@@ -1096,7 +1110,9 @@ impl NodeBuilder {
             .intersects(TypeFlags::NumberLiteral)
         {
             let value = type_.ref_(self).as_number_literal_type().value.value();
-            context.increment_approximate_length_by(value.to_string().len());
+            context
+                .ref_(self)
+                .increment_approximate_length_by(value.to_string().len());
             return Ok(Some(get_factory(self).create_literal_type_node(
                 if value < 0.0 {
                     get_factory(self).create_prefix_unary_expression(
@@ -1115,7 +1131,9 @@ impl NodeBuilder {
         {
             let type_ref = type_.ref_(self);
             let value = &type_ref.as_big_int_literal_type().value;
-            context.increment_approximate_length_by(pseudo_big_int_to_string(value).len() + 1);
+            context
+                .ref_(self)
+                .increment_approximate_length_by(pseudo_big_int_to_string(value).len() + 1);
             return Ok(Some(get_factory(self).create_literal_type_node(
                 get_factory(self).create_big_int_literal(value.clone()),
             )));
@@ -1127,7 +1145,9 @@ impl NodeBuilder {
         {
             let type_ref = type_.ref_(self);
             let type_intrinsic_name = type_ref.as_intrinsic_type().intrinsic_name();
-            context.increment_approximate_length_by(type_intrinsic_name.len());
+            context
+                .ref_(self)
+                .increment_approximate_length_by(type_intrinsic_name.len());
             return Ok(Some(
                 get_factory(self).create_literal_type_node(
                     self.alloc_node(
@@ -1147,14 +1167,15 @@ impl NodeBuilder {
             .intersects(TypeFlags::UniqueESSymbol)
         {
             if !context
+                .ref_(self)
                 .flags()
                 .intersects(NodeBuilderFlags::AllowUniqueESSymbolType)
             {
                 if self.type_checker.ref_(self).is_value_symbol_accessible(
                     type_.ref_(self).symbol(),
-                    context.maybe_enclosing_declaration(),
+                    context.ref_(self).maybe_enclosing_declaration(),
                 )? {
-                    context.increment_approximate_length_by(6);
+                    context.ref_(self).increment_approximate_length_by(6);
                     return Ok(Some(self.symbol_to_type_node(
                         type_.ref_(self).symbol(),
                         context,
@@ -1164,11 +1185,12 @@ impl NodeBuilder {
                 }
                 // if (context.tracker.reportInaccessibleUniqueSymbolError) {
                 context
+                    .ref_(self)
                     .tracker_ref()
                     .report_inaccessible_unique_symbol_error();
                 // }
             }
-            context.increment_approximate_length_by(13);
+            context.ref_(self).increment_approximate_length_by(13);
             return Ok(Some(
                 get_factory(self).create_type_operator_node(
                     SyntaxKind::UniqueKeyword,
@@ -1183,7 +1205,7 @@ impl NodeBuilder {
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::Void) {
-            context.increment_approximate_length_by(4);
+            context.ref_(self).increment_approximate_length_by(4);
             return Ok(Some(
                 self.alloc_node(
                     KeywordTypeNode::from(
@@ -1194,7 +1216,7 @@ impl NodeBuilder {
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::Undefined) {
-            context.increment_approximate_length_by(9);
+            context.ref_(self).increment_approximate_length_by(9);
             return Ok(Some(
                 self.alloc_node(
                     KeywordTypeNode::from(
@@ -1206,13 +1228,13 @@ impl NodeBuilder {
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::Null) {
-            context.increment_approximate_length_by(9);
+            context.ref_(self).increment_approximate_length_by(9);
             return Ok(Some(
                 get_factory(self).create_literal_type_node(get_factory(self).create_null()),
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::Never) {
-            context.increment_approximate_length_by(5);
+            context.ref_(self).increment_approximate_length_by(5);
             return Ok(Some(
                 self.alloc_node(
                     KeywordTypeNode::from(
@@ -1223,7 +1245,7 @@ impl NodeBuilder {
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::ESSymbol) {
-            context.increment_approximate_length_by(6);
+            context.ref_(self).increment_approximate_length_by(6);
             return Ok(Some(
                 self.alloc_node(
                     KeywordTypeNode::from(
@@ -1234,7 +1256,7 @@ impl NodeBuilder {
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::NonPrimitive) {
-            context.increment_approximate_length_by(6);
+            context.ref_(self).increment_approximate_length_by(6);
             return Ok(Some(
                 self.alloc_node(
                     KeywordTypeNode::from(
@@ -1246,34 +1268,38 @@ impl NodeBuilder {
         }
         if self.type_checker.ref_(self).is_this_type_parameter(type_) {
             if context
+                .ref_(self)
                 .flags()
                 .intersects(NodeBuilderFlags::InObjectTypeLiteral)
             {
-                if !context.encountered_error()
+                if !context.ref_(self).encountered_error()
                     && !context
+                        .ref_(self)
                         .flags()
                         .intersects(NodeBuilderFlags::AllowThisInObjectLiteral)
                 {
-                    context.set_encountered_error(true);
+                    context.ref_(self).set_encountered_error(true);
                 }
                 // if (context.tracker.reportInaccessibleUniqueSymbolError) {
                 context
+                    .ref_(self)
                     .tracker_ref()
                     .report_inaccessible_unique_symbol_error();
                 // }
             }
-            context.increment_approximate_length_by(4);
+            context.ref_(self).increment_approximate_length_by(4);
             return Ok(Some(get_factory(self).create_this_type_node()));
         }
 
         if !in_type_alias {
             if let Some(type_alias_symbol) = type_.ref_(self).maybe_alias_symbol() {
                 if context
+                    .ref_(self)
                     .flags()
                     .intersects(NodeBuilderFlags::UseAliasDefinedOutsideCurrentScope)
                     || self.type_checker.ref_(self).is_type_symbol_accessible(
                         type_alias_symbol,
-                        context.maybe_enclosing_declaration(),
+                        context.ref_(self).maybe_enclosing_declaration(),
                     )?
                 {
                     let type_argument_nodes = self.map_to_type_nodes(
@@ -1334,9 +1360,16 @@ impl NodeBuilder {
                 .ref_(self)
                 .flags()
                 .intersects(TypeFlags::TypeParameter)
-                && contains(context.infer_type_parameters.ref_(self).as_deref(), &type_)
+                && contains(
+                    context
+                        .ref_(self)
+                        .infer_type_parameters
+                        .ref_(self)
+                        .as_deref(),
+                    &type_,
+                )
             {
-                context.increment_approximate_length_by(
+                context.ref_(self).increment_approximate_length_by(
                     symbol_name(type_.ref_(self).symbol(), self).len() + 6,
                 );
                 return Ok(Some(get_factory(self).create_infer_type_node(
@@ -1344,6 +1377,7 @@ impl NodeBuilder {
                 )));
             }
             if context
+                .ref_(self)
                 .flags()
                 .intersects(NodeBuilderFlags::GenerateNamesForShadowedTypeParams)
                 && type_
@@ -1352,11 +1386,13 @@ impl NodeBuilder {
                     .intersects(TypeFlags::TypeParameter)
                 && !self.type_checker.ref_(self).is_type_symbol_accessible(
                     type_.ref_(self).symbol(),
-                    context.maybe_enclosing_declaration(),
+                    context.ref_(self).maybe_enclosing_declaration(),
                 )?
             {
                 let name = self.type_parameter_to_name(type_, context)?;
-                context.increment_approximate_length_by(id_text(&name.ref_(self)).len());
+                context
+                    .ref_(self)
+                    .increment_approximate_length_by(id_text(&name.ref_(self)).len());
                 return Ok(Some(get_factory(self).create_type_reference_node(
                     get_factory(self).create_identifier(&id_text(&name.ref_(self))),
                     Option::<Id<NodeArray>>::None,
@@ -1407,12 +1443,13 @@ impl NodeBuilder {
                     ));
                 }
             }
-            if !context.encountered_error()
+            if !context.ref_(self).encountered_error()
                 && !context
+                    .ref_(self)
                     .flags()
                     .intersects(NodeBuilderFlags::AllowEmptyUnionOrIntersection)
             {
-                context.set_encountered_error(true);
+                context.ref_(self).set_encountered_error(true);
             }
             return Ok(None);
         }
@@ -1422,7 +1459,7 @@ impl NodeBuilder {
         }
         if type_.ref_(self).flags().intersects(TypeFlags::Index) {
             let indexed_type = type_.ref_(self).as_index_type().type_;
-            context.increment_approximate_length_by(6);
+            context.ref_(self).increment_approximate_length_by(6);
             let index_type_node = self
                 .type_to_type_node_helper(Some(indexed_type), context)?
                 .unwrap();
@@ -1465,7 +1502,7 @@ impl NodeBuilder {
                 )?),
                 None,
             );
-            context.increment_approximate_length_by(2);
+            context.ref_(self).increment_approximate_length_by(2);
             return Ok(Some(
                 get_factory(self).create_template_literal_type(template_head, template_spans),
             ));
@@ -1505,7 +1542,7 @@ impl NodeBuilder {
                     context,
                 )?
                 .unwrap();
-            context.increment_approximate_length_by(2);
+            context.ref_(self).increment_approximate_length_by(2);
             return Ok(Some(get_factory(self).create_indexed_access_type_node(
                 object_type_node,
                 index_type_node,

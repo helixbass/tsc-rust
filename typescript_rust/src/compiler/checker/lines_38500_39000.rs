@@ -257,18 +257,14 @@ impl TypeChecker {
         broad_diag: &'static DiagnosticMessage,
     ) -> io::Result<()> {
         let mut issued_member_error = false;
-        for &member in &*node
-            .ref_(self)
-            .as_class_like_declaration()
-            .members()
-            .ref_(self)
+        for &member in &*released!(node.ref_(self).as_class_like_declaration().members()).ref_(self)
         {
             if is_static(member, self) {
                 continue;
             }
-            let member_ref = member.ref_(self);
-            let member_as_named_declaration = member_ref.as_named_declaration();
-            let declared_prop = member_as_named_declaration
+            let declared_prop = member
+                .ref_(self)
+                .as_named_declaration()
                 .maybe_name()
                 .try_and_then(|member_name| self.get_symbol_at_location_(member_name, None))?
                 .try_or_else(|| self.get_symbol_at_location_(member, None))?;
@@ -287,11 +283,11 @@ impl TypeChecker {
                     if !self.check_type_assignable_to(
                         self.get_type_of_symbol(prop)?,
                         self.get_type_of_symbol(base_prop)?,
-                        Some(
-                            member_as_named_declaration
-                                .maybe_name()
-                                .unwrap_or_else(|| member.clone()),
-                        ),
+                        Some(released!(member
+                            .ref_(self)
+                            .as_named_declaration()
+                            .maybe_name()
+                            .unwrap_or_else(|| member.clone()))),
                         None,
                         Some(self.alloc_check_type_containing_message_chain(Box::new(
                             IssueMemberSpecificErrorContainingMessageChain::new(
@@ -313,12 +309,11 @@ impl TypeChecker {
             self.check_type_assignable_to(
                 type_with_this,
                 base_with_this,
-                Some(
-                    node.ref_(self)
-                        .as_class_like_declaration()
-                        .maybe_name()
-                        .unwrap_or(node),
-                ),
+                Some(released!(node
+                    .ref_(self)
+                    .as_class_like_declaration()
+                    .maybe_name()
+                    .unwrap_or(node))),
                 Some(broad_diag),
                 None,
                 None,
