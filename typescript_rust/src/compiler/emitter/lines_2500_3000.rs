@@ -778,7 +778,10 @@ impl Printer {
             node,
             None,
         );
-        self.emit_expression(Some(node.ref_(self).as_if_statement().expression), None)?;
+        self.emit_expression(
+            Some(released!(node.ref_(self).as_if_statement().expression)),
+            None,
+        )?;
         self.emit_token_with_comment(
             SyntaxKind::CloseParenToken,
             node.ref_(self)
@@ -918,12 +921,11 @@ impl Printer {
             node,
             None,
         );
-        let node_ref = node.ref_(self);
-        let node_as_for_statement = node_ref.as_for_statement();
-        self.emit_for_binding(node_as_for_statement.initializer)?;
+        self.emit_for_binding(node.ref_(self).as_for_statement().initializer)?;
         pos = self.emit_token_with_comment(
             SyntaxKind::SemicolonToken,
-            node_as_for_statement
+            node.ref_(self)
+                .as_for_statement()
                 .initializer
                 .as_ref()
                 .map_or(pos, |node_initializer| node_initializer.ref_(self).end()),
@@ -931,10 +933,14 @@ impl Printer {
             node,
             None,
         );
-        self.emit_expression_with_leading_space(node_as_for_statement.condition, None)?;
+        self.emit_expression_with_leading_space(
+            node.ref_(self).as_for_statement().condition,
+            None,
+        )?;
         pos = self.emit_token_with_comment(
             SyntaxKind::SemicolonToken,
-            node_as_for_statement
+            node.ref_(self)
+                .as_for_statement()
                 .condition
                 .as_ref()
                 .map_or(pos, |node_condition| node_condition.ref_(self).end()),
@@ -942,17 +948,21 @@ impl Printer {
             node,
             None,
         );
-        self.emit_expression_with_leading_space(node_as_for_statement.incrementor, None)?;
+        self.emit_expression_with_leading_space(
+            node.ref_(self).as_for_statement().incrementor,
+            None,
+        )?;
         self.emit_token_with_comment(
             SyntaxKind::CloseParenToken,
-            node_as_for_statement
+            node.ref_(self)
+                .as_for_statement()
                 .incrementor
                 .map_or(pos, |node_incrementor| node_incrementor.ref_(self).end()),
             |text: &str| self.write_punctuation(text),
             node,
             None,
         );
-        self.emit_embedded_statement(node, node_as_for_statement.statement)?;
+        self.emit_embedded_statement(node, node.ref_(self).as_for_statement().statement)?;
 
         Ok(())
     }

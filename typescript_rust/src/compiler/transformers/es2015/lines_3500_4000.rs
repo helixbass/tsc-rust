@@ -174,7 +174,7 @@ impl TransformES2015 {
             .factory
             .ref_(self)
             .create_property_assignment(
-                node.ref_(self).as_method_declaration().name(),
+                released!(node.ref_(self).as_method_declaration().name()),
                 function_expression,
             )
             .set_text_range(Some(&*node.ref_(self)), self))

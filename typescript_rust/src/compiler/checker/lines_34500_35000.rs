@@ -440,11 +440,12 @@ impl TypeChecker {
             }
         }
         try_maybe_for_each(
-            node.ref_(self)
+            released!(node
+                .ref_(self)
                 .as_has_type_arguments()
-                .maybe_type_arguments()
-                .refed(self)
-                .as_deref(),
+                .maybe_type_arguments())
+            .refed(self)
+            .as_deref(),
             |&type_argument, _| -> io::Result<_> {
                 self.check_source_element(Some(type_argument))?;
                 Ok(Option::<()>::None)

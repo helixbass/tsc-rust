@@ -159,24 +159,39 @@ impl TransformES2015 {
         statements: &mut Vec<Id<Node /*Statement*/>>,
         node: Id<Node>, /*FunctionLikeDeclaration*/
     ) -> io::Result<bool> {
-        let node_ref = node.ref_(self);
-        let node_as_function_like_declaration = node_ref.as_function_like_declaration();
         if !some(
-            Some(&*node_as_function_like_declaration.parameters().ref_(self)),
+            Some(
+                &*node
+                    .ref_(self)
+                    .as_function_like_declaration()
+                    .parameters()
+                    .ref_(self),
+            ),
             Some(|&parameter: &Id<Node>| self.has_default_value_or_binding_pattern(parameter)),
         ) {
             return Ok(false);
         }
 
         let mut added = false;
-        for &parameter in &*node_as_function_like_declaration.parameters().ref_(self) {
-            let parameter_ref = parameter.ref_(self);
-            let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
-            let name = parameter_as_parameter_declaration.maybe_name().unwrap();
-            let initializer = parameter_as_parameter_declaration.maybe_initializer();
-            let dot_dot_dot_token = parameter_as_parameter_declaration
-                .dot_dot_dot_token
-                .as_ref();
+        for &parameter in &*node
+            .ref_(self)
+            .as_function_like_declaration()
+            .parameters()
+            .ref_(self)
+        {
+            let name = parameter
+                .ref_(self)
+                .as_parameter_declaration()
+                .maybe_name()
+                .unwrap();
+            let initializer = parameter
+                .ref_(self)
+                .as_parameter_declaration()
+                .maybe_initializer();
+            let dot_dot_dot_token = parameter
+                .ref_(self)
+                .as_parameter_declaration()
+                .dot_dot_dot_token;
 
             if dot_dot_dot_token.is_some() {
                 continue;
@@ -209,9 +224,13 @@ impl TransformES2015 {
         name: Id<Node>,                /*BindingPattern*/
         initializer: Option<Id<Node>>, /*Expression*/
     ) -> io::Result<bool> {
-        let name_ref = name.ref_(self);
-        let name_as_has_elements = name_ref.as_has_elements();
-        if !name_as_has_elements.elements().ref_(self).is_empty() {
+        if !name
+            .ref_(self)
+            .as_has_elements()
+            .elements()
+            .ref_(self)
+            .is_empty()
+        {
             insert_statement_after_custom_prologue(
                 statements,
                 Some(

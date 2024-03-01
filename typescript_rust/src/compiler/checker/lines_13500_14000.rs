@@ -88,11 +88,12 @@ impl TypeChecker {
         node: Id<Node>, /*NodeWithTypeArguments*/
     ) -> io::Result<Option<Vec<Id<Type>>>> {
         try_maybe_map(
-            node.ref_(self)
+            released!(node
+                .ref_(self)
                 .as_has_type_arguments()
-                .maybe_type_arguments()
-                .refed(self)
-                .as_deref(),
+                .maybe_type_arguments())
+            .refed(self)
+            .as_deref(),
             |&type_argument, _| self.get_type_from_type_node_(type_argument),
         )
         .transpose()

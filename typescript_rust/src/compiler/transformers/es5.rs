@@ -189,10 +189,7 @@ impl TransformES5OnSubstituteNodeOverrider {
                 .factory
                 .ref_(self)
                 .create_element_access_expression(
-                    node.ref_(self)
-                        .as_property_access_expression()
-                        .expression
-                        .clone(),
+                    released!(node.ref_(self).as_property_access_expression().expression),
                     literal_name,
                 )
                 .set_text_range(Some(&*node.ref_(self)), self);

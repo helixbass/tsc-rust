@@ -320,8 +320,6 @@ impl TransformModule {
         &self,
         node: Id<Node>, /*FunctionDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_ref = node.ref_(self);
-        let node_as_function_declaration = node_ref.as_function_declaration();
         let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
         if has_syntactic_modifier(node, ModifierFlags::Export, self) {
             statements.get_or_insert_default_().push(
@@ -330,14 +328,17 @@ impl TransformModule {
                     .create_function_declaration(
                         Option::<Id<NodeArray>>::None,
                         maybe_visit_nodes(
-                            node.ref_(self).maybe_modifiers(),
+                            released!(node.ref_(self).maybe_modifiers()),
                             Some(|node: Id<Node>| self.modifier_visitor(node)),
                             Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                             None,
                             None,
                             self,
                         ),
-                        node_as_function_declaration.maybe_asterisk_token(),
+                        released!(node
+                            .ref_(self)
+                            .as_function_declaration()
+                            .maybe_asterisk_token()),
                         Some(self.factory.ref_(self).get_declaration_name(
                             Some(node),
                             Some(true),
@@ -345,7 +346,7 @@ impl TransformModule {
                         )),
                         Option::<Id<NodeArray>>::None,
                         try_visit_nodes(
-                            node_as_function_declaration.parameters(),
+                            released!(node.ref_(self).as_function_declaration().parameters()),
                             Some(|node: Id<Node>| self.visitor(node)),
                             Option::<fn(Id<Node>) -> bool>::None,
                             None,
@@ -354,7 +355,7 @@ impl TransformModule {
                         )?,
                         None,
                         try_maybe_visit_each_child(
-                            node_as_function_declaration.maybe_body(),
+                            released!(node.ref_(self).as_function_declaration().maybe_body()),
                             |node: Id<Node>| self.visitor(node),
                             &*self.context.ref_(self),
                             self,

@@ -760,7 +760,10 @@ impl TransformTypeScript {
                                 .factory
                                 .ref_(self)
                                 .create_variable_declaration(
-                                    node.ref_(self).as_import_equals_declaration().maybe_name(),
+                                    released!(node
+                                        .ref_(self)
+                                        .as_import_equals_declaration()
+                                        .maybe_name()),
                                     None,
                                     None,
                                     Some(module_reference),

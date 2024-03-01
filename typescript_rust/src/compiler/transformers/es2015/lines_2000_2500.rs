@@ -480,14 +480,16 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*VariableDeclaration*/
     ) -> io::Result<VisitResult> {
-        let node_ref = node.ref_(self);
-        let node_as_variable_declaration = node_ref.as_variable_declaration();
-        let name = node_as_variable_declaration.maybe_name();
+        let name = node.ref_(self).as_variable_declaration().maybe_name();
         if is_binding_pattern(name.refed(self).as_deref()) {
             return self.visit_variable_declaration(node);
         }
 
-        if node_as_variable_declaration.maybe_initializer().is_none()
+        if node
+            .ref_(self)
+            .as_variable_declaration()
+            .maybe_initializer()
+            .is_none()
             && self.should_emit_explicit_initializer_for_let_declaration(node)?
         {
             return Ok(Some(
@@ -495,7 +497,7 @@ impl TransformES2015 {
                     .ref_(self)
                     .update_variable_declaration(
                         node,
-                        node_as_variable_declaration.maybe_name(),
+                        node.ref_(self).as_variable_declaration().maybe_name(),
                         None,
                         None,
                         Some(self.factory.ref_(self).create_void_zero()),

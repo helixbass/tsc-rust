@@ -23,7 +23,8 @@ use crate::{
     CoreTransformationContext, Debug_, EmitFlags, FunctionLikeDeclarationInterface,
     GeneratedIdentifierFlags, HasArena, HasInitializerInterface, InArena, ModifierFlags, NodeArray,
     NodeArrayExt, NodeArrayOrVec, NodeCheckFlags, NodeExt, OptionInArena, PrivateIdentifierKind,
-    PropertyDescriptorAttributesBuilder, ScriptTarget, SyntaxKind, TransformationContext,
+    PropertyDescriptorAttributesBuilder, ReadonlyTextRangeConcrete, ScriptTarget, SyntaxKind,
+    TransformationContext,
 };
 
 impl TransformClassFields {
@@ -777,30 +778,33 @@ impl TransformClassFields {
         property: Id<Node>, /*PropertyDeclaration*/
         receiver: Id<Node>, /*LeftHandSideExpression*/
     ) -> Option<Id<Node>> {
-        let property_ref = property.ref_(self);
-        let property_as_property_declaration = property_ref.as_property_declaration();
         let emit_assignment = !self.use_define_for_class_fields;
-        let property_name =
-            if is_computed_property_name(&property_as_property_declaration.name().ref_(self))
-                && !is_simple_inlineable_expression(
-                    &property_as_property_declaration
-                        .name()
-                        .ref_(self)
-                        .as_computed_property_name()
-                        .expression
-                        .ref_(self),
-                )
-            {
-                self.factory.ref_(self).update_computed_property_name(
-                    property_as_property_declaration.name(),
-                    self.factory.ref_(self).get_generated_name_for_node(
-                        Some(property_as_property_declaration.name()),
-                        None,
-                    ),
-                )
-            } else {
-                property_as_property_declaration.name()
-            };
+        let property_name = if is_computed_property_name(
+            &property
+                .ref_(self)
+                .as_property_declaration()
+                .name()
+                .ref_(self),
+        ) && !is_simple_inlineable_expression(
+            &property
+                .ref_(self)
+                .as_property_declaration()
+                .name()
+                .ref_(self)
+                .as_computed_property_name()
+                .expression
+                .ref_(self),
+        ) {
+            self.factory.ref_(self).update_computed_property_name(
+                property.ref_(self).as_property_declaration().name(),
+                self.factory.ref_(self).get_generated_name_for_node(
+                    Some(property.ref_(self).as_property_declaration().name()),
+                    None,
+                ),
+            )
+        } else {
+            property.ref_(self).as_property_declaration().name()
+        };
 
         if has_static_modifier(property, self) {
             self.set_current_static_property_declaration_or_static_block(Some(property));
@@ -817,7 +821,10 @@ impl TransformClassFields {
                         return Some(create_private_instance_field_initializer(
                             receiver,
                             maybe_visit_node(
-                                property_as_property_declaration.maybe_initializer(),
+                                property
+                                    .ref_(self)
+                                    .as_property_declaration()
+                                    .maybe_initializer(),
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -829,7 +836,10 @@ impl TransformClassFields {
                         return Some(create_private_static_field_initializer(
                             private_identifier_info.maybe_variable_name().unwrap(),
                             maybe_visit_node(
-                                property_as_property_declaration.maybe_initializer(),
+                                property
+                                    .ref_(self)
+                                    .as_property_declaration()
+                                    .maybe_initializer(),
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -845,7 +855,9 @@ impl TransformClassFields {
             }
         }
         if (is_private_identifier(&property_name.ref_(self)) || has_static_modifier(property, self))
-            && property_as_property_declaration
+            && property
+                .ref_(self)
+                .as_property_declaration()
                 .maybe_initializer()
                 .is_none()
         {
@@ -857,13 +869,18 @@ impl TransformClassFields {
             return None;
         }
 
-        let initializer = if property_as_property_declaration
+        let initializer = if property
+            .ref_(self)
+            .as_property_declaration()
             .maybe_initializer()
             .is_some()
             || emit_assignment
         {
             maybe_visit_node(
-                property_as_property_declaration.maybe_initializer(),
+                property
+                    .ref_(self)
+                    .as_property_declaration()
+                    .maybe_initializer(),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -886,7 +903,9 @@ impl TransformClassFields {
                     &self.factory.ref_(self),
                     receiver,
                     property_name,
-                    Some(&*property_name.ref_(self)),
+                    Some(&released!(ReadonlyTextRangeConcrete::from(
+                        &*property_name.ref_(self)
+                    ))),
                 );
                 self.factory
                     .ref_(self)

@@ -1817,7 +1817,7 @@ impl CheckTypeRelatedTo {
                         t.clone(),
                         true,
                         should_elaborate_errors,
-                        incompatible_reporter(&self_.ref_(arena), s, t),
+                        released!(incompatible_reporter(&self_.ref_(arena), s, t)),
                     )?;
                     if related != Ternary::False {
                         result &= related;

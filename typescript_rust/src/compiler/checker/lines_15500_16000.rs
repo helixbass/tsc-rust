@@ -10,10 +10,10 @@ use crate::{
     declaration_name_to_string, get_declaration_modifier_flags_from_symbol, is_identifier,
     is_jsdoc_type_expression, is_jsdoc_type_literal, is_literal_import_type_node,
     is_optional_type_node, is_parenthesized_type_node, is_rest_type_node, is_tuple_type_node,
-    is_type_alias, is_type_operator_node, length, maybe_concatenate, node_is_missing, same_map,
-    try_find, try_map, try_maybe_filter, AccessFlags, CheckFlags, ConditionalRoot, ConditionalType,
-    Diagnostics, HasArena, InArena, IndexInfo, InferenceFlags, InferencePriority, MappedType,
-    ModifierFlags, Node, NodeFlags, NodeInterface, NodeLinks, ObjectFlags,
+    is_type_alias, is_type_operator_node, length, maybe_concatenate, node_is_missing, released,
+    same_map, try_find, try_map, try_maybe_filter, AccessFlags, CheckFlags, ConditionalRoot,
+    ConditionalType, Diagnostics, HasArena, InArena, IndexInfo, InferenceFlags, InferencePriority,
+    MappedType, ModifierFlags, Node, NodeFlags, NodeInterface, NodeLinks, ObjectFlags,
     ObjectFlagsTypeInterface, OptionInArena, OptionTry, Symbol, SymbolFlags, SymbolInterface,
     SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
     UnionOrIntersectionTypeInterface,
@@ -221,7 +221,7 @@ impl TypeChecker {
                 );
                 if !check_type_instantiable {
                     self.infer_types(
-                        &context.ref_(self).inferences(),
+                        &released!(context.ref_(self).inferences().clone()),
                         check_type,
                         extends_type,
                         Some(InferencePriority::NoConstraints | InferencePriority::AlwaysStrict),

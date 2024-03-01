@@ -759,7 +759,7 @@ impl TypeChecker {
                 map(
                     &*context.ref_(self).inferences(),
                     |inference: &Id<InferenceInfo>, _| {
-                        self.alloc_inference_info(self.clone_inference_info(&inference.ref_(self)))
+                        self.alloc_inference_info(self.clone_inference_info(inference))
                     },
                 ),
                 context.ref_(self).signature.clone(),
@@ -835,16 +835,17 @@ impl TypeChecker {
         InferenceInfo::new(type_parameter, None, None, None, None, true, false, None)
     }
 
-    pub(super) fn clone_inference_info(&self, inference: &InferenceInfo) -> InferenceInfo {
+    pub(super) fn clone_inference_info(&self, inference: Id<InferenceInfo>) -> InferenceInfo {
+        let inference_ref = inference.ref_(self);
         InferenceInfo::new(
-            inference.type_parameter.clone(),
-            inference.maybe_candidates().clone(),
-            inference.maybe_contra_candidates().clone(),
-            inference.maybe_inferred_type(),
-            inference.maybe_priority(),
-            inference.top_level(),
-            inference.is_fixed(),
-            inference.maybe_implied_arity(),
+            inference_ref.type_parameter.clone(),
+            inference_ref.maybe_candidates().clone(),
+            inference_ref.maybe_contra_candidates().clone(),
+            inference_ref.maybe_inferred_type(),
+            inference_ref.maybe_priority(),
+            inference_ref.top_level(),
+            inference_ref.is_fixed(),
+            inference_ref.maybe_implied_arity(),
         )
     }
 
@@ -859,7 +860,7 @@ impl TypeChecker {
         if !inferences.is_empty() {
             Some(self.create_inference_context_worker(
                 map(&inferences, |inference: &Id<InferenceInfo>, _| {
-                    self.alloc_inference_info(self.clone_inference_info(&inference.ref_(self)))
+                    self.alloc_inference_info(self.clone_inference_info(inference))
                 }),
                 context.ref_(self).signature.clone(),
                 context.ref_(self).flags(),
