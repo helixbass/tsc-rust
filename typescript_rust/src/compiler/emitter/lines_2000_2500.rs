@@ -975,7 +975,9 @@ impl Printer {
         node: Id<Node>, /*PropertyAccessExpression*/
     ) -> io::Result<()> {
         self.emit_expression(
-            Some(node.ref_(self).as_property_access_expression().expression),
+            released!(Some(
+                node.ref_(self).as_property_access_expression().expression
+            )),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(
                     self.parenthesizer(),

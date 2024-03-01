@@ -248,26 +248,27 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*FunctionExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_function_expression = node_ref.as_function_expression();
         if !self.should_emit_function_like_declaration(node) {
             return Ok(self.factory.ref_(self).create_omitted_expression());
         }
         let updated = self.factory.ref_(self).update_function_expression(
             node,
             maybe_visit_nodes(
-                node.ref_(self).maybe_modifiers(),
+                released!(node.ref_(self).maybe_modifiers()),
                 Some(|node: Id<Node>| self.modifier_visitor(node)),
                 Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                 None,
                 None,
                 self,
             ),
-            node_as_function_expression.maybe_asterisk_token(),
-            node_as_function_expression.maybe_name(),
+            released!(node
+                .ref_(self)
+                .as_function_expression()
+                .maybe_asterisk_token()),
+            released!(node.ref_(self).as_function_expression().maybe_name()),
             Option::<Id<NodeArray>>::None,
             try_visit_parameter_list(
-                Some(node_as_function_expression.parameters()),
+                released!(Some(node.ref_(self).as_function_expression().parameters())),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
@@ -275,7 +276,7 @@ impl TransformTypeScript {
             .unwrap(),
             None,
             try_visit_function_body(
-                node_as_function_expression.maybe_body(),
+                released!(node.ref_(self).as_function_expression().maybe_body()),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
@@ -829,7 +830,7 @@ impl TransformTypeScript {
         let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
         self.context.ref_(self).start_lexical_environment();
         let members = try_map(
-            &*node.ref_(self).as_enum_declaration().members.ref_(self),
+            &*released!(node.ref_(self).as_enum_declaration().members).ref_(self),
             |&member: &Id<Node>, _| self.transform_enum_member(member),
         )?;
         insert_statements_after_standard_prologue(

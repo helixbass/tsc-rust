@@ -1093,7 +1093,7 @@ impl TransformModuleOnSubstituteNodeOverrider {
     }
 
     fn substitute_expression(&self, node: Id<Node> /*Expression*/) -> io::Result<Id<Node>> {
-        Ok(match node.ref_(self).kind() {
+        Ok(match released!(node.ref_(self).kind()) {
             SyntaxKind::Identifier => self.substitute_expression_identifier(node)?,
             SyntaxKind::CallExpression => self.substitute_call_expression(node)?,
             SyntaxKind::TaggedTemplateExpression => {
@@ -1166,8 +1166,6 @@ impl TransformModuleOnSubstituteNodeOverrider {
         &self,
         node: Id<Node>, /*Identifier*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_identifier = node_ref.as_identifier();
         #[allow(clippy::nonminimal_bool)]
         if get_emit_flags(node, self).intersects(EmitFlags::HelperName) {
             let external_helpers_module_name = get_external_helpers_module_name(
@@ -1183,12 +1181,14 @@ impl TransformModuleOnSubstituteNodeOverrider {
             }
             return Ok(node);
         } else if !(is_generated_identifier(&node.ref_(self))
-            && !node_as_identifier.maybe_auto_generate_flags().matches(
-                |node_auto_generate_flags| {
+            && !node
+                .ref_(self)
+                .as_identifier()
+                .maybe_auto_generate_flags()
+                .matches(|node_auto_generate_flags| {
                     node_auto_generate_flags
                         .intersects(GeneratedIdentifierFlags::AllowNameSubstitution)
-                },
-            ))
+                }))
             && !is_local_name(node, self)
         {
             let export_container = self

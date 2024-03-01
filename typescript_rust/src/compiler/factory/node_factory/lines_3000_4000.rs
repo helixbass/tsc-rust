@@ -407,11 +407,9 @@ impl NodeFactory {
         then_statement: Id<Node /*Statement*/>,
         else_statement: Option<Id<Node /*Statement*/>>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_if_statement = node_ref.as_if_statement();
-        if node_as_if_statement.expression != expression
-            || node_as_if_statement.then_statement != then_statement
-            || node_as_if_statement.else_statement != else_statement
+        if node.ref_(self).as_if_statement().expression != expression
+            || node.ref_(self).as_if_statement().then_statement != then_statement
+            || node.ref_(self).as_if_statement().else_statement != else_statement
         {
             self.update(
                 self.create_if_statement(expression, then_statement, else_statement),

@@ -562,7 +562,7 @@ impl TypeChecker {
         if self.produce_diagnostics {
             let type_ =
                 self.get_type_from_type_literal_or_function_or_constructor_type_node(node)?;
-            self.check_index_constraints(type_, type_.ref_(self).symbol(), None)?;
+            self.check_index_constraints(type_, released!(type_.ref_(self).symbol()), None)?;
             self.check_type_for_duplicate_index_signatures(node)?;
             self.check_object_type_for_duplicate_declarations(node);
         }

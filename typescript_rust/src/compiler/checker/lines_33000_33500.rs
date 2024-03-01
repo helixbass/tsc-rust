@@ -478,7 +478,7 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let type_ = self.check_truthiness_expression(
-            node.ref_(self).as_conditional_expression().condition,
+            released!(node.ref_(self).as_conditional_expression().condition),
             None,
         )?;
         self.check_testing_known_truthy_callable_or_awaitable_type(

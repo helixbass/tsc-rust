@@ -280,7 +280,7 @@ impl TypeChecker {
             self.check_computed_property_name(node.ref_(self).as_property_assignment().name())?;
         }
         self.check_expression_for_mutable_location(
-            node.ref_(self).as_property_assignment().initializer,
+            released!(node.ref_(self).as_property_assignment().initializer),
             check_mode,
             None,
             None,
@@ -690,9 +690,9 @@ impl TypeChecker {
                 self.get_return_type_of_single_non_generic_signature_of_call_chain(expr)?
             } else {
                 self.get_return_type_of_single_non_generic_call_signature(
-                    self.check_non_null_expression(
-                        expr.ref_(self).as_call_expression().expression,
-                    )?,
+                    self.check_non_null_expression(released!(
+                        expr.ref_(self).as_call_expression().expression
+                    ))?,
                 )?
             };
             if type_.is_some() {

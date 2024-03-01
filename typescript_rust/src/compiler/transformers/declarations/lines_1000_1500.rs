@@ -246,22 +246,23 @@ impl TransformDeclarations {
 
         let previous_needs_declare = self.needs_declare();
         Ok(match released!(input.ref_(self).kind()) {
-            SyntaxKind::TypeAliasDeclaration => {
-                let input_ref = input.ref_(self);
-                let input_as_type_alias_declaration = input_ref.as_type_alias_declaration();
-                self.transform_top_level_declaration_cleanup(
-                    input,
-                    previous_enclosing_declaration,
-                    can_prodice_diagnostic,
-                    &old_diag,
-                    previous_needs_declare,
-                    Some(self.factory.ref_(self).update_type_alias_declaration(
+            SyntaxKind::TypeAliasDeclaration => self.transform_top_level_declaration_cleanup(
+                input,
+                previous_enclosing_declaration,
+                can_prodice_diagnostic,
+                &old_diag,
+                previous_needs_declare,
+                Some(
+                    self.factory.ref_(self).update_type_alias_declaration(
                         input,
                         Option::<Id<NodeArray>>::None,
                         self.ensure_modifiers(input),
-                        input_as_type_alias_declaration.name(),
+                        input.ref_(self).as_type_alias_declaration().name(),
                         try_maybe_visit_nodes(
-                            input_as_type_alias_declaration.maybe_type_parameters(),
+                            input
+                                .ref_(self)
+                                .as_type_alias_declaration()
+                                .maybe_type_parameters(),
                             Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                             Some(|node: Id<Node>| is_type_parameter_declaration(&node.ref_(self))),
                             None,
@@ -269,14 +270,18 @@ impl TransformDeclarations {
                             self,
                         )?,
                         try_visit_node(
-                            input_as_type_alias_declaration.maybe_type().unwrap(),
+                            input
+                                .ref_(self)
+                                .as_type_alias_declaration()
+                                .maybe_type()
+                                .unwrap(),
                             Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                             Some(|node: Id<Node>| is_type_node(&node.ref_(self))),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )?,
-                    )),
-                )
-            }
+                    ),
+                ),
+            ),
             SyntaxKind::InterfaceDeclaration => self.transform_top_level_declaration_cleanup(
                 input,
                 previous_enclosing_declaration,
@@ -654,9 +659,7 @@ impl TransformDeclarations {
                 }
             }
             SyntaxKind::ClassDeclaration => {
-                let input_ref = input.ref_(self);
-                let input_as_class_declaration = input_ref.as_class_declaration();
-                self.set_error_name_node(input_as_class_declaration.maybe_name());
+                self.set_error_name_node(input.ref_(self).as_class_declaration().maybe_name());
                 self.set_error_fallback_node(Some(input));
                 let modifiers = self
                     .factory
@@ -664,7 +667,10 @@ impl TransformDeclarations {
                     .create_node_array(self.ensure_modifiers(input), None);
                 let type_parameters = self.ensure_type_params(
                     input,
-                    input_as_class_declaration.maybe_type_parameters(),
+                    input
+                        .ref_(self)
+                        .as_class_declaration()
+                        .maybe_type_parameters(),
                 )?;
                 let ctor = get_first_constructor_with_body(input, self);
                 let mut parameter_properties: Option<Vec<Id<Node /*PropertyDeclaration*/>>> =
@@ -723,7 +729,7 @@ impl TransformDeclarations {
                 }
 
                 let has_private_identifier = some(
-                    Some(&*input_as_class_declaration.members().ref_(self)),
+                    Some(&*input.ref_(self).as_class_declaration().members().ref_(self)),
                     Some(|member: &Id<Node>| {
                         matches!(
                             member.ref_(self).as_named_declaration().maybe_name(),
@@ -748,7 +754,7 @@ impl TransformDeclarations {
                 let member_nodes = maybe_concatenate(
                     maybe_concatenate(private_identifier, parameter_properties),
                     try_maybe_visit_nodes(
-                        Some(input_as_class_declaration.members()),
+                        Some(input.ref_(self).as_class_declaration().members()),
                         Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                         Option::<fn(Id<Node>) -> bool>::None,
                         None,
@@ -776,7 +782,9 @@ impl TransformDeclarations {
                         .kind()
                         != SyntaxKind::NullKeyword
                 }) {
-                    let old_id = if let Some(input_name) = input_as_class_declaration.maybe_name() {
+                    let old_id = if let Some(input_name) =
+                        input.ref_(self).as_class_declaration().maybe_name()
+                    {
                         unescape_leading_underscores(
                             &input_name.ref_(self).as_identifier().escaped_text,
                         )
@@ -825,7 +833,9 @@ impl TransformDeclarations {
                     );
                     let heritage_clauses = self.factory.ref_(self).create_node_array(
                         try_maybe_map(
-                            input_as_class_declaration
+                            input
+                                .ref_(self)
+                                .as_class_declaration()
                                 .maybe_heritage_clauses()
                                 .refed(self)
                                 .as_deref(),
@@ -926,7 +936,7 @@ impl TransformDeclarations {
                                     input,
                                     Option::<Id<NodeArray>>::None,
                                     Some(modifiers),
-                                    input_as_class_declaration.maybe_name(),
+                                    input.ref_(self).as_class_declaration().maybe_name(),
                                     type_parameters,
                                     Some(heritage_clauses),
                                     members,
@@ -938,7 +948,10 @@ impl TransformDeclarations {
                     )
                 } else {
                     let heritage_clauses = self.transform_heritage_clauses(
-                        input_as_class_declaration.maybe_heritage_clauses(),
+                        input
+                            .ref_(self)
+                            .as_class_declaration()
+                            .maybe_heritage_clauses(),
                     )?;
                     self.transform_top_level_declaration_cleanup(
                         input,
@@ -950,7 +963,7 @@ impl TransformDeclarations {
                             input,
                             Option::<Id<NodeArray>>::None,
                             Some(modifiers),
-                            input_as_class_declaration.maybe_name(),
+                            input.ref_(self).as_class_declaration().maybe_name(),
                             type_parameters,
                             Some(heritage_clauses),
                             members,

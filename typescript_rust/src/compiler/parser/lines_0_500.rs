@@ -5,8 +5,8 @@ use id_arena::Id;
 
 use crate::{
     create_node_factory, impl_has_arena, maybe_text_char_at_index, object_allocator, per_arena,
-    AllArenas, BaseNode, BaseNodeFactory, CharacterCodes, HasArena, InArena, Node, NodeArray,
-    NodeFactory, NodeFactoryFlags, OptionTry, SourceTextAsChars, SyntaxKind,
+    released, AllArenas, BaseNode, BaseNodeFactory, CharacterCodes, HasArena, InArena, Node,
+    NodeArray, NodeFactory, NodeFactoryFlags, OptionTry, SourceTextAsChars, SyntaxKind,
 };
 
 bitflags! {
@@ -186,7 +186,7 @@ pub(super) fn try_visit_nodes<TError>(
                 cb_nodes(nodes)?;
             }
             None => {
-                for &node in nodes.ref_(arena).iter() {
+                for &node in released!(nodes.ref_(arena).clone()).iter() {
                     cb_node(node)?;
                 }
             }

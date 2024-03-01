@@ -225,14 +225,14 @@ impl TransformDeclarations {
         Ok(self.factory.ref_(self).create_node_array(
             nodes.try_map(|nodes| -> io::Result<_> {
                 let mut ret = vec![];
-                for &clause in &*nodes.ref_(self) {
+                for &clause in &*released!(nodes.ref_(self).clone()) {
                     let clause_ref = clause.ref_(self);
                     let clause_as_heritage_clause = clause_ref.as_heritage_clause();
                     let clause = self.factory.ref_(self).update_heritage_clause(
                         clause,
                         try_visit_nodes(
                             self.factory.ref_(self).create_node_array(
-                                Some(
+                                released!(Some(
                                     clause_as_heritage_clause
                                         .types
                                         .ref_(self)
@@ -254,7 +254,7 @@ impl TransformDeclarations {
                                         })
                                         .cloned()
                                         .collect::<Vec<_>>(),
-                                ),
+                                )),
                                 None,
                             ),
                             Some(|node: Id<Node>| self.visit_declaration_subtree(node)),

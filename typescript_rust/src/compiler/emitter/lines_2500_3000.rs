@@ -711,7 +711,9 @@ impl Printer {
     ) -> io::Result<()> {
         self.emit_modifiers(node, node.ref_(self).maybe_modifiers())?;
         self.emit(
-            Some(node.ref_(self).as_variable_statement().declaration_list),
+            released!(Some(
+                node.ref_(self).as_variable_statement().declaration_list
+            )),
             None,
         )?;
         self.write_trailing_semicolon();

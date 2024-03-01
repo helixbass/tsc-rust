@@ -885,7 +885,7 @@ impl TypeChecker {
             || node.ref_(self).as_return_statement().expression.is_some()
             || return_type.ref_(self).flags().intersects(TypeFlags::Never)
         {
-            let expr_type = match node.ref_(self).as_return_statement().expression {
+            let expr_type = match released!(node.ref_(self).as_return_statement().expression) {
                 Some(expression) => self.check_expression_cached(expression, None)?,
                 None => self.undefined_type(),
             };

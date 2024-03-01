@@ -10,7 +10,7 @@ use super::{
 };
 use crate::{
     for_each, get_comment_range, get_emit_flags, is_block, is_let, is_module_declaration,
-    is_var_const, node_is_synthesized, range_is_on_single_line, EmitFlags, HasArena,
+    is_var_const, node_is_synthesized, range_is_on_single_line, released, EmitFlags, HasArena,
     HasInitializerInterface, HasTypeInterface, HasTypeParametersInterface, InArena,
     InterfaceOrClassLikeDeclarationInterface, ListFormat, NamedDeclarationInterface, Node,
     NodeFlags, NodeInterface, Printer, ReadonlyTextRange, SyntaxKind, TextRange,
@@ -151,17 +151,29 @@ impl Printer {
         &self,
         node: Id<Node>, /*VariableDeclaration*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_variable_declaration = node_ref.as_variable_declaration();
-        self.emit(node_as_variable_declaration.maybe_name(), None)?;
-        self.emit(node_as_variable_declaration.exclamation_token, None)?;
-        self.emit_type_annotation(node_as_variable_declaration.maybe_type())?;
+        self.emit(node.ref_(self).as_variable_declaration().maybe_name(), None)?;
+        self.emit(
+            node.ref_(self).as_variable_declaration().exclamation_token,
+            None,
+        )?;
+        self.emit_type_annotation(node.ref_(self).as_variable_declaration().maybe_type())?;
         self.emit_initializer(
-            node_as_variable_declaration.maybe_initializer(),
-            node_as_variable_declaration.maybe_type().map_or_else(
-                || node_as_variable_declaration.name().ref_(self).end(),
-                |node_type| node_type.ref_(self).end(),
-            ),
+            node.ref_(self)
+                .as_variable_declaration()
+                .maybe_initializer(),
+            node.ref_(self)
+                .as_variable_declaration()
+                .maybe_type()
+                .map_or_else(
+                    || {
+                        node.ref_(self)
+                            .as_variable_declaration()
+                            .name()
+                            .ref_(self)
+                            .end()
+                    },
+                    |node_type| node_type.ref_(self).end(),
+                ),
             node,
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
@@ -188,7 +200,9 @@ impl Printer {
         self.write_space();
         self.emit_list(
             Some(node),
-            Some(node.ref_(self).as_variable_declaration_list().declarations),
+            released!(Some(
+                node.ref_(self).as_variable_declaration_list().declarations
+            )),
             ListFormat::VariableDeclarationList,
             None,
             None,

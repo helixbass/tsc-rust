@@ -488,16 +488,20 @@ impl TransformTypeScript {
         });
         if let Some(parameters_with_property_assignments) = parameters_with_property_assignments {
             for parameter in parameters_with_property_assignments {
-                let parameter_ref = parameter.ref_(self);
-                let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
-                if is_identifier(&parameter_as_parameter_declaration.name().ref_(self)) {
+                if is_identifier(
+                    &parameter
+                        .ref_(self)
+                        .as_parameter_declaration()
+                        .name()
+                        .ref_(self),
+                ) {
                     members.push(
                         self.factory
                             .ref_(self)
                             .create_property_declaration(
                                 Option::<Id<NodeArray>>::None,
                                 Option::<Id<NodeArray>>::None,
-                                parameter_as_parameter_declaration.name(),
+                                released!(parameter.ref_(self).as_parameter_declaration().name()),
                                 None,
                                 None,
                                 None,

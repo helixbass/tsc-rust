@@ -10,13 +10,14 @@ use id_arena::Id;
 use super::{Parser, ParsingContext};
 use crate::{
     attach_file_to_diagnostics, convert_to_object_worker, create_node_factory, create_scanner,
-    ensure_script_kind, for_each_child, get_language_variant, impl_has_arena, is_logging,
-    normalize_path, object_allocator, ref_mut_unwrapped, ref_unwrapped, AllArenas, BaseNode,
-    Debug_, Diagnostic, Diagnostics, HasArena, HasStatementsInterface, InArena, IncrementalParser,
-    IncrementalParserSyntaxCursor, JsonConversionNotifierDummy, LanguageVariant, Node, NodeArray,
-    NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface, ParsedIsolatedJSDocComment,
-    ParsedJSDocTypeExpression, ReadonlyPragmaMap, Scanner, ScriptKind, ScriptTarget,
-    SourceTextAsChars, SyntaxKind, TextChangeRange,
+    ensure_script_kind, for_each_child, get_factory_id, get_language_variant,
+    get_parse_node_factory, impl_has_arena, is_logging, normalize_path, object_allocator,
+    ref_mut_unwrapped, ref_unwrapped, AllArenas, BaseNode, Debug_, Diagnostic, Diagnostics,
+    HasArena, HasStatementsInterface, InArena, IncrementalParser, IncrementalParserSyntaxCursor,
+    JsonConversionNotifierDummy, LanguageVariant, Node, NodeArray, NodeFactory, NodeFactoryFlags,
+    NodeFlags, NodeInterface, ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression,
+    ReadonlyPragmaMap, Scanner, ScriptKind, ScriptTarget, SourceTextAsChars, SyntaxKind,
+    TextChangeRange,
 };
 
 pub enum ForEachChildRecursivelyCallbackReturn<TValue> {
@@ -385,6 +386,9 @@ impl ParserType {
             super::get_parse_base_node_factory(arena),
             arena,
         )));
+        // create these "pre-emptively" to avoid arena borrow errors later
+        get_factory_id(arena);
+        get_parse_node_factory(arena);
         ret
     }
 

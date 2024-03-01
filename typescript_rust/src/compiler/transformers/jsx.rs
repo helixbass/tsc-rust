@@ -24,12 +24,12 @@ use crate::{
     is_external_or_common_js_module, is_identifier, is_intrinsic_jsx_name, is_jsx_attribute,
     is_jsx_spread_attribute, is_line_break, is_source_file, is_string_double_quoted,
     is_white_space_single_line, map, map_defined, maybe_get_original_node, maybe_visit_node,
-    ref_mut_unwrapped, ref_unwrapped, regex, single_or_undefined, span_map, start_on_new_line,
-    utf16_encode_as_string, visit_each_child, visit_node, AllArenas, CoreTransformationContext,
-    Debug_, GetOrInsertDefault, HasArena, HasStatementsInterface, InArena,
-    LiteralLikeNodeInterface, MapOrDefault, Matches, NodeArray, NodeArrayOrVec, NodeExt, NodeFlags,
-    NonEmpty, Number, ReadonlyTextRange, ScriptTarget, SyntaxKind, TransformFlags,
-    TransformNodesTransformationResult, VisitResult,
+    ref_mut_unwrapped, ref_unwrapped, regex, released, single_or_undefined, span_map,
+    start_on_new_line, utf16_encode_as_string, visit_each_child, visit_node, AllArenas,
+    CoreTransformationContext, Debug_, GetOrInsertDefault, HasArena, HasStatementsInterface,
+    InArena, LiteralLikeNodeInterface, MapOrDefault, Matches, NodeArray, NodeArrayOrVec, NodeExt,
+    NodeFlags, NonEmpty, Number, ReadonlyTextRange, ReadonlyTextRangeConcrete, ScriptTarget,
+    SyntaxKind, TransformFlags, TransformNodesTransformationResult, VisitResult,
 };
 
 #[derive(Builder, Default)]
@@ -204,9 +204,7 @@ impl TransformJsx {
     }
 
     fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_source_file = node_ref.as_source_file();
-        if node_as_source_file.is_declaration_file() {
+        if node.ref_(self).as_source_file().is_declaration_file() {
             return node;
         }
 
@@ -366,7 +364,7 @@ impl TransformJsx {
     }
 
     fn visitor_worker(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
-        match node.ref_(self).kind() {
+        match released!(node.ref_(self).kind()) {
             SyntaxKind::JsxElement => self.visit_jsx_element(node, false).map(Into::into),
             SyntaxKind::JsxSelfClosingElement => self
                 .visit_jsx_self_closing_element(node, false)
@@ -468,7 +466,7 @@ impl TransformJsx {
                 node,
                 None,
                 is_child,
-                &*node.ref_(self),
+                &released!(ReadonlyTextRangeConcrete::from(&*node.ref_(self))),
             )
         } else {
             self.visit_jsx_opening_like_element_jsx(node, None, is_child, &*node.ref_(self))
@@ -708,10 +706,10 @@ impl TransformJsx {
         is_child: bool,
         location: &impl ReadonlyTextRange,
     ) -> Option<Id<Node>> {
-        let node_ref = node.ref_(self);
-        let node_as_jsx_opening_like_element = node_ref.as_jsx_opening_like_element();
         let tag_name = self.get_tag_name(node);
-        let attrs = node_as_jsx_opening_like_element
+        let attrs = node
+            .ref_(self)
+            .as_jsx_opening_like_element()
             .attributes()
             .ref_(self)
             .as_jsx_attributes()
@@ -1108,7 +1106,7 @@ impl TransformJsx {
                 && is_intrinsic_jsx_name(&name.ref_(self).as_identifier().escaped_text)
             {
                 self.factory.ref_(self).create_string_literal(
-                    id_text(&name.ref_(self)).to_owned(),
+                    released!(id_text(&name.ref_(self)).to_owned()),
                     None,
                     None,
                 )

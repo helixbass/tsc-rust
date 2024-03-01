@@ -1294,20 +1294,25 @@ impl NodeFactory {
         equals_greater_than_token: Id<Node /*EqualsGreaterThanToken*/>,
         body: Id<Node /*ConciseBody*/>,
     ) -> Id<Node /*ArrowFunction*/> {
-        let node_ref = node.ref_(self);
-        let node_as_arrow_function = node_ref.as_arrow_function();
         let modifiers = modifiers.map(Into::into);
         let type_parameters = type_parameters.map(Into::into);
         let parameters = parameters.into();
         if has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
             || has_option_node_array_changed(
-                node_as_arrow_function.maybe_type_parameters(),
+                node.ref_(self).as_arrow_function().maybe_type_parameters(),
                 type_parameters.as_ref(),
             )
-            || has_node_array_changed(node_as_arrow_function.parameters(), &parameters)
-            || node_as_arrow_function.maybe_type() != type_
-            || node_as_arrow_function.equals_greater_than_token != equals_greater_than_token
-            || node_as_arrow_function.maybe_body().unwrap() != body
+            || has_node_array_changed(
+                node.ref_(self).as_arrow_function().parameters(),
+                &parameters,
+            )
+            || node.ref_(self).as_arrow_function().maybe_type() != type_
+            || node
+                .ref_(self)
+                .as_arrow_function()
+                .equals_greater_than_token
+                != equals_greater_than_token
+            || node.ref_(self).as_arrow_function().maybe_body().unwrap() != body
         {
             self.update_base_function_like_declaration(
                 self.create_arrow_function(

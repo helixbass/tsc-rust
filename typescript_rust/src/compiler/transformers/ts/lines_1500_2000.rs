@@ -317,7 +317,7 @@ impl TransformTypeScript {
             }
         } else if is_identifier(&name.ref_(self)) {
             self.factory.ref_(self).create_string_literal(
-                id_text(&name.ref_(self)).to_owned(),
+                released!(id_text(&name.ref_(self)).to_owned()),
                 None,
                 None,
             )
@@ -473,8 +473,6 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*ConstructorDeclaration*/
     ) -> io::Result<VisitResult> /*<Node>*/ {
-        let node_ref = node.ref_(self);
-        let node_as_constructor_declaration = node_ref.as_constructor_declaration();
         if !self.should_emit_function_like_declaration(node) {
             return Ok(None);
         }
@@ -487,16 +485,21 @@ impl TransformTypeScript {
                     Option::<Id<NodeArray>>::None,
                     Option::<Id<NodeArray>>::None,
                     try_visit_parameter_list(
-                        Some(node_as_constructor_declaration.parameters()),
+                        Some(node.ref_(self).as_constructor_declaration().parameters()),
                         |node: Id<Node>| self.visitor(node),
                         &*self.context.ref_(self),
                         self,
                     )?
                     .unwrap(),
-                    Some(self.transform_constructor_body(
-                        node_as_constructor_declaration.maybe_body().unwrap(),
-                        node,
-                    )?),
+                    Some(
+                        self.transform_constructor_body(
+                            node.ref_(self)
+                                .as_constructor_declaration()
+                                .maybe_body()
+                                .unwrap(),
+                            node,
+                        )?,
+                    ),
                 )
                 .into(),
         ))

@@ -80,12 +80,16 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*ParameterDeclaration*/
     ) -> Option<Id<Node /*ParameterDeclaration*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_parameter_declaration = node_ref.as_parameter_declaration();
-        if node_as_parameter_declaration.dot_dot_dot_token.is_some() {
+        if node
+            .ref_(self)
+            .as_parameter_declaration()
+            .dot_dot_dot_token
+            .is_some()
+        {
             None
         } else if is_binding_pattern(
-            node_as_parameter_declaration
+            node.ref_(self)
+                .as_parameter_declaration()
                 .maybe_name()
                 .refed(self)
                 .as_deref(),
@@ -109,7 +113,12 @@ impl TransformES2015 {
                     .set_text_range(Some(&*node.ref_(self)), self)
                     .set_original_node(Some(node), self),
             )
-        } else if node_as_parameter_declaration.maybe_initializer().is_some() {
+        } else if node
+            .ref_(self)
+            .as_parameter_declaration()
+            .maybe_initializer()
+            .is_some()
+        {
             Some(
                 self.factory
                     .ref_(self)
@@ -117,7 +126,7 @@ impl TransformES2015 {
                         Option::<Id<NodeArray>>::None,
                         Option::<Id<NodeArray>>::None,
                         None,
-                        node_as_parameter_declaration.maybe_name(),
+                        node.ref_(self).as_parameter_declaration().maybe_name(),
                         None,
                         None,
                         None,
