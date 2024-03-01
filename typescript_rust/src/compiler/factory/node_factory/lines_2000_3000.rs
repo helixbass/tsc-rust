@@ -452,12 +452,10 @@ impl NodeFactory {
         name: Id<Node /*BindingName*/>,
         initializer: Option<Id<Node /*Expression*/>>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_binding_element = node_ref.as_binding_element();
-        if node_as_binding_element.property_name != property_name
-            || node_as_binding_element.dot_dot_dot_token != dot_dot_dot_token
-            || node_as_binding_element.name() != name
-            || node_as_binding_element.maybe_initializer() != initializer
+        if node.ref_(self).as_binding_element().property_name != property_name
+            || node.ref_(self).as_binding_element().dot_dot_dot_token != dot_dot_dot_token
+            || node.ref_(self).as_binding_element().name() != name
+            || node.ref_(self).as_binding_element().maybe_initializer() != initializer
         {
             self.update(
                 self.create_binding_element(dot_dot_dot_token, property_name, name, initializer),

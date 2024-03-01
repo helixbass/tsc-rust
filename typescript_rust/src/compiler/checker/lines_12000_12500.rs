@@ -10,7 +10,7 @@ use crate::{
     get_immediately_invoked_function_expression, get_jsdoc_parameter_tags, get_object_flags,
     has_question_token, index_of_eq, is_external_module_name_relative, is_in_js_file,
     is_jsdoc_property_like_tag, is_property_declaration, length, map, maybe_append_if_unique_eq,
-    reduce_left, try_filter, try_map, unescape_leading_underscores, CheckFlags, Debug_,
+    reduce_left, released, try_filter, try_map, unescape_leading_underscores, CheckFlags, Debug_,
     DiagnosticMessageChain, Diagnostics, HasArena, HasInitializerInterface, HasTypeInterface,
     InArena, IndexInfo, IteratorExt, ModifierFlags, Node, NodeInterface, ObjectFlags,
     ObjectFlagsTypeInterface, ScriptTarget, Signature, SignatureKind, Symbol, SymbolFlags,
@@ -450,10 +450,11 @@ impl TypeChecker {
                 .maybe_resolved_reduced_type()
                 .is_none()
             {
+                let resolved_reduced_type = self.get_reduced_union_type(type_)?;
                 type_
                     .ref_(self)
                     .as_union_type()
-                    .set_resolved_reduced_type(Some(self.get_reduced_union_type(type_)?));
+                    .set_resolved_reduced_type(Some(resolved_reduced_type));
             }
             return Ok(type_
                 .ref_(self)
@@ -504,7 +505,7 @@ impl TypeChecker {
         union_type: Id<Type>, /*UnionType*/
     ) -> io::Result<Id<Type>> {
         let reduced_types = try_map(
-            union_type.ref_(self).as_union_type().types(),
+            &released!(union_type.ref_(self).as_union_type().types().to_owned()),
             |&type_: &Id<Type>, _| self.get_reduced_type(type_),
         )?;
         if &reduced_types == union_type.ref_(self).as_union_type().types() {

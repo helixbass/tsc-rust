@@ -36,18 +36,23 @@ impl Printer {
             node,
             None,
         );
-        let node_ref = node.ref_(self);
-        let node_as_switch_statement = node_ref.as_switch_statement();
-        self.emit_expression(Some(node_as_switch_statement.expression), None)?;
+        self.emit_expression(
+            Some(released!(node.ref_(self).as_switch_statement().expression)),
+            None,
+        )?;
         self.emit_token_with_comment(
             SyntaxKind::CloseParenToken,
-            node_as_switch_statement.expression.ref_(self).end(),
+            node.ref_(self)
+                .as_switch_statement()
+                .expression
+                .ref_(self)
+                .end(),
             |text: &str| self.write_punctuation(text),
             node,
             None,
         );
         self.write_space();
-        self.emit(Some(node_as_switch_statement.case_block), None)?;
+        self.emit(Some(node.ref_(self).as_switch_statement().case_block), None)?;
 
         Ok(())
     }
@@ -652,11 +657,9 @@ impl Printer {
             node,
             None,
         );
-        let node_ref = node.ref_(self);
-        let node_as_case_block = node_ref.as_case_block();
         self.emit_list(
             Some(node),
-            Some(node_as_case_block.clauses),
+            Some(node.ref_(self).as_case_block().clauses),
             ListFormat::CaseBlockClauses,
             None,
             None,
@@ -664,7 +667,7 @@ impl Printer {
         )?;
         self.emit_token_with_comment(
             SyntaxKind::CloseBraceToken,
-            node_as_case_block.clauses.ref_(self).end(),
+            node.ref_(self).as_case_block().clauses.ref_(self).end(),
             |text: &str| self.write_punctuation(text),
             node,
             Some(true),

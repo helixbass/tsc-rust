@@ -48,7 +48,10 @@ impl TypeChecker {
             self.check_grammar_constructor_type_annotation(node);
         }
 
-        self.check_source_element(node.ref_(self).as_constructor_declaration().maybe_body())?;
+        self.check_source_element(released!(node
+            .ref_(self)
+            .as_constructor_declaration()
+            .maybe_body()))?;
 
         let symbol = self.get_symbol_of_node(node)?.unwrap();
         let first_declaration = get_declaration_of_kind(symbol, node.ref_(self).kind(), self);
@@ -902,20 +905,20 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*TemplateLiteralTypeNode*/
     ) -> io::Result<()> {
-        for span in &*node
-            .ref_(self)
-            .as_template_literal_type_node()
-            .template_spans
-            .ref_(self)
+        for span in &*released!(
+            node.ref_(self)
+                .as_template_literal_type_node()
+                .template_spans
+        )
+        .ref_(self)
         {
-            let span_ref = span.ref_(self);
-            let span_as_template_literal_type_span = span_ref.as_template_literal_type_span();
-            self.check_source_element(Some(span_as_template_literal_type_span.type_))?;
-            let type_ = self.get_type_from_type_node_(span_as_template_literal_type_span.type_)?;
+            self.check_source_element(Some(span.ref_(self).as_template_literal_type_span().type_))?;
+            let type_ = self
+                .get_type_from_type_node_(span.ref_(self).as_template_literal_type_span().type_)?;
             self.check_type_assignable_to(
                 type_,
                 self.template_constraint_type(),
-                Some(span_as_template_literal_type_span.type_),
+                Some(span.ref_(self).as_template_literal_type_span().type_),
                 None,
                 None,
                 None,

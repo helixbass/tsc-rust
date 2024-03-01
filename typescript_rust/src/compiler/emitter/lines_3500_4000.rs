@@ -307,10 +307,8 @@ impl Printer {
             None,
         );
         self.write_space();
-        let node_ref = node.ref_(self);
-        let node_as_case_clause = node_ref.as_case_clause();
         self.emit_expression(
-            Some(node_as_case_clause.expression),
+            Some(node.ref_(self).as_case_clause().expression),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                     self.parenthesizer(),
@@ -321,8 +319,8 @@ impl Printer {
 
         self.emit_case_or_default_clause_rest(
             node,
-            node_as_case_clause.statements,
-            node_as_case_clause.expression.ref_(self).end(),
+            node.ref_(self).as_case_clause().statements,
+            node.ref_(self).as_case_clause().expression.ref_(self).end(),
         )?;
 
         Ok(())

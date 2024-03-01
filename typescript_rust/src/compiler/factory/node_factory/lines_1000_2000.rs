@@ -1105,10 +1105,11 @@ impl NodeFactory {
         type_arguments: Option<impl Into<NodeArrayOrVec> /*<TypeNode>*/>,
     ) -> Id<Node> {
         let type_arguments = type_arguments.map(Into::into);
-        let node_ref = node.ref_(self);
-        let node_as_type_reference_node = node_ref.as_type_reference_node();
-        let node_type_arguments = node_as_type_reference_node.maybe_type_arguments();
-        if node_as_type_reference_node.type_name != type_name
+        let node_type_arguments = node
+            .ref_(self)
+            .as_type_reference_node()
+            .maybe_type_arguments();
+        if node.ref_(self).as_type_reference_node().type_name != type_name
             || has_option_node_array_changed(node_type_arguments, type_arguments.as_ref())
         {
             self.update(

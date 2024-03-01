@@ -1017,7 +1017,10 @@ impl Printer {
             node,
             None,
         );
-        self.emit_embedded_statement(node, node.ref_(self).as_for_in_statement().statement)?;
+        self.emit_embedded_statement(
+            node,
+            released!(node.ref_(self).as_for_in_statement().statement),
+        )?;
 
         Ok(())
     }
