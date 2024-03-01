@@ -1539,13 +1539,10 @@ impl TypeChecker {
             }
             let source_return_type = if self.is_resolving_return_type_of_signature(source.clone()) {
                 self.any_type()
-            } else if let Some(source_declaration) =
-                source
-                    .ref_(self)
-                    .declaration
-                    .try_filter(|&source_declaration| {
-                        self.is_js_constructor(Some(source_declaration))
-                    })?
+            } else if let Some(source_declaration) = released!(source.ref_(self).declaration)
+                .try_filter(|&source_declaration| {
+                    self.is_js_constructor(Some(source_declaration))
+                })?
             {
                 self.get_declared_type_of_class_or_interface(
                     self.get_merged_symbol(source_declaration.ref_(self).maybe_symbol())

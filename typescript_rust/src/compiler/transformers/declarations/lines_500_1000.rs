@@ -291,7 +291,7 @@ impl TransformDeclarations {
         .transpose()?);
         Ok(Some(self.factory.ref_(self).create_node_array(
             Some(new_params),
-            Some(params.unwrap().ref_(self).has_trailing_comma),
+            released!(Some(params.unwrap().ref_(self).has_trailing_comma)),
         )))
     }
 

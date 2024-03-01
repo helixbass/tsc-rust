@@ -888,7 +888,7 @@ impl TransformDeclarations {
             Some(Rc::new(RefCell::new(
                 self.get_file_references_for_used_type_references(),
             ))),
-            Some(node.ref_(self).as_source_file().has_no_default_lib()),
+            released!(Some(node.ref_(self).as_source_file().has_no_default_lib())),
             Some(Rc::new(RefCell::new(self.get_lib_references()))),
         );
         *updated
@@ -1204,10 +1204,10 @@ impl TransformDeclarations {
             p,
             Option::<Id<NodeArray>>::None,
             Some(mask_modifiers(p, modifier_mask, None, self)),
-            p.ref_(self).as_parameter_declaration().dot_dot_dot_token,
-            Some(self.filter_binding_pattern_initializers(
-                p.ref_(self).as_parameter_declaration().name(),
-            )?),
+            released!(p.ref_(self).as_parameter_declaration().dot_dot_dot_token),
+            Some(self.filter_binding_pattern_initializers(released!(
+                p.ref_(self).as_parameter_declaration().name()
+            ))?),
             if self.resolver.ref_(self).is_optional_parameter(p)? {
                 Some(
                     p.ref_(self)

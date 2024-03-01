@@ -285,7 +285,7 @@ impl NodeFactory {
         let statements = statements.into();
         if has_node_array_changed(node.ref_(self).as_block().statements, &statements) {
             self.update(
-                self.create_block(statements, node.ref_(self).as_block().multi_line),
+                self.create_block(statements, released!(node.ref_(self).as_block().multi_line)),
                 node,
             )
         } else {

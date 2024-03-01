@@ -788,7 +788,9 @@ impl Printer {
             released!(node.ref_(self).as_if_statement().then_statement),
         )?;
         Ok(
-            if let Some(node_else_statement) = node.ref_(self).as_if_statement().else_statement {
+            if let Some(node_else_statement) =
+                released!(node.ref_(self).as_if_statement().else_statement)
+            {
                 self.write_line_or_space(
                     node,
                     node.ref_(self).as_if_statement().then_statement,

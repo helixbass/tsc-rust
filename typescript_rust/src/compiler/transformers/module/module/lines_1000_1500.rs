@@ -470,19 +470,23 @@ impl TransformModule {
             let mut modifiers: Option<Id<NodeArray /*Modifier*/>> = _d();
             let mut remove_comments_on_expressions = false;
 
-            for &variable in &*node
-                .ref_(self)
-                .as_variable_statement()
-                .declaration_list
-                .ref_(self)
-                .as_variable_declaration_list()
-                .declarations
-                .ref_(self)
+            for &variable in &*released!(
+                node.ref_(self)
+                    .as_variable_statement()
+                    .declaration_list
+                    .ref_(self)
+                    .as_variable_declaration_list()
+                    .declarations
+            )
+            .ref_(self)
             {
-                let variable_ref = variable.ref_(self);
-                let variable_as_variable_declaration = variable_ref.as_variable_declaration();
-                if is_identifier(&variable_as_variable_declaration.name().ref_(self))
-                    && is_local_name(variable_as_variable_declaration.name(), self)
+                if is_identifier(
+                    &variable
+                        .ref_(self)
+                        .as_variable_declaration()
+                        .name()
+                        .ref_(self),
+                ) && is_local_name(variable.ref_(self).as_variable_declaration().name(), self)
                 {
                     if modifiers.is_none() {
                         modifiers = maybe_visit_nodes(
@@ -495,11 +499,15 @@ impl TransformModule {
                         );
                     }
                     variables.get_or_insert_default_().push(variable.clone());
-                } else if let Some(variable_initializer) =
-                    variable_as_variable_declaration.maybe_initializer()
+                } else if let Some(variable_initializer) = variable
+                    .ref_(self)
+                    .as_variable_declaration()
+                    .maybe_initializer()
                 {
                     if !is_binding_pattern(
-                        variable_as_variable_declaration
+                        variable
+                            .ref_(self)
+                            .as_variable_declaration()
                             .maybe_name()
                             .refed(self)
                             .as_deref(),
@@ -512,22 +520,36 @@ impl TransformModule {
                                 .ref_(self)
                                 .create_property_access_expression(
                                     self.factory.ref_(self).create_identifier("exports"),
-                                    variable_as_variable_declaration.name(),
+                                    variable.ref_(self).as_variable_declaration().name(),
                                 )
                                 .set_text_range(
-                                    Some(&*variable_as_variable_declaration.name().ref_(self)),
+                                    Some(
+                                        &*variable
+                                            .ref_(self)
+                                            .as_variable_declaration()
+                                            .name()
+                                            .ref_(self),
+                                    ),
                                     self,
                                 ),
                             self.factory.ref_(self).create_identifier(
                                 &get_text_of_identifier_or_literal(
-                                    &variable_as_variable_declaration.name().ref_(self),
+                                    &variable
+                                        .ref_(self)
+                                        .as_variable_declaration()
+                                        .name()
+                                        .ref_(self),
                                 ),
                             ),
                         );
                         let updated_variable = self.factory.ref_(self).create_variable_declaration(
-                            Some(variable_as_variable_declaration.name()),
-                            variable_as_variable_declaration.exclamation_token.clone(),
-                            variable_as_variable_declaration.maybe_type(),
+                            Some(variable.ref_(self).as_variable_declaration().name()),
+                            variable
+                                .ref_(self)
+                                .as_variable_declaration()
+                                .exclamation_token
+                                .clone(),
+                            variable.ref_(self).as_variable_declaration().maybe_type(),
                             Some(try_visit_node(
                                 variable_initializer,
                                 Some(|node: Id<Node>| self.visitor(node)),
@@ -628,11 +650,10 @@ impl TransformModule {
         &self,
         node: Id<Node>, /*InitializedVariableDeclaration*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_variable_declaration = node_ref.as_variable_declaration();
         Ok(
             if is_binding_pattern(
-                node_as_variable_declaration
+                node.ref_(self)
+                    .as_variable_declaration()
                     .maybe_name()
                     .refed(self)
                     .as_deref(),
@@ -663,13 +684,14 @@ impl TransformModule {
                         .ref_(self)
                         .create_property_access_expression(
                             self.factory.ref_(self).create_identifier("exports"),
-                            node_as_variable_declaration.name(),
+                            node.ref_(self).as_variable_declaration().name(),
                         )
                         .set_text_range(
-                            Some(&*node_as_variable_declaration.name().ref_(self)),
+                            Some(&*node.ref_(self).as_variable_declaration().name().ref_(self)),
                             self,
                         ),
-                    node_as_variable_declaration
+                    node.ref_(self)
+                        .as_variable_declaration()
                         .maybe_initializer()
                         .try_map_or_else(
                             || Ok(self.factory.ref_(self).create_void_zero()),

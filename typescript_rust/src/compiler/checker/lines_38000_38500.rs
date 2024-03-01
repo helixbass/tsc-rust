@@ -11,14 +11,14 @@ use crate::{
     get_root_declaration, get_source_file_of_node, get_span_of_token_at_position, get_text_of_node,
     has_static_modifier, has_syntactic_modifier, is_class_like, is_entity_name_expression,
     is_function_like, is_identifier, is_optional_chain, is_private_identifier,
-    is_private_identifier_class_element_declaration, is_static, length, some, try_for_each,
-    try_for_each_bool, try_for_each_child, try_some, AsDoubleDeref, ClassLikeDeclarationInterface,
-    DiagnosticMessage, Diagnostics, ExternalEmitHelpers, FindAncestorCallbackReturn,
-    HasInitializerInterface, HasTypeArgumentsInterface, InArena, IndexInfo, InterfaceTypeInterface,
-    ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeArray, NodeFlags,
-    NodeInterface, ObjectFlags, OptionInArena, OptionTry, ReadonlyTextRange, ScriptTarget,
-    Signature, SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    TypeFlags, TypeInterface,
+    is_private_identifier_class_element_declaration, is_static, length, released, some,
+    try_for_each, try_for_each_bool, try_for_each_child, try_some, AsDoubleDeref,
+    ClassLikeDeclarationInterface, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
+    FindAncestorCallbackReturn, HasInitializerInterface, HasTypeArgumentsInterface, InArena,
+    IndexInfo, InterfaceTypeInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node,
+    NodeArray, NodeFlags, NodeInterface, ObjectFlags, OptionInArena, OptionTry, ReadonlyTextRange,
+    ScriptTarget, Signature, SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -919,7 +919,7 @@ impl TypeChecker {
         }
         self.check_class_like_declaration(node)?;
         try_for_each(
-            &*node.ref_(self).as_class_declaration().members().ref_(self),
+            &*released!(node.ref_(self).as_class_declaration().members()).ref_(self),
             |&member: &Id<Node>, _| -> io::Result<Option<()>> {
                 self.check_source_element(Some(member))?;
                 Ok(None)

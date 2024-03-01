@@ -604,8 +604,6 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*FunctionDeclaration*/
     ) -> io::Result<Id<Node /*FunctionDeclaration*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_function_declaration = node_ref.as_function_declaration();
         let saved_converted_loop_state = self.maybe_converted_loop_state();
         self.set_converted_loop_state(None);
         let ancestor_facts = self.enter_subtree(
@@ -613,7 +611,7 @@ impl TransformES2015 {
             HierarchyFacts::FunctionIncludes,
         );
         let parameters = try_visit_parameter_list(
-            Some(node_as_function_declaration.parameters()),
+            Some(node.ref_(self).as_function_declaration().parameters()),
             |node: Id<Node>| self.visitor(node),
             &*self.context.ref_(self),
             self,
@@ -627,7 +625,7 @@ impl TransformES2015 {
         {
             Some(self.factory.ref_(self).get_local_name(node, None, None))
         } else {
-            node_as_function_declaration.maybe_name()
+            node.ref_(self).as_function_declaration().maybe_name()
         };
 
         self.exit_subtree(
@@ -647,7 +645,9 @@ impl TransformES2015 {
                 None,
                 self,
             )?,
-            node_as_function_declaration.maybe_asterisk_token(),
+            node.ref_(self)
+                .as_function_declaration()
+                .maybe_asterisk_token(),
             name,
             Option::<Id<NodeArray>>::None,
             parameters,
@@ -732,8 +732,6 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*FunctionLikeDeclaration*/
     ) -> io::Result<Id<Node>> {
-        let node_ref = node.ref_(self);
-        let node_as_function_like_declaration = node_ref.as_function_like_declaration();
         let mut multi_line = false;
         let mut single_line = false;
         let statements_location: Option<ReadonlyTextRangeConcrete /*TextRange*/>;
@@ -741,7 +739,11 @@ impl TransformES2015 {
 
         let mut prologue: Vec<Id<Node /*Statement*/>> = Default::default();
         let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
-        let body = node_as_function_like_declaration.maybe_body().unwrap();
+        let body = node
+            .ref_(self)
+            .as_function_like_declaration()
+            .maybe_body()
+            .unwrap();
         let mut statement_offset: Option<usize> = Default::default();
 
         self.context.ref_(self).resume_lexical_environment();
@@ -774,21 +776,19 @@ impl TransformES2015 {
         multi_line = self.add_rest_parameter_if_needed(&mut statements, node, false)? || multi_line;
 
         if is_block(&body.ref_(self)) {
-            let body_ref = body.ref_(self);
-            let body_as_block = body_ref.as_block();
             statement_offset = self.factory.ref_(self).try_copy_custom_prologue(
-                &body_as_block.statements.ref_(self),
+                &body.ref_(self).as_block().statements.ref_(self),
                 &mut statements,
                 statement_offset,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Option::<fn(Id<Node>) -> bool>::None,
             )?;
 
-            statements_location = Some((&*body_as_block.statements.ref_(self)).into());
+            statements_location = Some((&*body.ref_(self).as_block().statements.ref_(self)).into());
             add_range(
                 &mut statements,
                 try_maybe_visit_nodes(
-                    Some(body_as_block.statements),
+                    Some(body.ref_(self).as_block().statements),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_statement(node, self)),
                     statement_offset,
@@ -801,7 +801,7 @@ impl TransformES2015 {
                 None,
             );
 
-            if !multi_line && body_as_block.multi_line == Some(true) {
+            if !multi_line && body.ref_(self).as_block().multi_line == Some(true) {
                 multi_line = true;
             }
         } else {
@@ -883,7 +883,8 @@ impl TransformES2015 {
                 Some(multi_line),
             )
             .set_text_range(
-                node_as_function_like_declaration
+                node.ref_(self)
+                    .as_function_like_declaration()
                     .maybe_body()
                     .refed(self)
                     .as_deref(),
@@ -902,7 +903,11 @@ impl TransformES2015 {
             );
         }
 
-        set_original_node(block, node_as_function_like_declaration.maybe_body(), self);
+        set_original_node(
+            block,
+            node.ref_(self).as_function_like_declaration().maybe_body(),
+            self,
+        );
         Ok(block)
     }
 }

@@ -263,9 +263,9 @@ impl TransformModule {
                                 self.factory.ref_(self).create_assignment(
                                     self.factory.ref_(self).create_property_access_expression(
                                         self.factory.ref_(self).create_identifier("exports"),
-                                        self.factory
-                                            .ref_(self)
-                                            .create_identifier(id_text(&next_id.ref_(self))),
+                                        self.factory.ref_(self).create_identifier(&released!(
+                                            id_text(&next_id.ref_(self)).to_owned()
+                                        )),
                                     ),
                                     prev,
                                 )

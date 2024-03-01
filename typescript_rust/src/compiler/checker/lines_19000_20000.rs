@@ -20,7 +20,8 @@ use crate::{
     ElementFlags, IndexInfo, ModifierFlags, Node, NodeInterface, ObjectFlags, Signature,
     SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type,
     TypeFlags, TypeFormatFlags, TypeInterface, VarianceFlags, __String, get_check_flags,
-    get_factory, get_object_flags, push_if_unique_eq, return_ok_default_if_none, HasArena, InArena,
+    get_factory, get_object_flags, push_if_unique_eq, released, return_ok_default_if_none,
+    HasArena, InArena,
 };
 
 impl CheckTypeRelatedTo {
@@ -1756,7 +1757,11 @@ impl CheckTypeRelatedTo {
                 target_signature.clone(),
                 erase_generics,
                 report_errors,
-                incompatible_reporter(&self_.ref_(arena), source_signature, target_signature),
+                released!(incompatible_reporter(
+                    &self_.ref_(arena),
+                    source_signature,
+                    target_signature
+                )),
             )?;
             if result == Ternary::False
                 && report_errors
@@ -1983,9 +1988,7 @@ impl CheckTypeRelatedTo {
         report_errors: bool,
         incompatible_reporter: fn(&Self, Id<Type>, Id<Type>) -> io::Result<()>,
     ) -> io::Result<Ternary> {
-        self_
-            .ref_(arena)
-            .type_checker
+        released!(self_.ref_(arena).type_checker)
             .ref_(arena)
             .compare_signatures_related(
                 if erase {
@@ -2026,13 +2029,11 @@ impl CheckTypeRelatedTo {
                 Some(&|source: Id<Type>, target: Id<Type>| {
                     incompatible_reporter(&self_.ref_(arena), source, target)
                 }),
-                self_.ref_(arena).alloc_type_comparer(Box::new(
+                released!(self_.ref_(arena).alloc_type_comparer(Box::new(
                     TypeComparerIsRelatedToWorker::new(self_, arena),
-                )),
+                ))),
                 Some(
-                    self_
-                        .ref_(arena)
-                        .type_checker
+                    released!(self_.ref_(arena).type_checker)
                         .ref_(arena)
                         .make_function_type_mapper(ReportUnreliableMarkers),
                 ),

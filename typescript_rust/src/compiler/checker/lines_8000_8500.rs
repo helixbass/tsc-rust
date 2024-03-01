@@ -18,7 +18,7 @@ use crate::{
     is_binding_pattern, is_call_expression, is_computed_property_name,
     is_external_module_augmentation, is_identifier_text,
     is_internal_module_import_equals_declaration, is_left_hand_side_expression, is_source_file,
-    map, maybe_get_source_file_of_node, push_if_unique_eq, return_ok_default_if_none,
+    map, maybe_get_source_file_of_node, push_if_unique_eq, released, return_ok_default_if_none,
     return_ok_none_if_none, set_parent, set_text_range, starts_with, symbol_name, try_add_to_set,
     try_map, try_maybe_for_each, try_using_single_line_string_writer, walk_up_parenthesized_types,
     CharacterCodes, CheckFlags, EmitHint, EmitTextWriter, HasArena, InArena,
@@ -930,7 +930,7 @@ impl TypeChecker {
         node: Id<Node>, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
     ) -> io::Result<Option<Id<Node /*ElementAccessExpression*/>>> {
         let parent_access = return_ok_default_if_none!(self.get_parent_element_access(node)?);
-        let ret = parent_access.ref_(self).maybe_flow_node().try_and_then(
+        let ret = released!(parent_access.ref_(self).maybe_flow_node()).try_and_then(
             |parent_access_flow_node| -> io::Result<_> {
                 let prop_name =
                     return_ok_default_if_none!(self.get_destructuring_property_name(node)?);

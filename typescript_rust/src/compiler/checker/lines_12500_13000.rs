@@ -992,9 +992,10 @@ impl TypeChecker {
                 .maybe_canonical_signature_cache()
                 .is_none()
             {
-                signature.ref_(self).set_canonical_signature_cache(Some(
-                    self.create_canonical_signature(signature.clone())?,
-                ));
+                let canonical_signature = self.create_canonical_signature(signature.clone())?;
+                signature
+                    .ref_(self)
+                    .set_canonical_signature_cache(Some(canonical_signature));
             }
             signature
                 .ref_(self)
@@ -1012,7 +1013,7 @@ impl TypeChecker {
         self.get_signature_instantiation(
             signature.clone(),
             try_maybe_map(
-                signature.ref_(self).maybe_type_parameters().as_deref(),
+                released!(signature.ref_(self).maybe_type_parameters().clone()).as_deref(),
                 |&tp: &Id<Type>, _| -> io::Result<_> {
                     Ok(tp
                         .ref_(self)
@@ -1026,7 +1027,11 @@ impl TypeChecker {
             )
             .transpose()?
             .as_deref(),
-            is_in_js_file(signature.ref_(self).declaration.refed(self).as_deref()),
+            is_in_js_file(
+                released!(signature.ref_(self).declaration)
+                    .refed(self)
+                    .as_deref(),
+            ),
             None,
         )
     }
