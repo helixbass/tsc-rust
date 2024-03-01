@@ -961,7 +961,7 @@ impl TransformDeclarations {
                             input,
                             Option::<Id<NodeArray>>::None,
                             Some(modifiers),
-                            input.ref_(self).as_class_declaration().maybe_name(),
+                            released!(input.ref_(self).as_class_declaration().maybe_name()),
                             type_parameters,
                             Some(heritage_clauses),
                             members,

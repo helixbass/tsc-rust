@@ -26,7 +26,7 @@ impl TypeChecker {
         type_parameter: Id<Type>, /*TypeParameter*/
     ) -> io::Result<Option<Id<Type>>> {
         let mut inferences: Option<Vec<Id<Type>>> = None;
-        if let Some(type_parameter_symbol) = type_parameter.ref_(self).maybe_symbol() {
+        if let Some(type_parameter_symbol) = released!(type_parameter.ref_(self).maybe_symbol()) {
             if let Some(type_parameter_symbol_declarations) = type_parameter_symbol
                 .ref_(self)
                 .maybe_declarations()
@@ -234,13 +234,13 @@ impl TypeChecker {
                 let constraint_declaration = self.get_constraint_declaration(type_parameter);
                 match constraint_declaration {
                     None => {
+                        let constraint = self
+                            .get_inferred_type_parameter_constraint(type_parameter)?
+                            .unwrap_or_else(|| self.no_constraint_type());
                         type_parameter
                             .ref_(self)
                             .as_type_parameter()
-                            .set_constraint(Some(
-                                self.get_inferred_type_parameter_constraint(type_parameter)?
-                                    .unwrap_or_else(|| self.no_constraint_type()),
-                            ));
+                            .set_constraint(Some(constraint));
                     }
                     Some(constraint_declaration) => {
                         let mut type_ = self.get_type_from_type_node_(constraint_declaration)?;

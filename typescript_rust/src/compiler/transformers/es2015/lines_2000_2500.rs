@@ -499,7 +499,7 @@ impl TransformES2015 {
                     .ref_(self)
                     .update_variable_declaration(
                         node,
-                        node.ref_(self).as_variable_declaration().maybe_name(),
+                        released!(node.ref_(self).as_variable_declaration().maybe_name()),
                         None,
                         None,
                         Some(self.factory.ref_(self).create_void_zero()),

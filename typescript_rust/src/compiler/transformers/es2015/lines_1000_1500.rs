@@ -485,7 +485,7 @@ impl TransformES2015 {
                     .create_postfix_increment(temp.clone())
                     .set_text_range(Some(&*parameter.ref_(self)), self))),
                 self.factory.ref_(self).create_block(
-                    vec![self
+                    vec![released!(self
                         .factory
                         .ref_(self)
                         .create_expression_statement(self.factory.ref_(self).create_assignment(
@@ -509,7 +509,7 @@ impl TransformES2015 {
                             ),
                         ))
                         .set_text_range(Some(&*parameter.ref_(self)), self)
-                        .start_on_new_line(self)],
+                        .start_on_new_line(self))],
                     None,
                 ),
             )

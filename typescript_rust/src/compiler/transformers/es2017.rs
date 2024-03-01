@@ -19,7 +19,7 @@ use crate::{
     insert_statements_after_standard_prologue, is_block, is_effective_strict_mode_source_file,
     is_entity_name, is_identifier, is_modifier, is_node_with_possible_hoisted_declaration,
     is_omitted_expression, is_property_access_expression, is_super_property, is_token,
-    is_variable_declaration_list, ref_mut_unwrapped, ref_unwrapped, set_emit_flags,
+    is_variable_declaration_list, ref_mut_unwrapped, ref_unwrapped, released, set_emit_flags,
     set_original_node, set_source_map_range, set_text_range, set_text_range_id_node,
     set_text_range_node_array, try_maybe_visit_each_child, try_maybe_visit_node,
     try_maybe_visit_nodes, unescape_leading_underscores, AllArenas, CompilerOptions,
@@ -270,7 +270,7 @@ impl TransformES2017 {
         {
             return Ok(Some(node.into()));
         }
-        Ok(match node.ref_(self).kind() {
+        Ok(match released!(node.ref_(self).kind()) {
             SyntaxKind::AsyncKeyword => None,
 
             SyntaxKind::AwaitExpression => Some(self.visit_await_expression(node)?.into()),
@@ -707,8 +707,6 @@ impl TransformES2017 {
         &self,
         node: Id<Node>, /*FunctionDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_ref = node.ref_(self);
-        let node_as_function_declaration = node_ref.as_function_declaration();
         Ok(Some(
             self.factory
                 .ref_(self)
@@ -716,18 +714,20 @@ impl TransformES2017 {
                     node,
                     Option::<Id<NodeArray>>::None,
                     try_maybe_visit_nodes(
-                        node.ref_(self).maybe_modifiers(),
+                        released!(node.ref_(self).maybe_modifiers()),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                         None,
                         None,
                         self,
                     )?,
-                    node_as_function_declaration.maybe_asterisk_token(),
-                    node_as_function_declaration.maybe_name(),
+                    node.ref_(self)
+                        .as_function_declaration()
+                        .maybe_asterisk_token(),
+                    node.ref_(self).as_function_declaration().maybe_name(),
                     Option::<Id<NodeArray>>::None,
                     try_visit_parameter_list(
-                        Some(node_as_function_declaration.parameters()),
+                        Some(node.ref_(self).as_function_declaration().parameters()),
                         |node: Id<Node>| self.visitor(node),
                         &*self.context.ref_(self),
                         self,
@@ -738,7 +738,7 @@ impl TransformES2017 {
                         Some(self.transform_async_function_body(node)?)
                     } else {
                         try_visit_function_body(
-                            node_as_function_declaration.maybe_body(),
+                            node.ref_(self).as_function_declaration().maybe_body(),
                             |node: Id<Node>| self.visitor(node),
                             &*self.context.ref_(self),
                             self,

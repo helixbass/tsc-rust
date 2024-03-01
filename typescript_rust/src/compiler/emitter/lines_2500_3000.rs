@@ -116,7 +116,7 @@ impl Printer {
             self.write_space();
         }
         self.emit_expression(
-            Some(node.ref_(self).as_tagged_template_expression().tag),
+            released!(Some(node.ref_(self).as_tagged_template_expression().tag)),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(
                     self.parenthesizer(),

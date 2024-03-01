@@ -692,7 +692,9 @@ impl TransformES2015 {
             )
         };
         let parameters = try_visit_parameter_list(
-            Some(node.ref_(self).as_function_like_declaration().parameters()),
+            released!(Some(
+                node.ref_(self).as_function_like_declaration().parameters()
+            )),
             |node: Id<Node>| self.visitor(node),
             &*self.context.ref_(self),
             self,

@@ -1150,11 +1150,13 @@ impl NodeFactory {
         parameters: Id<NodeArray /*<ParameterDeclaration>*/>,
         type_: Option<Id<Node /*TypeNode*/>>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_function_type_node = node_ref.as_function_type_node();
-        if node_as_function_type_node.maybe_type_parameters() != type_parameters
-            || node_as_function_type_node.parameters() != parameters
-            || node_as_function_type_node.maybe_type() != type_
+        if node
+            .ref_(self)
+            .as_function_type_node()
+            .maybe_type_parameters()
+            != type_parameters
+            || node.ref_(self).as_function_type_node().parameters() != parameters
+            || node.ref_(self).as_function_type_node().maybe_type() != type_
         {
             self.update_base_signature_declaration(
                 self.create_function_type_node(type_parameters, parameters, type_),

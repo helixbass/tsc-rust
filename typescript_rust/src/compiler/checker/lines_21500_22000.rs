@@ -24,7 +24,7 @@ impl TypeChecker {
         constraint: Id<Type>, /*IndexType*/
     ) -> io::Result<Id<Type>> {
         let type_parameter = self.get_indexed_access_type(
-            constraint.ref_(self).as_index_type().type_,
+            released!(constraint.ref_(self).as_index_type().type_),
             self.get_type_parameter_from_mapped_type(target)?,
             None,
             Option::<Id<Node>>::None,

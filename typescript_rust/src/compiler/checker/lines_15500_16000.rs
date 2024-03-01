@@ -456,28 +456,27 @@ impl TypeChecker {
             .maybe_resolved_true_type()
             .is_none()
         {
+            let resolved_true_type = self.instantiate_type(
+                self.get_type_from_type_node_(
+                    {
+                        let root = type_.ref_(self).as_conditional_type().root.clone();
+                        root
+                    }
+                    .ref_(self)
+                    .node
+                    .ref_(self)
+                    .as_conditional_type_node()
+                    .true_type,
+                )?,
+                {
+                    let mapper = type_.ref_(self).as_conditional_type().mapper.clone();
+                    mapper
+                },
+            )?;
             type_
                 .ref_(self)
                 .as_conditional_type()
-                .set_resolved_true_type(Some(
-                    self.instantiate_type(
-                        self.get_type_from_type_node_(
-                            {
-                                let root = type_.ref_(self).as_conditional_type().root.clone();
-                                root
-                            }
-                            .ref_(self)
-                            .node
-                            .ref_(self)
-                            .as_conditional_type_node()
-                            .true_type,
-                        )?,
-                        {
-                            let mapper = type_.ref_(self).as_conditional_type().mapper.clone();
-                            mapper
-                        },
-                    )?,
-                ));
+                .set_resolved_true_type(Some(resolved_true_type));
         }
         Ok(type_
             .ref_(self)
