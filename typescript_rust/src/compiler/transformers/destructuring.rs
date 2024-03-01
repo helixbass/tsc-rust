@@ -24,7 +24,7 @@ use crate::{
     InArena, Matches, NamedDeclarationInterface, Node, NodeExt, NodeFactory, NodeInterface,
     NonEmpty, Number, OptionTry, ReadonlyTextRange, ReadonlyTextRangeConcrete, TransformFlags,
     TransformNodesTransformationResult, TransformationContext, VecExt, VisitResult, _d,
-    impl_has_arena,
+    impl_has_arena, released,
 };
 
 trait FlattenContext {
@@ -599,7 +599,7 @@ pub fn try_flatten_destructuring_binding<'visitor>(
         &flatten_context,
         node,
         rval,
-        &*node.ref_(arena),
+        &released!(ReadonlyTextRangeConcrete::from(&*node.ref_(arena))),
         skip_initializer,
         arena,
     )?;
@@ -1046,7 +1046,7 @@ fn flatten_object_binding_or_assignment_pattern(
                     value,
                     &elements,
                     computed_temp_variables.as_deref(),
-                    &*pattern.ref_(arena),
+                    &released!(ReadonlyTextRangeConcrete::from(&*pattern.ref_(arena))),
                 );
             flatten_binding_or_assignment_element(
                 flatten_context,

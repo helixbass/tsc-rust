@@ -843,25 +843,29 @@ impl NodeFactory {
         type_arguments: Option<impl Into<NodeArrayOrVec /*<TypeNode>*/>>,
         arguments_array: impl Into<NodeArrayOrVec /*<Expression>*/>,
     ) -> Id<Node /*CallExpression*/> {
-        let node_ref = node.ref_(self);
-        let node_as_call_expression = node_ref.as_call_expression();
         if is_call_chain(&node.ref_(self)) {
             return self.update_call_chain(
                 node,
                 expression,
-                node_as_call_expression.question_dot_token.clone(),
+                node.ref_(self)
+                    .as_call_expression()
+                    .question_dot_token
+                    .clone(),
                 type_arguments,
                 arguments_array,
             );
         }
         let type_arguments = type_arguments.map(Into::into);
         let arguments_array = arguments_array.into();
-        if node_as_call_expression.expression != expression
+        if node.ref_(self).as_call_expression().expression != expression
             || has_option_node_array_changed(
-                node_as_call_expression.maybe_type_arguments(),
+                node.ref_(self).as_call_expression().maybe_type_arguments(),
                 type_arguments.as_ref(),
             )
-            || has_node_array_changed(node_as_call_expression.arguments, &arguments_array)
+            || has_node_array_changed(
+                node.ref_(self).as_call_expression().arguments,
+                &arguments_array,
+            )
         {
             self.update(
                 self.create_call_expression(expression, type_arguments, Some(arguments_array)),

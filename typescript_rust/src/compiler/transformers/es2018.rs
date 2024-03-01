@@ -1176,14 +1176,15 @@ impl TransformES2018 {
         node: Id<Node>, /*VariableDeclaration*/
         exported_variable_statement: bool,
     ) -> VisitResult /*<VariableDeclaration>*/ {
-        let node_ref = node.ref_(self);
-        let node_as_variable_declaration = node_ref.as_variable_declaration();
         if is_binding_pattern(
-            node_as_variable_declaration
+            node.ref_(self)
+                .as_variable_declaration()
                 .maybe_name()
                 .refed(self)
                 .as_deref(),
-        ) && node_as_variable_declaration
+        ) && node
+            .ref_(self)
+            .as_variable_declaration()
             .name()
             .ref_(self)
             .transform_flags()

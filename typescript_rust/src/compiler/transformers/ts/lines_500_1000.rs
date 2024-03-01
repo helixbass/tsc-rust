@@ -339,9 +339,10 @@ impl TransformTypeScript {
             name,
             Option::<Id<NodeArray>>::None,
             try_maybe_visit_nodes(
-                node.ref_(self)
+                released!(node
+                    .ref_(self)
                     .as_class_declaration()
-                    .maybe_heritage_clauses(),
+                    .maybe_heritage_clauses()),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node: Id<Node>| is_heritage_clause(&node.ref_(self))),
                 None,

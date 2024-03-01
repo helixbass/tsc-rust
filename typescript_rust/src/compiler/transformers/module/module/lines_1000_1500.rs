@@ -499,10 +499,10 @@ impl TransformModule {
                         );
                     }
                     variables.get_or_insert_default_().push(variable.clone());
-                } else if let Some(variable_initializer) = variable
+                } else if let Some(variable_initializer) = released!(variable
                     .ref_(self)
                     .as_variable_declaration()
-                    .maybe_initializer()
+                    .maybe_initializer())
                 {
                     if !is_binding_pattern(
                         variable

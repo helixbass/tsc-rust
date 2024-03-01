@@ -517,15 +517,14 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*VariableDeclaration*/
     ) -> io::Result<VisitResult> /*<VariableDeclaration>*/ {
-        let node_ref = node.ref_(self);
-        let node_as_variable_declaration = node_ref.as_variable_declaration();
         let ancestor_facts = self.enter_subtree(
             HierarchyFacts::ExportedVariableStatement,
             HierarchyFacts::None,
         );
         let updated: VisitResult/*<VariableDeclaration>*/;
         if is_binding_pattern(
-            node_as_variable_declaration
+            node.ref_(self)
+                .as_variable_declaration()
                 .maybe_name()
                 .refed(self)
                 .as_deref(),

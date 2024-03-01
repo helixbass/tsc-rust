@@ -10,7 +10,7 @@ use crate::{
     insert_statement_after_custom_prologue, is_block, is_class_like, is_computed_property_name,
     is_expression, is_hoisted_function, is_hoisted_variable_statement, is_identifier, is_modifier,
     is_private_identifier, is_property_name, is_statement, is_static, move_range_end,
-    node_is_synthesized, range_end_is_on_same_line_as_range_start, set_emit_flags,
+    node_is_synthesized, range_end_is_on_same_line_as_range_start, released, set_emit_flags,
     set_original_node, set_source_map_range, set_token_source_map_range, start_on_new_line,
     try_maybe_visit_nodes, try_visit_node, try_visit_parameter_list, unescape_leading_underscores,
     AllAccessorDeclarations, AsDoubleDeref, CoreTransformationContext, Debug_, EmitFlags,
@@ -489,8 +489,6 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*ArrowFunction*/
     ) -> io::Result<VisitResult> {
-        let node_ref = node.ref_(self);
-        let node_as_arrow_function = node_ref.as_arrow_function();
         if node
             .ref_(self)
             .transform_flags()
@@ -521,7 +519,7 @@ impl TransformES2015 {
                 Option::<Id<Node>>::None,
                 Option::<Id<NodeArray>>::None,
                 try_visit_parameter_list(
-                    Some(node_as_arrow_function.parameters()),
+                    Some(node.ref_(self).as_arrow_function().parameters()),
                     |node: Id<Node>| self.visitor(node),
                     &*self.context.ref_(self),
                     self,
@@ -788,7 +786,7 @@ impl TransformES2015 {
             add_range(
                 &mut statements,
                 try_maybe_visit_nodes(
-                    Some(body.ref_(self).as_block().statements),
+                    released!(Some(body.ref_(self).as_block().statements)),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_statement(node, self)),
                     statement_offset,

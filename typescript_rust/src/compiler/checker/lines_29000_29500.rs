@@ -349,13 +349,13 @@ impl TypeChecker {
         self.get_signature_instantiation(
             signature.clone(),
             Some(&*self.get_inferred_types(context)?),
-            is_in_js_file(
+            released!(is_in_js_file(
                 contextual_signature
                     .ref_(self)
                     .declaration
                     .refed(self)
                     .as_deref(),
-            ),
+            )),
             None,
         )
     }

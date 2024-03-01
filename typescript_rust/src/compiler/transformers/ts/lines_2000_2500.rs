@@ -557,22 +557,20 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*CallExpression*/
     ) -> io::Result<VisitResult> {
-        let node_ref = node.ref_(self);
-        let node_as_call_expression = node_ref.as_call_expression();
         Ok(Some(
             self.factory
                 .ref_(self)
                 .update_call_expression(
                     node,
                     try_visit_node(
-                        node_as_call_expression.expression,
+                        node.ref_(self).as_call_expression().expression,
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     Option::<Id<NodeArray>>::None,
                     try_visit_nodes(
-                        node_as_call_expression.arguments,
+                        node.ref_(self).as_call_expression().arguments,
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         None,
@@ -822,15 +820,13 @@ impl TransformTypeScript {
         node: Id<Node>,       /*EnumDeclaration*/
         local_name: Id<Node>, /*Identifier*/
     ) -> io::Result<Id<Node /*Block*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_enum_declaration = node_ref.as_enum_declaration();
         let saved_current_namespace_local_name = self.maybe_current_namespace_container_name();
         self.set_current_namespace_container_name(Some(local_name));
 
         let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
         self.context.ref_(self).start_lexical_environment();
         let members = try_map(
-            &*node_as_enum_declaration.members.ref_(self),
+            &*node.ref_(self).as_enum_declaration().members.ref_(self),
             |&member: &Id<Node>, _| self.transform_enum_member(member),
         )?;
         insert_statements_after_standard_prologue(
@@ -845,7 +841,10 @@ impl TransformTypeScript {
             self.factory
                 .ref_(self)
                 .create_node_array(Some(statements), None)
-                .set_text_range(Some(&*node_as_enum_declaration.members.ref_(self)), self),
+                .set_text_range(
+                    Some(&*node.ref_(self).as_enum_declaration().members.ref_(self)),
+                    self,
+                ),
             Some(true),
         ))
     }

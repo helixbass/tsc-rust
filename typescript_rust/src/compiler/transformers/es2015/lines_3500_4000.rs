@@ -280,17 +280,22 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*ArrayLiteralExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_array_literal_expression = node_ref.as_array_literal_expression();
         if some(
-            Some(&*node_as_array_literal_expression.elements.ref_(self)),
+            Some(
+                &*node
+                    .ref_(self)
+                    .as_array_literal_expression()
+                    .elements
+                    .ref_(self),
+            ),
             Some(|element: &Id<Node>| is_spread_element(&element.ref_(self))),
         ) {
             return self.transform_and_spread_elements(
-                node_as_array_literal_expression.elements,
+                node.ref_(self).as_array_literal_expression().elements,
                 false,
-                node_as_array_literal_expression.multi_line == Some(true),
-                node_as_array_literal_expression
+                node.ref_(self).as_array_literal_expression().multi_line == Some(true),
+                node.ref_(self)
+                    .as_array_literal_expression()
                     .elements
                     .ref_(self)
                     .has_trailing_comma,

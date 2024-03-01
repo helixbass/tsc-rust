@@ -419,17 +419,19 @@ impl TypeChecker {
 
         self.check_type_parameters(Some(&get_effective_type_parameter_declarations(node, self)))?;
 
-        let node_ref = node.ref_(self);
-        let node_as_signature_declaration = node_ref.as_signature_declaration();
         try_for_each(
-            &*node_as_signature_declaration.parameters().ref_(self),
+            &*node
+                .ref_(self)
+                .as_signature_declaration()
+                .parameters()
+                .ref_(self),
             |&parameter: &Id<Node>, _| -> io::Result<Option<()>> {
                 self.check_parameter(parameter)?;
                 Ok(None)
             },
         )?;
 
-        if let Some(node_type) = node_as_signature_declaration.maybe_type() {
+        if let Some(node_type) = node.ref_(self).as_signature_declaration().maybe_type() {
             self.check_source_element(Some(node_type))?;
         }
 
