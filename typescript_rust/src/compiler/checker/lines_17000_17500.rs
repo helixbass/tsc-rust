@@ -281,13 +281,18 @@ impl TypeChecker {
         containing_message_chain: Option<Id<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_container: Option<Id<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> io::Result<bool> {
-        let node_ref = node.ref_(self);
-        let node_as_arrow_function = node_ref.as_arrow_function();
-        if is_block(&node_as_arrow_function.maybe_body().unwrap().ref_(self)) {
+        if is_block(
+            &node
+                .ref_(self)
+                .as_arrow_function()
+                .maybe_body()
+                .unwrap()
+                .ref_(self),
+        ) {
             return Ok(false);
         }
         if some(
-            Some(&*node_as_arrow_function.parameters().ref_(self)),
+            Some(&*node.ref_(self).as_arrow_function().parameters().ref_(self)),
             Some(|parameter: &Id<Node>| has_type(&parameter.ref_(self))),
         ) {
             return Ok(false);
@@ -301,7 +306,7 @@ impl TypeChecker {
         if length(Some(&target_signatures)) == 0 {
             return Ok(false);
         }
-        let return_expression = node_as_arrow_function.maybe_body().unwrap();
+        let return_expression = node.ref_(self).as_arrow_function().maybe_body().unwrap();
         let source_return = self.get_return_type_of_signature(source_sig)?;
         let target_return = self.get_union_type(
             &try_map(&target_signatures, |signature: &Id<Signature>, _| {

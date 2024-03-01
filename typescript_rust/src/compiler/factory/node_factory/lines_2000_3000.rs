@@ -1714,13 +1714,11 @@ impl NodeFactory {
         colon_token: Id<Node /*ColonToken*/>,
         when_false: Id<Node /*Expression*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_conditional_expression = node_ref.as_conditional_expression();
-        if node_as_conditional_expression.condition != condition
-            || node_as_conditional_expression.question_token != question_token
-            || node_as_conditional_expression.when_true != when_true
-            || node_as_conditional_expression.colon_token != colon_token
-            || node_as_conditional_expression.when_false != when_false
+        if node.ref_(self).as_conditional_expression().condition != condition
+            || node.ref_(self).as_conditional_expression().question_token != question_token
+            || node.ref_(self).as_conditional_expression().when_true != when_true
+            || node.ref_(self).as_conditional_expression().colon_token != colon_token
+            || node.ref_(self).as_conditional_expression().when_false != when_false
         {
             self.update(
                 self.create_conditional_expression(

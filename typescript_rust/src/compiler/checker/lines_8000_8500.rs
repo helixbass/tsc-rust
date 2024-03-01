@@ -725,11 +725,12 @@ impl TypeChecker {
         let class_type =
             self.get_declared_type_of_symbol(self.get_parent_of_symbol(prototype)?.unwrap())?;
         Ok(
-            if let Some(class_type_type_parameters) = class_type
+            if let Some(class_type_type_parameters) = released!(class_type
                 .ref_(self)
                 .as_interface_type()
                 .maybe_type_parameters()
-                .as_deref()
+                .map(ToOwned::to_owned))
+            .as_deref()
             {
                 self.create_type_reference(
                     class_type,

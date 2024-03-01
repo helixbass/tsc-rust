@@ -922,7 +922,7 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         Ok(if source.ref_(self).flags().intersects(TypeFlags::Union) {
             try_every(
-                source.ref_(self).as_union_type().types(),
+                &released!(source.ref_(self).as_union_type().types().to_owned()),
                 |&sub_type: &Id<Type>, _| self.all_types_assignable_to_kind(sub_type, kind, strict),
             )?
         } else {

@@ -257,9 +257,12 @@ impl TypeChecker {
         broad_diag: &'static DiagnosticMessage,
     ) -> io::Result<()> {
         let mut issued_member_error = false;
-        let node_ref = node.ref_(self);
-        let node_as_class_like_declaration = node_ref.as_class_like_declaration();
-        for &member in &*node_as_class_like_declaration.members().ref_(self) {
+        for &member in &*node
+            .ref_(self)
+            .as_class_like_declaration()
+            .members()
+            .ref_(self)
+        {
             if is_static(member, self) {
                 continue;
             }
@@ -310,7 +313,12 @@ impl TypeChecker {
             self.check_type_assignable_to(
                 type_with_this,
                 base_with_this,
-                Some(node_as_class_like_declaration.maybe_name().unwrap_or(node)),
+                Some(
+                    node.ref_(self)
+                        .as_class_like_declaration()
+                        .maybe_name()
+                        .unwrap_or(node),
+                ),
                 Some(broad_diag),
                 None,
                 None,

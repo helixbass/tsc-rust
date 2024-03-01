@@ -468,7 +468,7 @@ impl TypeChecker {
                         NodeBuilderFlags::None
                     },
             ),
-            Some(writer.ref_(self).as_symbol_tracker()),
+            released!(Some(writer.ref_(self).as_symbol_tracker())),
         )?;
         let type_node: Id<Node> = match type_node {
             None => Debug_.fail(Some("should always get typenode")),
@@ -516,7 +516,7 @@ impl TypeChecker {
         } else {
             self.type_to_string_(left, Option::<Id<Node>>::None, None, None)?
         };
-        let mut right_str = if let Some(symbol) = right.ref_(self).maybe_symbol() {
+        let mut right_str = if let Some(symbol) = released!(right.ref_(self).maybe_symbol()) {
             if self.symbol_value_declaration_is_context_sensitive(Some(symbol))? {
                 let enclosing_declaration = symbol.ref_(self).maybe_value_declaration();
                 self.type_to_string_(right, enclosing_declaration, None, None)?

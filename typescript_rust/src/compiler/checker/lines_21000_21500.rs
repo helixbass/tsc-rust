@@ -278,11 +278,11 @@ impl TypeChecker {
                     ))
                 });
                 let widened_types = try_map(
-                    type_
+                    released!(type_
                         .ref_(self)
                         .as_union_or_intersection_type_interface()
                         .types()
-                        .to_owned(),
+                        .to_owned()),
                     |t: Id<Type>, _| -> io::Result<_> {
                         Ok(if t.ref_(self).flags().intersects(TypeFlags::Nullable) {
                             t

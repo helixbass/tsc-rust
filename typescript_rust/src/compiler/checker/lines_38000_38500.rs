@@ -1163,19 +1163,21 @@ impl TypeChecker {
         let implemented_type_nodes = get_effective_implements_type_nodes(node, self);
         if let Some(implemented_type_nodes) = implemented_type_nodes.as_ref() {
             for &type_ref_node in implemented_type_nodes {
-                let type_ref_node_ref = type_ref_node.ref_(self);
-                let type_ref_node_as_expression_with_type_arguments =
-                    type_ref_node_ref.as_expression_with_type_arguments();
                 if !is_entity_name_expression(
-                    type_ref_node_as_expression_with_type_arguments.expression,
+                    type_ref_node
+                        .ref_(self)
+                        .as_expression_with_type_arguments()
+                        .expression,
                     self,
                 ) || is_optional_chain(
-                    &type_ref_node_as_expression_with_type_arguments
+                    &type_ref_node
+                        .ref_(self)
+                        .as_expression_with_type_arguments()
                         .expression
                         .ref_(self),
                 ) {
                     self.error(
-                        Some(type_ref_node_as_expression_with_type_arguments.expression),
+                        Some(type_ref_node.ref_(self).as_expression_with_type_arguments().expression),
                         &Diagnostics::A_class_can_only_implement_an_identifier_Slashqualified_name_with_optional_type_arguments,
                         None,
                     );
