@@ -615,7 +615,10 @@ impl TypeChecker {
                             Ok(p.ref_(self).maybe_symbol().is_some() &&
                                 p.ref_(self).kind() == SyntaxKind::PropertyAssignment &&
                                 self.is_possibly_discriminant_value(p.ref_(self).as_has_initializer().maybe_initializer().unwrap()) &&
-                                self.is_discriminant_property(Some(contextual_type), p.ref_(self).symbol().ref_(self).escaped_name())?)
+                                self.is_discriminant_property(
+                                    Some(contextual_type),
+                                    &released!(p.ref_(self).symbol().ref_(self).escaped_name().to_owned()),
+                                )?)
                         }
                     )?,
                     |prop, _| {

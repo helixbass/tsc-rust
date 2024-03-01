@@ -1074,10 +1074,8 @@ impl TransformES2015 {
         outermost_labeled_statement: Option<Id<Node> /*LabeledStatement*/>,
         converted_loop_body_statements: Option<&[Id<Node /*Statement*/>]>,
     ) -> io::Result<Id<Node /*Statement*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_for_of_statement = node_ref.as_for_of_statement();
         let expression = try_visit_node(
-            node_as_for_of_statement.expression,
+            node.ref_(self).as_for_of_statement().expression,
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -1123,7 +1121,11 @@ impl TransformES2015 {
                                     )
                                     .set_text_range(
                                         Some(&ReadonlyTextRangeConcrete::from(move_range_pos(
-                                            &*node_as_for_of_statement.expression.ref_(self),
+                                            &*node
+                                                .ref_(self)
+                                                .as_for_of_statement()
+                                                .expression
+                                                .ref_(self),
                                             -1,
                                         ))),
                                         self,
@@ -1137,14 +1139,20 @@ impl TransformES2015 {
                                         Some(expression.clone()),
                                     )
                                     .set_text_range(
-                                        Some(&*node_as_for_of_statement.expression.ref_(self)),
+                                        Some(
+                                            &*node
+                                                .ref_(self)
+                                                .as_for_of_statement()
+                                                .expression
+                                                .ref_(self),
+                                        ),
                                         self,
                                     ),
                             ],
                             None,
                         )
                         .set_text_range(
-                            Some(&*node_as_for_of_statement.expression.ref_(self)),
+                            Some(&*node.ref_(self).as_for_of_statement().expression.ref_(self)),
                             self,
                         )
                         .set_emit_flags(EmitFlags::NoHoisting, self),
@@ -1159,7 +1167,7 @@ impl TransformES2015 {
                                 .create_property_access_expression(rhs_reference.clone(), "length"),
                         )
                         .set_text_range(
-                            Some(&*node_as_for_of_statement.expression.ref_(self)),
+                            Some(&*node.ref_(self).as_for_of_statement().expression.ref_(self)),
                             self,
                         ),
                 ),
@@ -1168,7 +1176,7 @@ impl TransformES2015 {
                         .ref_(self)
                         .create_postfix_increment(counter)
                         .set_text_range(
-                            Some(&*node_as_for_of_statement.expression.ref_(self)),
+                            Some(&*node.ref_(self).as_for_of_statement().expression.ref_(self)),
                             self,
                         ),
                 ),

@@ -471,15 +471,15 @@ impl TransformModule {
             let mut modifiers: Option<Id<NodeArray /*Modifier*/>> = _d();
             let mut remove_comments_on_expressions = false;
 
-            for &variable in &*released!(
-                node.ref_(self)
-                    .as_variable_statement()
-                    .declaration_list
-                    .ref_(self)
-                    .as_variable_declaration_list()
-                    .declarations
-            )
-            .ref_(self)
+            for &variable in &*released!(node
+                .ref_(self)
+                .as_variable_statement()
+                .declaration_list
+                .ref_(self)
+                .as_variable_declaration_list()
+                .declarations
+                .ref_(self)
+                .clone())
             {
                 if is_identifier(
                     &variable

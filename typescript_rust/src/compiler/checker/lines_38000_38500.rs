@@ -1195,7 +1195,7 @@ impl TypeChecker {
                             };
                             let base_with_this = self.get_type_with_this_argument(
                                 t,
-                                type_.ref_(self).as_interface_type().maybe_this_type(),
+                                released!(type_.ref_(self).as_interface_type().maybe_this_type()),
                                 None,
                             )?;
                             if !self.check_type_assignable_to(

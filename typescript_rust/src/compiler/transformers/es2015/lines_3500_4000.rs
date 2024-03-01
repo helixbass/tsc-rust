@@ -600,27 +600,38 @@ impl TransformES2015 {
         node: Id<Node>, /*CallExpression*/
         assign_to_captured_this: bool,
     ) -> io::Result<Id<Node /*CallExpression | BinaryExpression*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_call_expression = node_ref.as_call_expression();
         if node
             .ref_(self)
             .transform_flags()
             .intersects(TransformFlags::ContainsRestOrSpread)
-            || node_as_call_expression.expression.ref_(self).kind() == SyntaxKind::SuperKeyword
+            || node
+                .ref_(self)
+                .as_call_expression()
+                .expression
+                .ref_(self)
+                .kind()
+                == SyntaxKind::SuperKeyword
             || is_super_property(
-                skip_outer_expressions(node_as_call_expression.expression, None, self),
+                skip_outer_expressions(node.ref_(self).as_call_expression().expression, None, self),
                 self,
             )
         {
             let CallBinding { target, this_arg } = self.factory.ref_(self).create_call_binding(
-                node_as_call_expression.expression,
+                node.ref_(self).as_call_expression().expression,
                 |node: Id<Node>| {
                     self.context.ref_(self).hoist_variable_declaration(node);
                 },
                 None,
                 None,
             );
-            if node_as_call_expression.expression.ref_(self).kind() == SyntaxKind::SuperKeyword {
+            if node
+                .ref_(self)
+                .as_call_expression()
+                .expression
+                .ref_(self)
+                .kind()
+                == SyntaxKind::SuperKeyword
+            {
                 set_emit_flags(this_arg, EmitFlags::NoSubstitution, self);
             }
 
@@ -637,7 +648,12 @@ impl TransformES2015 {
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
-                    if node_as_call_expression.expression.ref_(self).kind()
+                    if node
+                        .ref_(self)
+                        .as_call_expression()
+                        .expression
+                        .ref_(self)
+                        .kind()
                         == SyntaxKind::SuperKeyword
                     {
                         this_arg
@@ -650,7 +666,7 @@ impl TransformES2015 {
                         )?
                     },
                     self.transform_and_spread_elements(
-                        node_as_call_expression.arguments,
+                        node.ref_(self).as_call_expression().arguments,
                         true,
                         false,
                         false,
@@ -667,7 +683,12 @@ impl TransformES2015 {
                             Some(|node| is_expression(node, self)),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )?,
-                        if node_as_call_expression.expression.ref_(self).kind()
+                        if node
+                            .ref_(self)
+                            .as_call_expression()
+                            .expression
+                            .ref_(self)
+                            .kind()
                             == SyntaxKind::SuperKeyword
                         {
                             this_arg
@@ -680,7 +701,7 @@ impl TransformES2015 {
                             )?
                         },
                         try_visit_nodes(
-                            node_as_call_expression.arguments,
+                            node.ref_(self).as_call_expression().arguments,
                             Some(|node: Id<Node>| self.visitor(node)),
                             Some(|node| is_expression(node, self)),
                             None,
@@ -691,7 +712,14 @@ impl TransformES2015 {
                     .set_text_range(Some(&*node.ref_(self)), self)
             }
 
-            if node_as_call_expression.expression.ref_(self).kind() == SyntaxKind::SuperKeyword {
+            if node
+                .ref_(self)
+                .as_call_expression()
+                .expression
+                .ref_(self)
+                .kind()
+                == SyntaxKind::SuperKeyword
+            {
                 let initializer = self
                     .factory
                     .ref_(self)
