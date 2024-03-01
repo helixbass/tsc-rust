@@ -47,7 +47,7 @@ impl TypeChecker {
         tp: Id<Type>, /*TypeParameter*/
         node: Id<Node>,
     ) -> io::Result<bool> {
-        if let Some(tp_symbol) = tp.ref_(self).maybe_symbol() {
+        if let Some(tp_symbol) = released!(tp.ref_(self).maybe_symbol()) {
             if let Some(tp_symbol_declarations) =
                 released!(tp_symbol.ref_(self).maybe_declarations().clone()).as_ref()
             {

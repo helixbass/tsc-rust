@@ -257,7 +257,12 @@ impl TypeChecker {
         broad_diag: &'static DiagnosticMessage,
     ) -> io::Result<()> {
         let mut issued_member_error = false;
-        for &member in &*released!(node.ref_(self).as_class_like_declaration().members()).ref_(self)
+        for &member in &*released!(node
+            .ref_(self)
+            .as_class_like_declaration()
+            .members()
+            .ref_(self)
+            .clone())
         {
             if is_static(member, self) {
                 continue;

@@ -18,7 +18,7 @@ use crate::{
     is_jsdoc_type_literal, is_jsdoc_unknown_type, is_jsdoc_variadic_type,
     is_literal_import_type_node, is_module_exports_access_expression, is_module_identifier,
     is_qualified_name, is_single_or_double_quote, is_string_literal, is_tuple_type_node,
-    is_type_reference_node, length, maybe_get_source_file_of_node, node_is_synthesized,
+    is_type_reference_node, length, maybe_get_source_file_of_node, node_is_synthesized, released,
     set_emit_flags, set_original_node, set_text_range, some, starts_with, try_for_each_entry_bool,
     try_map, try_map_defined, try_maybe_map, try_maybe_visit_node, try_maybe_visit_nodes,
     try_visit_each_child, try_visit_node, unescape_leading_underscores, AsDoubleDeref,
@@ -915,7 +915,7 @@ impl NodeBuilder {
                 .ref_(self)
                 .is_symbol_accessible(
                     Some(sym),
-                    context.ref_(self).maybe_enclosing_declaration(),
+                    released!(context.ref_(self).maybe_enclosing_declaration()),
                     SymbolFlags::All,
                     false,
                 )?

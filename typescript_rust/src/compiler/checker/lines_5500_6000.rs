@@ -661,7 +661,7 @@ impl NodeBuilder {
             context,
             parameter_type,
             parameter_symbol,
-            context.ref_(self).maybe_enclosing_declaration(),
+            released!(context.ref_(self).maybe_enclosing_declaration()),
             private_symbol_visitor,
             bundled_imports,
         )?;
