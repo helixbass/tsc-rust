@@ -572,7 +572,9 @@ impl TypeChecker {
     }
 
     pub(super) fn check_array_type(&self, node: Id<Node> /*ArrayTypeNode*/) -> io::Result<()> {
-        self.check_source_element(Some(node.ref_(self).as_array_type_node().element_type))?;
+        self.check_source_element(Some(released!(
+            node.ref_(self).as_array_type_node().element_type
+        )))?;
 
         Ok(())
     }

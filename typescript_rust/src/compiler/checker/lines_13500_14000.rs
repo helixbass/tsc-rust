@@ -1013,9 +1013,9 @@ impl TypeChecker {
                 );
             } else {
                 let element_types = if node.ref_(self).kind() == SyntaxKind::ArrayType {
-                    vec![self.get_type_from_type_node_(
-                        node.ref_(self).as_array_type_node().element_type,
-                    )?]
+                    vec![self.get_type_from_type_node_(released!(
+                        node.ref_(self).as_array_type_node().element_type
+                    ))?]
                 } else {
                     try_map(
                         &*node.ref_(self).as_tuple_type_node().elements.ref_(self),

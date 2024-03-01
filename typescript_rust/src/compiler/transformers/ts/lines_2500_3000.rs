@@ -748,7 +748,7 @@ impl TransformTypeScript {
                     .ref_(self)
                     .create_variable_statement(
                         maybe_visit_nodes(
-                            node.ref_(self).maybe_modifiers(),
+                            released!(node.ref_(self).maybe_modifiers()),
                             Some(|node: Id<Node>| self.modifier_visitor(node)),
                             Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                             None,

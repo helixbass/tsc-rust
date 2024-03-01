@@ -723,7 +723,7 @@ impl TransformModule {
             let id = get_original_node_id(node, self);
             self.append_exports_of_variable_statement(
                 self.deferred_exports_mut().entry(id).or_default(),
-                node.ref_(self).maybe_original().unwrap(),
+                released!(node.ref_(self).maybe_original().unwrap()),
             );
         }
 

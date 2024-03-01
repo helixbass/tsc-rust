@@ -837,7 +837,7 @@ impl TypeChecker {
 
     pub(super) fn clone_inference_info(&self, inference: Id<InferenceInfo>) -> InferenceInfo {
         let inference_ref = inference.ref_(self);
-        InferenceInfo::new(
+        let ret = InferenceInfo::new(
             inference_ref.type_parameter.clone(),
             inference_ref.maybe_candidates().clone(),
             inference_ref.maybe_contra_candidates().clone(),
@@ -846,7 +846,8 @@ impl TypeChecker {
             inference_ref.top_level(),
             inference_ref.is_fixed(),
             inference_ref.maybe_implied_arity(),
-        )
+        );
+        ret
     }
 
     pub(super) fn clone_inferred_part_of_context(
@@ -859,7 +860,7 @@ impl TypeChecker {
         );
         if !inferences.is_empty() {
             Some(self.create_inference_context_worker(
-                map(&inferences, |inference: &Id<InferenceInfo>, _| {
+                map(&inferences, |&inference: &Id<InferenceInfo>, _| {
                     self.alloc_inference_info(self.clone_inference_info(inference))
                 }),
                 context.ref_(self).signature.clone(),

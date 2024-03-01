@@ -752,7 +752,7 @@ impl TransformDeclarations {
                 let member_nodes = maybe_concatenate(
                     maybe_concatenate(private_identifier, parameter_properties),
                     try_maybe_visit_nodes(
-                        Some(input.ref_(self).as_class_declaration().members()),
+                        released!(Some(input.ref_(self).as_class_declaration().members())),
                         Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                         Option::<fn(Id<Node>) -> bool>::None,
                         None,

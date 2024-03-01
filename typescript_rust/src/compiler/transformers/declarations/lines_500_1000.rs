@@ -963,9 +963,9 @@ impl TransformDeclarations {
                     )?
                 }
                 SyntaxKind::MethodDeclaration => {
-                    let input_ref = input.ref_(self);
-                    let input_as_method_declaration = input_ref.as_method_declaration();
-                    if is_private_identifier(&input_as_method_declaration.name().ref_(self)) {
+                    if is_private_identifier(
+                        &input.ref_(self).as_method_declaration().name().ref_(self),
+                    ) {
                         return self.visit_declaration_subtree_cleanup(
                             input,
                             can_produce_diagnostic,
@@ -980,19 +980,29 @@ impl TransformDeclarations {
                         Option::<Id<NodeArray>>::None,
                         self.ensure_modifiers(input),
                         None,
-                        input_as_method_declaration.name(),
-                        input_as_method_declaration.maybe_question_token(),
+                        input.ref_(self).as_method_declaration().name(),
+                        input
+                            .ref_(self)
+                            .as_method_declaration()
+                            .maybe_question_token(),
                         self.ensure_type_params(
                             input,
-                            input_as_method_declaration.maybe_type_parameters(),
+                            input
+                                .ref_(self)
+                                .as_method_declaration()
+                                .maybe_type_parameters(),
                         )?,
                         self.update_params_list(
                             input,
-                            Some(input_as_method_declaration.parameters()),
+                            Some(input.ref_(self).as_method_declaration().parameters()),
                             None,
                         )?
                         .unwrap(),
-                        self.ensure_type(input, input_as_method_declaration.maybe_type(), None)?,
+                        self.ensure_type(
+                            input,
+                            input.ref_(self).as_method_declaration().maybe_type(),
+                            None,
+                        )?,
                         None,
                     );
                     self.visit_declaration_subtree_cleanup(

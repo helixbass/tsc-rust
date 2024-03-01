@@ -552,14 +552,15 @@ impl NodeFactory {
         node: Id<Node>,                        /*ObjectLiteralExpression*/
         properties: impl Into<NodeArrayOrVec>, /*ObjectLiteralElementLike*/
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_object_literal_expression = node_ref.as_object_literal_expression();
         let properties = properties.into();
-        if has_node_array_changed(node_as_object_literal_expression.properties, &properties) {
+        if has_node_array_changed(
+            node.ref_(self).as_object_literal_expression().properties,
+            &properties,
+        ) {
             self.update(
                 self.create_object_literal_expression(
                     Some(properties),
-                    node_as_object_literal_expression.multi_line,
+                    node.ref_(self).as_object_literal_expression().multi_line,
                 ),
                 node,
             )

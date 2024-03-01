@@ -7,8 +7,8 @@ use crate::{
     get_original_node_id, has_syntactic_modifier, id_text, is_binding_pattern,
     is_generated_identifier, is_omitted_expression, released, set_emit_flags, EmitFlags,
     EmitHelper, GetOrInsertDefault, HasArena, InArena, ModifierFlags, Node, NodeArray, NodeExt,
-    NodeInterface, OptionInArena, OptionTry, ReadonlyTextRange, ScopedEmitHelperBuilder,
-    ScriptTarget, SyntaxKind, VisitResult,
+    NodeInterface, OptionInArena, OptionTry, ReadonlyTextRange, ReadonlyTextRangeConcrete,
+    ScopedEmitHelperBuilder, ScriptTarget, SyntaxKind, VisitResult,
 };
 
 impl TransformModule {
@@ -132,7 +132,9 @@ impl TransformModule {
                 statements,
                 export_name,
                 self.factory.ref_(self).get_local_name(decl, None, None),
-                Some(&*decl.ref_(self)),
+                Some(&released!(ReadonlyTextRangeConcrete::from(
+                    &*decl.ref_(self)
+                ))),
                 None,
                 None,
             );

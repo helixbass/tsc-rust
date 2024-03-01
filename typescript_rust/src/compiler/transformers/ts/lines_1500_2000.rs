@@ -589,13 +589,14 @@ impl TransformTypeScript {
             .factory
             .ref_(self)
             .create_block(
-                self.factory
+                released!(self
+                    .factory
                     .ref_(self)
                     .create_node_array(Some(statements), None)
                     .set_text_range(
                         Some(&*body.ref_(self).as_block().statements.ref_(self)),
                         self,
-                    ),
+                    )),
                 Some(true),
             )
             .set_text_range(Some(&*body.ref_(self)), self)

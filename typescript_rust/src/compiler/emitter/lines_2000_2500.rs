@@ -1089,10 +1089,8 @@ impl Printer {
         &self,
         node: Id<Node>, /*ElementAccessExpression*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_element_access_expression = node_ref.as_element_access_expression();
         self.emit_expression(
-            Some(node_as_element_access_expression.expression),
+            Some(node.ref_(self).as_element_access_expression().expression),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(
                     self.parenthesizer(),
@@ -1100,10 +1098,16 @@ impl Printer {
                 ),
             ))),
         )?;
-        self.emit(node_as_element_access_expression.question_dot_token, None)?;
+        self.emit(
+            node.ref_(self)
+                .as_element_access_expression()
+                .question_dot_token,
+            None,
+        )?;
         self.emit_token_with_comment(
             SyntaxKind::OpenBracketToken,
-            node_as_element_access_expression
+            node.ref_(self)
+                .as_element_access_expression()
                 .expression
                 .ref_(self)
                 .end(),
@@ -1112,12 +1116,17 @@ impl Printer {
             None,
         );
         self.emit_expression(
-            Some(node_as_element_access_expression.argument_expression),
+            Some(
+                node.ref_(self)
+                    .as_element_access_expression()
+                    .argument_expression,
+            ),
             None,
         )?;
         self.emit_token_with_comment(
             SyntaxKind::CloseBracketToken,
-            node_as_element_access_expression
+            node.ref_(self)
+                .as_element_access_expression()
                 .argument_expression
                 .ref_(self)
                 .end(),

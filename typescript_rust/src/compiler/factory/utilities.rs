@@ -49,10 +49,12 @@ pub fn create_member_access_for_property_name(
         factory
             .create_element_access_expression(
                 target,
-                member_name
-                    .ref_(factory)
-                    .as_computed_property_name()
-                    .expression,
+                released!(
+                    member_name
+                        .ref_(factory)
+                        .as_computed_property_name()
+                        .expression
+                ),
             )
             .set_text_range(location, factory)
     } else {
