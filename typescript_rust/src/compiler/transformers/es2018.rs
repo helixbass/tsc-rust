@@ -31,7 +31,7 @@ use crate::{
     is_object_literal_element_like, is_property_access_expression, is_property_name,
     is_super_property, is_token, is_variable_declaration_list, maybe_visit_each_child,
     maybe_visit_node, maybe_visit_nodes, process_tagged_template_expression, ref_unwrapped,
-    set_emit_flags, set_original_node, set_text_range_node_array, AllArenas,
+    released, set_emit_flags, set_original_node, set_text_range_node_array, AllArenas,
     CoreTransformationContext, HasArena, InArena, OptionInArena,
     TransformNodesTransformationResult,
 };
@@ -270,9 +270,7 @@ impl TransformES2018 {
     }
 
     fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_source_file = node_ref.as_source_file();
-        if node_as_source_file.is_declaration_file() {
+        if node.ref_(self).as_source_file().is_declaration_file() {
             return node;
         }
 
@@ -339,7 +337,7 @@ impl TransformES2018 {
         {
             return Some(node.into());
         }
-        match node.ref_(self).kind() {
+        match released!(node.ref_(self).kind()) {
             SyntaxKind::AwaitExpression => Some(self.visit_await_expression(node).into()),
             SyntaxKind::YieldExpression => self.visit_yield_expression(node),
             SyntaxKind::ReturnStatement => self.visit_return_statement(node),

@@ -340,7 +340,7 @@ impl TransformDeclarations {
                             .unwrap(),
                             self.ensure_type(
                                 input,
-                                input.ref_(self).as_function_declaration().maybe_type(),
+                                released!(input.ref_(self).as_function_declaration().maybe_type()),
                                 None,
                             )?,
                             None,

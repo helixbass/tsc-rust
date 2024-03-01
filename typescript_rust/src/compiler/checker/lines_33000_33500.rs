@@ -487,7 +487,7 @@ impl TypeChecker {
             Some(node.ref_(self).as_conditional_expression().when_true),
         )?;
         let type1 = self.check_expression(
-            node.ref_(self).as_conditional_expression().when_true,
+            released!(node.ref_(self).as_conditional_expression().when_true),
             check_mode,
             None,
         )?;
