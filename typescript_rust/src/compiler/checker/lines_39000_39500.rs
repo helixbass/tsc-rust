@@ -179,11 +179,12 @@ impl TypeChecker {
         }
 
         self.check_type_parameters(
-            node.ref_(self)
+            released!(node
+                .ref_(self)
                 .as_interface_declaration()
-                .maybe_type_parameters()
-                .refed(self)
-                .as_double_deref(),
+                .maybe_type_parameters())
+            .refed(self)
+            .as_double_deref(),
         )?;
         if self.produce_diagnostics {
             self.check_type_name_is_reserved(

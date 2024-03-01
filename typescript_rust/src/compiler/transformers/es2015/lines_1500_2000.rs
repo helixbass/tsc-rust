@@ -306,12 +306,14 @@ impl TransformES2015 {
                 &self.factory.ref_(self),
                 receiver,
                 property_name,
-                member
+                released!(member
                     .ref_(self)
                     .as_method_declaration()
                     .maybe_name()
                     .refed(self)
-                    .as_deref(),
+                    .as_deref()
+                    .map(ReadonlyTextRangeConcrete::from))
+                .as_ref(),
             );
             e = self
                 .factory

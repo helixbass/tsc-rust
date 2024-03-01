@@ -12,7 +12,7 @@ use crate::{
     is_generated_identifier, is_identifier, is_import_keyword, is_local_name,
     is_logical_or_coalescing_assignment_operator, is_object_literal_expression,
     is_omitted_expression, is_property_access_chain, is_super_keyword, is_super_property,
-    last_or_undefined, modifiers_to_flags, ArrayBindingPattern, ArrayLiteralExpression,
+    last_or_undefined, modifiers_to_flags, released, ArrayBindingPattern, ArrayLiteralExpression,
     ArrowFunction, AsDoubleDeref, AwaitExpression, BaseLiteralLikeNode, BaseNode, BinaryExpression,
     BindingElement, CallExpression, ClassExpression, ClassLikeDeclarationInterface,
     ConditionalExpression, Debug_, DeleteExpression, ElementAccessExpression, FunctionExpression,
@@ -522,7 +522,7 @@ impl NodeFactory {
             self.update(
                 self.create_array_literal_expression(
                     Some(elements),
-                    node.ref_(self).as_array_literal_expression().multi_line,
+                    released!(node.ref_(self).as_array_literal_expression().multi_line),
                 ),
                 node,
             )

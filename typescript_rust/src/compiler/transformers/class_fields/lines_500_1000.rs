@@ -366,15 +366,13 @@ impl TransformClassFields {
         &self,
         node: Id<Node>, /*ExpressionStatement*/
     ) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_expression_statement = node_ref.as_expression_statement();
         Some(
             self.factory
                 .ref_(self)
                 .update_expression_statement(
                     node,
                     visit_node(
-                        node_as_expression_statement.expression,
+                        node.ref_(self).as_expression_statement().expression,
                         Some(|node: Id<Node>| self.discarded_value_visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -419,16 +417,14 @@ impl TransformClassFields {
         &self,
         node: Id<Node>, /*CallExpression*/
     ) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_call_expression = node_ref.as_call_expression();
         if self.should_transform_private_elements_or_class_static_blocks
             && is_private_identifier_property_access_expression(
-                node_as_call_expression.expression,
+                node.ref_(self).as_call_expression().expression,
                 self,
             )
         {
             let CallBinding { this_arg, target } = self.factory.ref_(self).create_call_binding(
-                node_as_call_expression.expression,
+                node.ref_(self).as_call_expression().expression,
                 |node: Id<Node>| {
                     self.context.ref_(self).hoist_variable_declaration(node);
                 },
@@ -448,7 +444,10 @@ impl TransformClassFields {
                                     Option::<fn(Id<Node>) -> bool>::None,
                                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 ),
-                                node_as_call_expression.question_dot_token.clone(),
+                                node.ref_(self)
+                                    .as_call_expression()
+                                    .question_dot_token
+                                    .clone(),
                                 "call",
                             ),
                             None,
@@ -461,7 +460,7 @@ impl TransformClassFields {
                             )]
                             .and_extend(
                                 visit_nodes(
-                                    node_as_call_expression.arguments,
+                                    node.ref_(self).as_call_expression().arguments,
                                     Some(|node: Id<Node>| self.visitor(node)),
                                     Some(|node| is_expression(node, self)),
                                     None,
@@ -499,7 +498,7 @@ impl TransformClassFields {
                         )]
                         .and_extend(
                             visit_nodes(
-                                node_as_call_expression.arguments,
+                                node.ref_(self).as_call_expression().arguments,
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 None,
@@ -516,7 +515,7 @@ impl TransformClassFields {
         }
 
         if self.should_transform_super_in_static_initializers
-            && is_super_property(node_as_call_expression.expression, self)
+            && is_super_property(node.ref_(self).as_call_expression().expression, self)
             && self
                 .maybe_current_static_property_declaration_or_static_block()
                 .is_some()
@@ -535,14 +534,14 @@ impl TransformClassFields {
                         .ref_(self)
                         .create_function_call_call(
                             visit_node(
-                                node_as_call_expression.expression,
+                                node.ref_(self).as_call_expression().expression,
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ),
                             current_class_lexical_environment_class_constructor.clone(),
                             visit_nodes(
-                                node_as_call_expression.arguments,
+                                node.ref_(self).as_call_expression().arguments,
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 None,

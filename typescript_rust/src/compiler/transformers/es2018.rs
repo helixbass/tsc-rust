@@ -1994,8 +1994,6 @@ impl TransformES2018 {
     }
 
     fn visit_function_expression(&self, node: Id<Node> /*FunctionExpression*/) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_function_expression = node_ref.as_function_expression();
         let saved_enclosing_function_flags = self.maybe_enclosing_function_flags();
         self.set_enclosing_function_flags(Some(FunctionFlags::Normal));
         let updated = self.factory.ref_(self).update_function_expression(
@@ -2025,12 +2023,14 @@ impl TransformES2018 {
             {
                 None
             } else {
-                node_as_function_expression.maybe_asterisk_token()
+                node.ref_(self)
+                    .as_function_expression()
+                    .maybe_asterisk_token()
             },
-            node_as_function_expression.maybe_name(),
+            node.ref_(self).as_function_expression().maybe_name(),
             Option::<Id<NodeArray>>::None,
             visit_parameter_list(
-                Some(node_as_function_expression.parameters()),
+                Some(node.ref_(self).as_function_expression().parameters()),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
@@ -2203,13 +2203,11 @@ impl TransformES2018 {
         &self,
         node: Id<Node>, /*FunctionLikeDeclaration*/
     ) -> Id<Node /*ConciseBody*/> {
-        let node_ref = node.ref_(self);
-        let node_as_function_like_declaration = node_ref.as_function_like_declaration();
         self.context.ref_(self).resume_lexical_environment();
         let mut statement_offset = 0;
         let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
         let body = maybe_visit_node(
-            node_as_function_like_declaration.maybe_body(),
+            node.ref_(self).as_function_like_declaration().maybe_body(),
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_concise_body(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -2247,10 +2245,8 @@ impl TransformES2018 {
                 leading_statements.as_deref(),
                 self,
             );
-            let block_ref = block.ref_(self);
-            let block_as_block = block_ref.as_block();
             statements.add_range(
-                Some(&block_as_block.statements.ref_(self)[statement_offset..]),
+                Some(&block.ref_(self).as_block().statements.ref_(self)[statement_offset..]),
                 None,
                 None,
             );
@@ -2259,7 +2255,10 @@ impl TransformES2018 {
                 self.factory
                     .ref_(self)
                     .create_node_array(Some(statements), None)
-                    .set_text_range(Some(&*block_as_block.statements.ref_(self)), self),
+                    .set_text_range(
+                        Some(&*block.ref_(self).as_block().statements.ref_(self)),
+                        self,
+                    ),
             );
         }
         body

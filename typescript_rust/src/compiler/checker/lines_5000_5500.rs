@@ -983,11 +983,12 @@ impl NodeBuilder {
                 )
                 .into()
         } else {
-            let root_ref = root.ref_(self);
-            let root_as_type_reference_node = root_ref.as_type_reference_node();
-            let type_arguments = root_as_type_reference_node.maybe_type_arguments();
+            let type_arguments = root
+                .ref_(self)
+                .as_type_reference_node()
+                .maybe_type_arguments();
             let type_arguments = type_arguments.as_ref();
-            let mut type_name: Id<Node> = root_as_type_reference_node.type_name;
+            let mut type_name: Id<Node> = root.ref_(self).as_type_reference_node().type_name;
             if is_identifier(&type_name.ref_(self)) {
                 type_name = get_factory(self).update_identifier(type_name, type_arguments.cloned());
             } else {

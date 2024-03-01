@@ -5,9 +5,9 @@ use id_arena::Id;
 use super::get_node_id;
 use crate::{
     count_where, create_symbol_table, find, is_assertion_expression, is_const_type_reference,
-    is_this_identifier, is_type_alias_declaration, is_type_operator_node, length, map, some,
-    symbol_name, try_map, try_maybe_map, try_some, AsDoubleDeref, BaseInterfaceType, CheckFlags,
-    DiagnosticMessage, Diagnostics, ElementFlags, GenericableTypeInterface, HasArena,
+    is_this_identifier, is_type_alias_declaration, is_type_operator_node, length, map, released,
+    some, symbol_name, try_map, try_maybe_map, try_some, AsDoubleDeref, BaseInterfaceType,
+    CheckFlags, DiagnosticMessage, Diagnostics, ElementFlags, GenericableTypeInterface, HasArena,
     HasTypeArgumentsInterface, InArena, InterfaceTypeInterface,
     InterfaceTypeWithDeclaredMembersInterface, Node, NodeInterface, Number, ObjectFlags,
     OptionInArena, OptionTry, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
@@ -109,7 +109,11 @@ impl TypeChecker {
             )) {
                 self.check_this_expression(node.ref_(self).as_type_query_node().expr_name)?
             } else {
-                self.check_expression(node.ref_(self).as_type_query_node().expr_name, None, None)?
+                self.check_expression(
+                    released!(node.ref_(self).as_type_query_node().expr_name),
+                    None,
+                    None,
+                )?
             };
             links.ref_mut(self).resolved_type =
                 Some(self.get_regular_type_of_literal_type(self.get_widened_type(type_)?));

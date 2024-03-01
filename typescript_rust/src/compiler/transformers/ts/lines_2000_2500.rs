@@ -413,9 +413,7 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*InitializedVariableDeclaration*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_variable_declaration = node_ref.as_variable_declaration();
-        let name = node_as_variable_declaration.name();
+        let name = node.ref_(self).as_variable_declaration().name();
         Ok(if is_binding_pattern(Some(&*name.ref_(self))) {
             try_flatten_destructuring_assignment(
                 node,
@@ -442,7 +440,11 @@ impl TransformTypeScript {
                 .create_assignment(
                     self.get_namespace_member_name_with_source_maps_and_without_comments(name),
                     try_visit_node(
-                        node_as_variable_declaration.maybe_initializer().unwrap(),
+                        released!(node
+                            .ref_(self)
+                            .as_variable_declaration()
+                            .maybe_initializer()
+                            .unwrap()),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

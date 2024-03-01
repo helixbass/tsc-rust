@@ -860,8 +860,10 @@ impl TypeChecker {
 
     pub(super) fn check_if_statement(&self, node: Id<Node> /*IfStatement*/) -> io::Result<()> {
         self.check_grammar_statement_in_ambient_context(node);
-        let type_ =
-            self.check_truthiness_expression(node.ref_(self).as_if_statement().expression, None)?;
+        let type_ = self.check_truthiness_expression(
+            released!(node.ref_(self).as_if_statement().expression),
+            None,
+        )?;
         self.check_testing_known_truthy_callable_or_awaitable_type(
             node.ref_(self).as_if_statement().expression,
             type_,

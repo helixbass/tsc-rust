@@ -47,7 +47,7 @@ impl Printer {
         )?;
         self.emit_expression_list(
             Some(node),
-            Some(node.ref_(self).as_call_expression().arguments),
+            released!(Some(node.ref_(self).as_call_expression().arguments)),
             ListFormat::CallExpressionArguments,
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(

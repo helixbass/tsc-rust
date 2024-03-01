@@ -7918,7 +7918,11 @@ impl OptionInArena for Option<Id<Node>> {
     type Item = Node;
 
     fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<Ref<'a, Node>> {
-        self.map(|node| has_arena.node(node))
+        // self.map(|node| has_arena.node(node))
+        match self {
+            None => None,
+            Some(node) => Some(has_arena.node(node)),
+        }
     }
 }
 

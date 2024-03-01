@@ -10,8 +10,8 @@ use crate::{
     length, Debug_, Diagnostics, ElementFlags, EnumKind, Extension, ExternalEmitHelpers,
     HasTypeArgumentsInterface, InternalSymbolName, ModuleKind, NamedDeclarationInterface,
     NodeFlags, Number, ObjectFlags, ScriptTarget, Signature, SignatureFlags, SymbolFlags,
-    TransientSymbolInterface, __String, has_initializer, maybe_get_source_file_of_node, HasArena,
-    InArena, Node, NodeInterface, OptionTry, Symbol, SymbolInterface, SyntaxKind, Type,
+    TransientSymbolInterface, __String, has_initializer, maybe_get_source_file_of_node, released,
+    HasArena, InArena, Node, NodeInterface, OptionTry, Symbol, SymbolInterface, SyntaxKind, Type,
     TypeChecker, TypeFlags, TypeInterface,
 };
 
@@ -384,8 +384,8 @@ impl TypeChecker {
         }
         self.check_assertion_worker(
             node,
-            node.ref_(self).as_has_type().maybe_type().unwrap(),
-            node.ref_(self).as_has_expression().expression(),
+            released!(node.ref_(self).as_has_type().maybe_type().unwrap()),
+            released!(node.ref_(self).as_has_expression().expression()),
             None,
         )
     }

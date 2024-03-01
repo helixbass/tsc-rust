@@ -437,19 +437,17 @@ impl TransformJsx {
         node: Id<Node>, /*JsxElement*/
         is_child: bool,
     ) -> Option<Id<Node>> {
-        let node_ref = node.ref_(self);
-        let node_as_jsx_element = node_ref.as_jsx_element();
-        if self.should_use_create_element(node_as_jsx_element.opening_element) {
+        if self.should_use_create_element(node.ref_(self).as_jsx_element().opening_element) {
             self.visit_jsx_opening_like_element_create_element(
-                node_as_jsx_element.opening_element,
-                Some(&node_as_jsx_element.children.ref_(self)),
+                released!(node.ref_(self).as_jsx_element().opening_element),
+                released!(Some(&node.ref_(self).as_jsx_element().children.ref_(self))),
                 is_child,
-                &*node.ref_(self),
+                &released!(ReadonlyTextRangeConcrete::from(&*node.ref_(self))),
             )
         } else {
             self.visit_jsx_opening_like_element_jsx(
-                node_as_jsx_element.opening_element,
-                Some(&node_as_jsx_element.children.ref_(self)),
+                node.ref_(self).as_jsx_element().opening_element,
+                Some(&node.ref_(self).as_jsx_element().children.ref_(self)),
                 is_child,
                 &*node.ref_(self),
             )

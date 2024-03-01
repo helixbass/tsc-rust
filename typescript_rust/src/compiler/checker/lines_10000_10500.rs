@@ -104,9 +104,10 @@ impl TypeChecker {
                 if declaration.ref_(self).kind() == SyntaxKind::InterfaceDeclaration
                     && get_interface_base_type_nodes(declaration, self).is_some()
                 {
-                    for &node in &*get_interface_base_type_nodes(declaration, self)
+                    for &node in &*released!(get_interface_base_type_nodes(declaration, self)
                         .unwrap()
                         .ref_(self)
+                        .clone())
                     {
                         let base_type =
                             self.get_reduced_type(self.get_type_from_type_node_(node)?)?;

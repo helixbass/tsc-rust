@@ -190,14 +190,17 @@ impl TypeChecker {
                 .maybe_regular_type()
                 .is_none()
             {
-                type_.ref_(self).as_union_type().set_regular_type(Some(
-                    self.map_type(
+                let regular_type = self
+                    .map_type(
                         type_,
                         &mut |type_| Some(self.get_regular_type_of_literal_type(type_)),
                         None,
                     )
-                    .unwrap(),
-                ));
+                    .unwrap();
+                type_
+                    .ref_(self)
+                    .as_union_type()
+                    .set_regular_type(Some(regular_type));
             }
             type_
                 .ref_(self)

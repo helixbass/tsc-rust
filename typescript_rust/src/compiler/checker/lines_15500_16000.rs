@@ -73,9 +73,10 @@ impl TypeChecker {
             let type_ = self.alloc_type(MappedType::new(type_, node).into());
             let alias_symbol = self.get_alias_symbol_for_type_node(node)?;
             type_.ref_(self).set_alias_symbol(alias_symbol);
+            let alias_type_arguments = self.get_type_arguments_for_alias_symbol(alias_symbol)?;
             type_
                 .ref_(self)
-                .set_alias_type_arguments(self.get_type_arguments_for_alias_symbol(alias_symbol)?);
+                .set_alias_type_arguments(alias_type_arguments);
             links.ref_mut(self).resolved_type = Some(type_.clone());
             self.get_constraint_type_from_mapped_type(type_)?;
         }

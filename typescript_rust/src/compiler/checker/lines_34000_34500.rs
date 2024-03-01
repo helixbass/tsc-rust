@@ -25,20 +25,18 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*TypeParameterDeclaration*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_type_parameter_declaration = node_ref.as_type_parameter_declaration();
-        if let Some(node_expression) = node_as_type_parameter_declaration.expression {
+        if let Some(node_expression) = node.ref_(self).as_type_parameter_declaration().expression {
             self.grammar_error_on_first_token(node_expression, &Diagnostics::Type_expected, None);
         }
 
-        self.check_source_element(node_as_type_parameter_declaration.constraint)?;
-        self.check_source_element(node_as_type_parameter_declaration.default)?;
+        self.check_source_element(node.ref_(self).as_type_parameter_declaration().constraint)?;
+        self.check_source_element(node.ref_(self).as_type_parameter_declaration().default)?;
         let type_parameter =
             self.get_declared_type_of_type_parameter(self.get_symbol_of_node(node)?.unwrap());
         self.get_base_constraint_of_type(type_parameter)?;
         if !self.has_non_circular_type_parameter_default(type_parameter)? {
             self.error(
-                node_as_type_parameter_declaration.default,
+                node.ref_(self).as_type_parameter_declaration().default,
                 &Diagnostics::Type_parameter_0_has_a_circular_default,
                 Some(vec![self.type_to_string_(
                     type_parameter,
@@ -61,7 +59,7 @@ impl TypeChecker {
                     Some(default_type),
                     None,
                 )?,
-                node_as_type_parameter_declaration.default,
+                node.ref_(self).as_type_parameter_declaration().default,
                 Some(&Diagnostics::Type_0_does_not_satisfy_the_constraint_1),
                 None,
                 None,
@@ -69,7 +67,7 @@ impl TypeChecker {
         }
         if self.produce_diagnostics {
             self.check_type_name_is_reserved(
-                node_as_type_parameter_declaration.name(),
+                node.ref_(self).as_type_parameter_declaration().name(),
                 &Diagnostics::Type_parameter_name_cannot_be_0,
             );
         }

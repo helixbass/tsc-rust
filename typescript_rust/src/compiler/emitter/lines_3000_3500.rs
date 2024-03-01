@@ -371,7 +371,7 @@ impl Printer {
         // if (emitBodyWithDetachedComments) {
         self.try_emit_body_with_detached_comments(
             body,
-            &*body.ref_(self).as_block().statements.ref_(self),
+            &*released!(body.ref_(self).as_block().statements).ref_(self),
             |node: Id<Node>| {
                 Ok(if should_emit_block_function_body_on_single_line {
                     self.emit_block_function_body_on_single_line(node)?;
@@ -437,7 +437,7 @@ impl Printer {
             } else {
                 self.emit_list(
                     Some(body),
-                    Some(body.ref_(self).as_block().statements),
+                    released!(Some(body.ref_(self).as_block().statements)),
                     ListFormat::MultiLineFunctionBodyStatements,
                     None,
                     Some(statement_offset),

@@ -225,9 +225,9 @@ impl TypeChecker {
         };
         self.check_property_access_expression_or_qualified_name(
             node,
-            node.ref_(self).as_qualified_name().left,
+            released!(node.ref_(self).as_qualified_name().left),
             left_type,
-            node.ref_(self).as_qualified_name().right,
+            released!(node.ref_(self).as_qualified_name().right),
             check_mode,
         )
     }

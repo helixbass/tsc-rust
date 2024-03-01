@@ -638,7 +638,7 @@ impl TransformClassFields {
                     .is_some()
                 && self.maybe_current_class_lexical_environment().is_some()
         {
-            match node.ref_(self).kind() {
+            match released!(node.ref_(self).kind()) {
                 SyntaxKind::PrefixUnaryExpression | SyntaxKind::PostfixUnaryExpression => {
                     return self.visit_pre_or_postfix_unary_expression(node, value_is_discarded);
                 }

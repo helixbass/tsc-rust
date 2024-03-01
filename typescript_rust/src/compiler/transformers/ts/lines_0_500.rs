@@ -814,7 +814,7 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
     }
 
     fn substitute_expression(&self, node: Id<Node> /*Expression*/) -> io::Result<Id<Node>> {
-        match node.ref_(self).kind() {
+        match released!(node.ref_(self).kind()) {
             SyntaxKind::Identifier => {
                 return self.substitute_expression_identifier(node);
             }

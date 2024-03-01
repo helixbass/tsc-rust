@@ -69,18 +69,19 @@ impl TypeChecker {
         let mut first_default_clause: Option<Id<Node /*CaseOrDefaultClause*/>> = None;
         let mut has_duplicate_default_clause = false;
 
-        let node_ref = node.ref_(self);
-        let node_as_switch_statement = node_ref.as_switch_statement();
         let expression_type =
-            self.check_expression(node_as_switch_statement.expression, None, None)?;
+            self.check_expression(node.ref_(self).as_switch_statement().expression, None, None)?;
         let expression_is_literal = self.is_literal_type(expression_type);
         try_for_each(
-            &*node_as_switch_statement
-                .case_block
-                .ref_(self)
-                .as_case_block()
-                .clauses
-                .ref_(self),
+            &*released!(
+                node.ref_(self)
+                    .as_switch_statement()
+                    .case_block
+                    .ref_(self)
+                    .as_case_block()
+                    .clauses
+            )
+            .ref_(self),
             |&clause: &Id<Node>, _| -> io::Result<Option<()>> {
                 if clause.ref_(self).kind() == SyntaxKind::DefaultClause
                     && !has_duplicate_default_clause
@@ -98,10 +99,11 @@ impl TypeChecker {
                 }
 
                 if self.produce_diagnostics && clause.ref_(self).kind() == SyntaxKind::CaseClause {
-                    let clause_ref = clause.ref_(self);
-                    let clause_as_case_clause = clause_ref.as_case_clause();
-                    let mut case_type =
-                        self.check_expression(clause_as_case_clause.expression, None, None)?;
+                    let mut case_type = self.check_expression(
+                        clause.ref_(self).as_case_clause().expression,
+                        None,
+                        None,
+                    )?;
                     let case_is_literal = self.is_literal_type(case_type);
                     let mut compared_expression_type = expression_type.clone();
                     if !case_is_literal || !expression_is_literal {
@@ -117,7 +119,7 @@ impl TypeChecker {
                         self.check_type_comparable_to(
                             case_type,
                             compared_expression_type,
-                            clause_as_case_clause.expression,
+                            clause.ref_(self).as_case_clause().expression,
                             None,
                             None,
                         )?;
@@ -149,13 +151,17 @@ impl TypeChecker {
                 Ok(None)
             },
         )?;
-        if node_as_switch_statement
+        if node
+            .ref_(self)
+            .as_switch_statement()
             .case_block
             .ref_(self)
             .maybe_locals()
             .is_some()
         {
-            self.register_for_unused_identifiers_check(node_as_switch_statement.case_block);
+            self.register_for_unused_identifiers_check(
+                node.ref_(self).as_switch_statement().case_block,
+            );
         }
 
         Ok(())
@@ -958,11 +964,10 @@ impl TypeChecker {
 
         let base_type_node = get_effective_base_type_node(node, self);
         if let Some(base_type_node) = base_type_node {
-            let base_type_node_ref = base_type_node.ref_(self);
-            let base_type_node_as_expression_with_type_arguments =
-                base_type_node_ref.as_expression_with_type_arguments();
             try_maybe_for_each(
-                base_type_node_as_expression_with_type_arguments
+                base_type_node
+                    .ref_(self)
+                    .as_expression_with_type_arguments()
                     .maybe_type_arguments()
                     .refed(self)
                     .as_deref(),
@@ -998,17 +1003,24 @@ impl TypeChecker {
                 let static_base_type = self.get_apparent_type(base_constructor_type)?;
                 self.check_base_type_accessibility(static_base_type, base_type_node)?;
                 self.check_source_element(Some(
-                    base_type_node_as_expression_with_type_arguments.expression,
+                    base_type_node
+                        .ref_(self)
+                        .as_expression_with_type_arguments()
+                        .expression,
                 ))?;
                 if some(
-                    base_type_node_as_expression_with_type_arguments
+                    base_type_node
+                        .ref_(self)
+                        .as_expression_with_type_arguments()
                         .maybe_type_arguments()
                         .refed(self)
                         .as_double_deref(),
                     Option::<fn(&Id<Node>) -> bool>::None,
                 ) {
                     try_maybe_for_each(
-                        base_type_node_as_expression_with_type_arguments
+                        base_type_node
+                            .ref_(self)
+                            .as_expression_with_type_arguments()
                             .maybe_type_arguments()
                             .refed(self)
                             .as_deref(),
@@ -1019,7 +1031,9 @@ impl TypeChecker {
                     )?;
                     for constructor in &self.get_constructors_for_type_arguments(
                         static_base_type,
-                        base_type_node_as_expression_with_type_arguments
+                        base_type_node
+                            .ref_(self)
+                            .as_expression_with_type_arguments()
                             .maybe_type_arguments()
                             .refed(self)
                             .as_double_deref(),
@@ -1110,7 +1124,9 @@ impl TypeChecker {
                 {
                     let constructors = self.get_instantiated_constructors_for_type_arguments(
                         static_base_type,
-                        base_type_node_as_expression_with_type_arguments
+                        base_type_node
+                            .ref_(self)
+                            .as_expression_with_type_arguments()
                             .maybe_type_arguments()
                             .refed(self)
                             .as_double_deref(),
@@ -1127,7 +1143,12 @@ impl TypeChecker {
                         },
                     )? {
                         self.error(
-                            Some(base_type_node_as_expression_with_type_arguments.expression),
+                            Some(
+                                base_type_node
+                                    .ref_(self)
+                                    .as_expression_with_type_arguments()
+                                    .expression,
+                            ),
                             &Diagnostics::Base_constructors_must_all_have_the_same_return_type,
                             None,
                         );
