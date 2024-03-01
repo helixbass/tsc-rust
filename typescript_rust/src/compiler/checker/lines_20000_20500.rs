@@ -12,7 +12,7 @@ use super::{CheckTypeRelatedTo, IntersectionState, RecursionFlags};
 use crate::{
     get_declaration_modifier_flags_from_symbol, get_object_flags, try_every, ConditionalRoot,
     OutofbandVarianceMarkerHandler, SymbolLinks, TransientSymbolInterface, __String, every,
-    get_check_flags, get_selected_effective_modifier_flags, maybe_map, some, try_filter,
+    get_check_flags, get_selected_effective_modifier_flags, maybe_map, released, some, try_filter,
     try_for_each_bool, try_some, CheckFlags, Diagnostics, HasArena, InArena, IndexInfo,
     ModifierFlags, Node, ObjectFlags, ObjectFlagsTypeInterface, OptionTry,
     RelationComparisonResult, Signature, Symbol, SymbolFlags, SymbolInterface, Ternary, Type,
@@ -30,8 +30,8 @@ impl CheckTypeRelatedTo {
         let related = Self::is_related_to(
             self_,
             arena,
-            source_info.ref_(arena).type_,
-            target_info.ref_(arena).type_,
+            released!(source_info.ref_(arena).type_),
+            released!(target_info.ref_(arena).type_),
             Some(RecursionFlags::Both),
             Some(report_errors),
             None,

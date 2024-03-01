@@ -567,8 +567,10 @@ impl NodeBuilder {
                     .call_signatures()
                     .is_empty()
             {
-                let resolved_ref = resolved.ref_(self);
-                let signature = &resolved_ref.as_resolved_type().construct_signatures()[0];
+                let signature = resolved
+                    .ref_(self)
+                    .as_resolved_type()
+                    .construct_signatures()[0];
                 let signature_node = self.signature_to_signature_declaration_helper(
                     signature.clone(),
                     SyntaxKind::ConstructorType,

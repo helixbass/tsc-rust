@@ -213,23 +213,21 @@ impl TypeChecker {
         node: Id<Node>, /*QualifiedName*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
-        let node_ref = node.ref_(self);
-        let node_as_qualified_name = node_ref.as_qualified_name();
         let left_type = if is_part_of_type_query(node, self)
-            && is_this_identifier(Some(&node_as_qualified_name.left.ref_(self)))
+            && is_this_identifier(Some(&node.ref_(self).as_qualified_name().left.ref_(self)))
         {
             self.check_non_null_type(
-                self.check_this_expression(node_as_qualified_name.left)?,
-                node_as_qualified_name.left,
+                self.check_this_expression(node.ref_(self).as_qualified_name().left)?,
+                node.ref_(self).as_qualified_name().left,
             )?
         } else {
-            self.check_non_null_expression(node_as_qualified_name.left)?
+            self.check_non_null_expression(node.ref_(self).as_qualified_name().left)?
         };
         self.check_property_access_expression_or_qualified_name(
             node,
-            node_as_qualified_name.left,
+            node.ref_(self).as_qualified_name().left,
             left_type,
-            node_as_qualified_name.right,
+            node.ref_(self).as_qualified_name().right,
             check_mode,
         )
     }

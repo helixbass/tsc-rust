@@ -12,8 +12,8 @@ use crate::{
     is_function_or_module_block, is_identifier, is_in_js_file, is_optional_chain, is_parameter,
     is_private_identifier, is_property_access_expression, is_property_declaration,
     is_property_signature, is_push_or_unshift_identifier, is_string_literal_like,
-    is_variable_declaration, skip_parentheses, try_every, try_filter, try_for_each, try_map,
-    try_some, CheckFlags, Diagnostic, Diagnostics, EvolvingArrayType, FlowFlags, FlowNode,
+    is_variable_declaration, released, skip_parentheses, try_every, try_filter, try_for_each,
+    try_map, try_some, CheckFlags, Diagnostic, Diagnostics, EvolvingArrayType, FlowFlags, FlowNode,
     FlowNodeBase, FlowType, HasArena, HasInitializerInterface, InArena, IncompleteType,
     NamedDeclarationInterface, Node, NodeFlags, NodeInterface, ObjectFlags,
     ObjectFlagsTypeInterface, OptionTry, ReadonlyTextRange, Signature, SignatureKind, Symbol,
@@ -1094,25 +1094,35 @@ impl TypeChecker {
         let mut signature = links.ref_(self).effects_signature.clone();
         if signature.is_none() {
             let mut func_type: Option<Id<Type>> = None;
-            let node_ref = node.ref_(self);
-            let node_as_call_expression = node_ref.as_call_expression();
             if node.ref_(self).parent().ref_(self).kind() == SyntaxKind::ExpressionStatement {
-                func_type =
-                    self.get_type_of_dotted_name(node_as_call_expression.expression, None)?;
-            } else if node_as_call_expression.expression.ref_(self).kind()
+                func_type = self.get_type_of_dotted_name(
+                    node.ref_(self).as_call_expression().expression,
+                    None,
+                )?;
+            } else if node
+                .ref_(self)
+                .as_call_expression()
+                .expression
+                .ref_(self)
+                .kind()
                 != SyntaxKind::SuperKeyword
             {
                 if is_optional_chain(&node.ref_(self)) {
                     func_type = Some(self.check_non_null_type(
                         self.get_optional_expression_type(
-                            self.check_expression(node_as_call_expression.expression, None, None)?,
-                            node_as_call_expression.expression,
+                            self.check_expression(
+                                node.ref_(self).as_call_expression().expression,
+                                None,
+                                None,
+                            )?,
+                            node.ref_(self).as_call_expression().expression,
                         )?,
-                        node_as_call_expression.expression,
+                        node.ref_(self).as_call_expression().expression,
                     )?);
                 } else {
-                    func_type =
-                        Some(self.check_non_null_expression(node_as_call_expression.expression)?);
+                    func_type = Some(self.check_non_null_expression(released!(
+                        node.ref_(self).as_call_expression().expression
+                    ))?);
                 }
             }
             let signatures = self.get_signatures_of_type(

@@ -719,9 +719,10 @@ impl TransformES2015 {
             .ref_(self)
             .create_function_expression(
                 Option::<Id<NodeArray>>::None,
-                node.ref_(self)
+                released!(node
+                    .ref_(self)
                     .as_function_like_declaration()
-                    .maybe_asterisk_token(),
+                    .maybe_asterisk_token()),
                 name,
                 Option::<Id<NodeArray>>::None,
                 Some(parameters),

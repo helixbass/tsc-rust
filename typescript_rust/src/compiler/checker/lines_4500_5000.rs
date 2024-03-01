@@ -18,9 +18,9 @@ use crate::{
     is_late_visibility_painted_statement, is_module_with_string_literal_name,
     is_type_reference_node, is_variable_declaration, is_variable_statement, maybe_filter,
     maybe_get_source_file_of_node, no_truncation_maximum_truncation_length,
-    pseudo_big_int_to_string, ref_mut_unwrapped, ref_unwrapped, set_emit_flags, symbol_name,
-    try_map, try_using_single_line_string_writer, using_single_line_string_writer, AllArenas,
-    Debug_, EmitFlags, EmitHint, EmitTextWriter, FileIncludeReason, HasArena,
+    pseudo_big_int_to_string, ref_mut_unwrapped, ref_unwrapped, released, set_emit_flags,
+    symbol_name, try_map, try_using_single_line_string_writer, using_single_line_string_writer,
+    AllArenas, Debug_, EmitFlags, EmitHint, EmitTextWriter, FileIncludeReason, HasArena,
     IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory, InArena, IndexInfo,
     KeywordTypeNode, ModifierFlags, ModuleSpecifierResolutionHost,
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, MultiMap, Node, NodeArray,
@@ -506,7 +506,7 @@ impl TypeChecker {
         left: Id<Type>,
         right: Id<Type>,
     ) -> io::Result<(String, String)> {
-        let mut left_str = if let Some(symbol) = left.ref_(self).maybe_symbol() {
+        let mut left_str = if let Some(symbol) = released!(left.ref_(self).maybe_symbol()) {
             if self.symbol_value_declaration_is_context_sensitive(Some(symbol))? {
                 let enclosing_declaration = symbol.ref_(self).maybe_value_declaration();
                 self.type_to_string_(left, enclosing_declaration, None, None)?

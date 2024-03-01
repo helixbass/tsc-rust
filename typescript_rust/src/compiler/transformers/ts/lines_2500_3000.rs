@@ -284,8 +284,6 @@ impl TransformTypeScript {
         node: Id<Node>,                 /*ModuleDeclaration*/
         namespace_local_name: Id<Node>, /*Identifier*/
     ) -> io::Result<Id<Node>> /*Identifier*/ {
-        let node_ref = node.ref_(self);
-        let node_as_module_declaration = node_ref.as_module_declaration();
         let saved_current_namespace_container_name = self.maybe_current_namespace_container_name();
         let saved_current_namespace = self.maybe_current_namespace();
         let saved_current_scope_first_declarations_of_name = self
@@ -300,14 +298,14 @@ impl TransformTypeScript {
 
         let mut statements_location: Option<ReadonlyTextRangeConcrete> = Default::default();
         let mut block_location: Option<Id<Node> /*TextRange*/> = Default::default();
-        if let Some(node_body) = node_as_module_declaration.body {
+        if let Some(node_body) = released!(node.ref_(self).as_module_declaration().body) {
             if node_body.ref_(self).kind() == SyntaxKind::ModuleBlock {
                 self.try_save_state_and_invoke(node_body, |body: Id<Node>| {
                     add_range(
                         &mut statements,
                         Some(
                             &try_visit_nodes(
-                                body.ref_(self).as_module_block().statements,
+                                released!(body.ref_(self).as_module_block().statements),
                                 Some(|node: Id<Node>| self.namespace_element_visitor(node)),
                                 Some(|node| is_statement(node, self)),
                                 None,
@@ -385,7 +383,7 @@ impl TransformTypeScript {
             )
             .set_text_range(block_location.refed(self).as_deref(), self);
 
-        if match node_as_module_declaration.body {
+        if match node.ref_(self).as_module_declaration().body {
             None => true,
             Some(node_body) => node_body.ref_(self).kind() != SyntaxKind::ModuleBlock,
         } {

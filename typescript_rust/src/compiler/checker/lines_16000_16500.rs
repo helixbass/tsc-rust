@@ -9,9 +9,9 @@ use crate::{
     is_constructor_declaration, is_function_expression, is_node_descendant_of,
     is_object_literal_expression, is_private_identifier_class_element_declaration, is_static,
     is_valid_es_symbol_declaration, map, maybe_add_range, maybe_is_class_like,
-    pseudo_big_int_to_string, return_ok_none_if_none, some, try_map, try_maybe_filter, try_some,
-    AssignmentDeclarationKind, BaseLiteralType, BigIntLiteralType, CheckFlags, Diagnostics,
-    FunctionLikeDeclarationInterface, HasArena, InArena, IndexInfo, InferenceContext,
+    pseudo_big_int_to_string, released, return_ok_none_if_none, some, try_map, try_maybe_filter,
+    try_some, AssignmentDeclarationKind, BaseLiteralType, BigIntLiteralType, CheckFlags,
+    Diagnostics, FunctionLikeDeclarationInterface, HasArena, InArena, IndexInfo, InferenceContext,
     InferenceInfo, InterfaceTypeInterface, IntrinsicType, LiteralType, LiteralTypeInterface, Node,
     NodeFlags, NodeInterface, Number, NumberLiteralType, ObjectFlags, ObjectFlagsTypeInterface,
     ObjectTypeInterface, OptionInArena, OptionTry, PseudoBigInt, Signature, SignatureFlags,
@@ -574,7 +574,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*TypeNode*/
     ) -> io::Result<Id<Type>> {
-        Ok(match node.ref_(self).kind() {
+        Ok(match released!(node.ref_(self).kind()) {
             SyntaxKind::AnyKeyword | SyntaxKind::JSDocAllType | SyntaxKind::JSDocUnknownType => {
                 self.any_type()
             }

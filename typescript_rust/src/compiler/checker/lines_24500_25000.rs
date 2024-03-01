@@ -16,7 +16,7 @@ use crate::{
     is_parameter_or_catch_clause_variable, is_property_access_expression, is_property_declaration,
     is_right_side_of_qualified_name_or_property_access, is_set_accessor, is_spread_assignment,
     is_static, is_string_literal_like, is_variable_declaration, is_write_access, node_is_decorated,
-    should_preserve_const_enums, try_find, try_for_each_child, try_map, AssignmentKind,
+    released, should_preserve_const_enums, try_find, try_for_each_child, try_map, AssignmentKind,
     ContextFlags, Diagnostics, FindAncestorCallbackReturn, HasInitializerInterface,
     HasTypeInterface, InArena, ModifierFlags, Node, NodeArray, NodeCheckFlags, NodeFlags,
     NodeInterface, ObjectFlags, OptionTry, ScriptTarget, Signature, SignatureKind, Symbol,
@@ -476,7 +476,7 @@ impl GetFlowTypeOfReference {
         } {
             return self.narrow_type_by_optionality(type_, expr, assume_true);
         }
-        match expr.ref_(self).kind() {
+        match released!(expr.ref_(self).kind()) {
             SyntaxKind::Identifier => {
                 if !self
                     .type_checker

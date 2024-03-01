@@ -514,14 +514,15 @@ impl NodeFactory {
         node: Id<Node>,                      /*ArrayLiteralExpression*/
         elements: impl Into<NodeArrayOrVec>, /*Expression*/
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_array_literal_expression = node_ref.as_array_literal_expression();
         let elements = elements.into();
-        if has_node_array_changed(node_as_array_literal_expression.elements, &elements) {
+        if has_node_array_changed(
+            node.ref_(self).as_array_literal_expression().elements,
+            &elements,
+        ) {
             self.update(
                 self.create_array_literal_expression(
                     Some(elements),
-                    node_as_array_literal_expression.multi_line,
+                    node.ref_(self).as_array_literal_expression().multi_line,
                 ),
                 node,
             )

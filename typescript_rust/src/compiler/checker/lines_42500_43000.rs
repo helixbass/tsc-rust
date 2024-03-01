@@ -14,8 +14,8 @@ use crate::{
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface,
     InterfaceOrClassLikeDeclarationInterface, LineAndCharacter, NamedDeclarationInterface,
     NodeArray, NodeFlags, ReadonlyTextRange, ScriptTarget, SourceFileLike, SyntaxKind, TypeFlags,
-    TypeInterface, __String, for_each, HasArena, InArena, Node, NodeInterface, OptionInArena, Type,
-    TypeChecker,
+    TypeInterface, __String, for_each, released, HasArena, InArena, Node, NodeInterface,
+    OptionInArena, Type, TypeChecker,
 };
 
 impl TypeChecker {
@@ -437,14 +437,21 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*SignatureDeclaration*/
     ) -> io::Result<bool> {
-        let node_ref = node.ref_(self);
-        let node_as_signature_declaration = node_ref.as_signature_declaration();
-        let parameter = node_as_signature_declaration
+        let parameter = node
+            .ref_(self)
+            .as_signature_declaration()
             .parameters()
             .ref_(self)
             .get(0)
             .cloned();
-        if node_as_signature_declaration.parameters().ref_(self).len() != 1 {
+        if node
+            .ref_(self)
+            .as_signature_declaration()
+            .parameters()
+            .ref_(self)
+            .len()
+            != 1
+        {
             if let Some(parameter) = parameter.as_ref() {
                 return Ok(self.grammar_error_on_node(
                     parameter.ref_(self).as_parameter_declaration().name(),
@@ -460,14 +467,14 @@ impl TypeChecker {
             }
         }
         self.check_grammar_for_disallowed_trailing_comma(
-            Some(node_as_signature_declaration.parameters()),
+            Some(node.ref_(self).as_signature_declaration().parameters()),
             Some(&Diagnostics::An_index_signature_cannot_have_a_trailing_comma),
         );
         let parameter = parameter.unwrap();
-        let parameter_ref = parameter.ref_(self);
-        let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
-        if let Some(parameter_dot_dot_dot_token) =
-            parameter_as_parameter_declaration.dot_dot_dot_token
+        if let Some(parameter_dot_dot_dot_token) = parameter
+            .ref_(self)
+            .as_parameter_declaration()
+            .dot_dot_dot_token
         {
             return Ok(self.grammar_error_on_node(
                 parameter_dot_dot_dot_token,
@@ -477,37 +484,51 @@ impl TypeChecker {
         }
         if has_effective_modifiers(parameter, self) {
             return Ok(self.grammar_error_on_node(
-                parameter_as_parameter_declaration.name(),
+                parameter.ref_(self).as_parameter_declaration().name(),
                 &Diagnostics::An_index_signature_parameter_cannot_have_an_accessibility_modifier,
                 None,
             ));
         }
-        if let Some(parameter_question_token) = parameter_as_parameter_declaration.question_token {
+        if let Some(parameter_question_token) = parameter
+            .ref_(self)
+            .as_parameter_declaration()
+            .question_token
+        {
             return Ok(self.grammar_error_on_node(
                 parameter_question_token,
                 &Diagnostics::An_index_signature_parameter_cannot_have_a_question_mark,
                 None,
             ));
         }
-        if parameter_as_parameter_declaration
+        if parameter
+            .ref_(self)
+            .as_parameter_declaration()
             .maybe_initializer()
             .is_some()
         {
             return Ok(self.grammar_error_on_node(
-                parameter_as_parameter_declaration.name(),
+                parameter.ref_(self).as_parameter_declaration().name(),
                 &Diagnostics::An_index_signature_parameter_cannot_have_an_initializer,
                 None,
             ));
         }
-        if parameter_as_parameter_declaration.maybe_type().is_none() {
+        if parameter
+            .ref_(self)
+            .as_parameter_declaration()
+            .maybe_type()
+            .is_none()
+        {
             return Ok(self.grammar_error_on_node(
-                parameter_as_parameter_declaration.name(),
+                parameter.ref_(self).as_parameter_declaration().name(),
                 &Diagnostics::An_index_signature_parameter_must_have_a_type_annotation,
                 None,
             ));
         }
-        let type_ = self
-            .get_type_from_type_node_(parameter_as_parameter_declaration.maybe_type().unwrap())?;
+        let type_ = self.get_type_from_type_node_(released!(parameter
+            .ref_(self)
+            .as_parameter_declaration()
+            .maybe_type()
+            .unwrap()))?;
         if self.some_type(type_, |t: Id<Type>| {
             t.ref_(self)
                 .flags()
@@ -515,19 +536,24 @@ impl TypeChecker {
         }) || self.is_generic_type(type_)?
         {
             return Ok(self.grammar_error_on_node(
-                parameter_as_parameter_declaration.name(),
+                parameter.ref_(self).as_parameter_declaration().name(),
                 &Diagnostics::An_index_signature_parameter_type_cannot_be_a_literal_type_or_generic_type_Consider_using_a_mapped_object_type_instead,
                 None,
             ));
         }
         if !self.try_every_type(type_, |type_: Id<Type>| self.is_valid_index_key_type(type_))? {
             return Ok(self.grammar_error_on_node(
-                parameter_as_parameter_declaration.name(),
+                parameter.ref_(self).as_parameter_declaration().name(),
                 &Diagnostics::An_index_signature_parameter_type_must_be_string_number_symbol_or_a_template_literal_type,
                 None,
             ));
         }
-        if node_as_signature_declaration.maybe_type().is_none() {
+        if node
+            .ref_(self)
+            .as_signature_declaration()
+            .maybe_type()
+            .is_none()
+        {
             return Ok(self.grammar_error_on_node(
                 node,
                 &Diagnostics::An_index_signature_must_have_a_type_annotation,

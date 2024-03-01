@@ -633,9 +633,7 @@ impl CheckTypeRelatedTo {
                     .is_type_assignable_to(generalized_source, constraint)?
                     || {
                         needs_original_source = Some(
-                            self_
-                                .ref_(arena)
-                                .type_checker
+                            released!(self_.ref_(arena).type_checker)
                                 .ref_(arena)
                                 .is_type_assignable_to(source, constraint)?,
                         );

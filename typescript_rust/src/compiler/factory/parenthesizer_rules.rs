@@ -421,22 +421,18 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete {
             ) {
                 let updated = self.factory.ref_(self).update_call_expression(
                     emitted_expression,
-                    set_text_range_id_node(
+                    released!(set_text_range_id_node(
                         self.factory
                             .ref_(self)
                             .create_parenthesized_expression(callee),
                         Some(&*callee.ref_(self)),
                         self,
-                    ),
-                    emitted_expression
+                    )),
+                    released!(emitted_expression
                         .ref_(self)
                         .as_call_expression()
-                        .maybe_type_arguments(),
-                    emitted_expression
-                        .ref_(self)
-                        .as_call_expression()
-                        .arguments
-                        .clone(),
+                        .maybe_type_arguments()),
+                    released!(emitted_expression.ref_(self).as_call_expression().arguments),
                 );
                 return self.factory.ref_(self).restore_outer_expressions(
                     Some(expression),

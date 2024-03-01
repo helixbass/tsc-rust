@@ -8,7 +8,7 @@ use crate::{
     get_source_file_of_node, is_ambient_module, is_external_module,
     is_external_module_import_equals_declaration, is_external_or_common_js_module, is_in_js_file,
     is_namespace_reexport_declaration, is_umd_export_symbol, length, node_is_present,
-    push_if_unique_eq, some, try_for_each_entry, try_maybe_for_each, BaseInterfaceType,
+    push_if_unique_eq, released, some, try_for_each_entry, try_maybe_for_each, BaseInterfaceType,
     BaseIntrinsicType, BaseObjectType, BaseType, CharacterCodes, FunctionLikeDeclarationInterface,
     HasArena, InArena, IndexInfo, InternalSymbolName, Node, NodeInterface, ObjectFlags,
     OptionInArena, OptionTry, ResolvableTypeInterface, ResolvedTypeInterface, Signature,
@@ -672,10 +672,10 @@ impl TypeChecker {
             enclosing_declaration,
             use_only_external_aliasing,
             visited_symbol_tables_map,
-            symbols
+            released!(symbols
                 .ref_(self)
                 .get(symbol.ref_(self).escaped_name())
-                .cloned(),
+                .cloned()),
             Option::<Id<Symbol>>::None,
             ignore_qualification,
         )? {

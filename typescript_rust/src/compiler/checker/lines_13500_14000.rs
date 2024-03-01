@@ -104,12 +104,12 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if links.ref_(self).resolved_type.is_none() {
-            let node_ref = node.ref_(self);
-            let node_as_type_query_node = node_ref.as_type_query_node();
-            let type_ = if is_this_identifier(Some(&node_as_type_query_node.expr_name.ref_(self))) {
-                self.check_this_expression(node_as_type_query_node.expr_name)?
+            let type_ = if is_this_identifier(Some(
+                &node.ref_(self).as_type_query_node().expr_name.ref_(self),
+            )) {
+                self.check_this_expression(node.ref_(self).as_type_query_node().expr_name)?
             } else {
-                self.check_expression(node_as_type_query_node.expr_name, None, None)?
+                self.check_expression(node.ref_(self).as_type_query_node().expr_name, None, None)?
             };
             links.ref_mut(self).resolved_type =
                 Some(self.get_regular_type_of_literal_type(self.get_widened_type(type_)?));

@@ -10,7 +10,7 @@ use super::TypeFacts;
 use crate::{
     contains, get_assignment_target_kind, get_declared_expando_initializer, get_object_flags,
     impl_has_arena, is_in_js_file, is_parameter_or_catch_clause_variable, is_var_const,
-    is_variable_declaration, maybe_every, push_if_unique_eq, skip_parentheses, AllArenas,
+    is_variable_declaration, maybe_every, push_if_unique_eq, released, skip_parentheses, AllArenas,
     AssignmentKind, FlowFlags, FlowNode, FlowNodeBase, FlowType, HasArena, InArena, Node,
     NodeInterface, ObjectFlags, Symbol, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
     TypePredicateKind, UnionReduction,
@@ -215,9 +215,12 @@ impl GetFlowTypeOfReference {
             .ref_(self)
             .set_flow_invocation_count(self.type_checker.ref_(self).flow_invocation_count() + 1);
         self.set_shared_flow_start(self.type_checker.ref_(self).shared_flow_count());
-        let evolved_type = self.type_checker.ref_(self).get_type_from_flow_type(
-            &self.get_type_at_flow_node(self.reference.ref_(self).maybe_flow_node().unwrap())?,
-        );
+        let evolved_type =
+            self.type_checker
+                .ref_(self)
+                .get_type_from_flow_type(&self.get_type_at_flow_node(
+                    released!(self.reference.ref_(self).maybe_flow_node()).unwrap(),
+                )?);
         self.type_checker
             .ref_(self)
             .set_shared_flow_count(self.shared_flow_start());

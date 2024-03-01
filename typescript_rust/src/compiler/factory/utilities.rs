@@ -91,16 +91,17 @@ fn create_jsx_factory_expression_from_entity_name(
     if is_qualified_name(&jsx_factory.ref_(factory)) {
         let left = create_jsx_factory_expression_from_entity_name(
             factory,
-            jsx_factory.ref_(factory).as_qualified_name().left,
+            released!(jsx_factory.ref_(factory).as_qualified_name().left),
             parent,
         );
-        let right = factory.create_identifier(id_text(
+        let right = factory.create_identifier(&released!(id_text(
             &jsx_factory
                 .ref_(factory)
                 .as_qualified_name()
                 .right
                 .ref_(factory),
-        ));
+        )
+        .to_owned()));
         factory.create_property_access_expression(left, right)
     } else {
         create_react_namespace(
