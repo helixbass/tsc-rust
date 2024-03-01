@@ -706,9 +706,9 @@ impl TypeChecker {
         } else if is_assertion_expression(&expr.ref_(self))
             && !is_const_type_reference(expr.ref_(self).as_has_type().maybe_type().unwrap(), self)
         {
-            return Ok(Some(self.get_type_from_type_node_(
-                expr.ref_(self).as_has_type().maybe_type().unwrap(),
-            )?));
+            return Ok(Some(self.get_type_from_type_node_(released!(
+                expr.ref_(self).as_has_type().maybe_type().unwrap()
+            ))?));
         } else if matches!(
             node.ref_(self).kind(),
             SyntaxKind::NumericLiteral

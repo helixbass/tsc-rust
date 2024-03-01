@@ -630,9 +630,8 @@ impl TransformTypeScript {
         Some(
             self.factory
                 .ref_(self)
-                .create_expression_statement(
-                    self.factory.ref_(self).create_assignment(
-                        self.factory
+                .create_expression_statement(self.factory.ref_(self).create_assignment(
+                    released!(self.factory
                             .ref_(self)
                             .create_property_access_expression(
                                 self.factory.ref_(self).create_this(),
@@ -645,10 +644,9 @@ impl TransformTypeScript {
                                     .refed(self)
                                     .as_deref(),
                                 self,
-                            ),
-                        local_name,
-                    ),
-                )
+                            )),
+                    local_name,
+                ))
                 .set_original_node(Some(node), self)
                 .set_text_range(
                     Some(&move_range_pos(&*node.ref_(self), -1).into_readonly_text_range()),

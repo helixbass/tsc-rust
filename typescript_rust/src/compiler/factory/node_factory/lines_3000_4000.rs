@@ -1320,19 +1320,24 @@ impl NodeFactory {
         type_parameters: Option<impl Into<NodeArrayOrVec>>,
         type_: Id<Node /*TypeNode*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_type_alias_declaration = node_ref.as_type_alias_declaration();
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
         let type_parameters = type_parameters.map(Into::into);
         if has_option_node_array_changed(node.ref_(self).maybe_decorators(), decorators.as_ref())
             || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
-            || node_as_type_alias_declaration.name() != name
+            || node.ref_(self).as_type_alias_declaration().name() != name
             || has_option_node_array_changed(
-                node_as_type_alias_declaration.maybe_type_parameters(),
+                node.ref_(self)
+                    .as_type_alias_declaration()
+                    .maybe_type_parameters(),
                 type_parameters.as_ref(),
             )
-            || node_as_type_alias_declaration.maybe_type().unwrap() != type_
+            || node
+                .ref_(self)
+                .as_type_alias_declaration()
+                .maybe_type()
+                .unwrap()
+                != type_
         {
             self.update(
                 self.create_type_alias_declaration(

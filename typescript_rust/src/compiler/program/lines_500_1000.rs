@@ -1357,7 +1357,7 @@ impl Program {
                     )?;
                 } else {
                     try_maybe_for_each(
-                        self.options.ref_(self).lib.as_ref(),
+                        released!(self.options.ref_(self).lib.clone()).as_ref(),
                         |lib_file_name: &String, index| -> io::Result<Option<()>> {
                             self.process_root_file(
                                 &self.path_for_lib_file(lib_file_name)?,
@@ -1947,7 +1947,7 @@ mod _FilesByNameValueDeriveTraceScope {
 }
 pub use _FilesByNameValueDeriveTraceScope::FilesByNameValue;
 
-use crate::{impl_has_arena, try_for_each};
+use crate::{impl_has_arena, released, try_for_each};
 
 pub trait ActualResolveModuleNamesWorker {
     fn call(

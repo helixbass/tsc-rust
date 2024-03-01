@@ -577,9 +577,7 @@ impl TypeChecker {
     }
 
     pub(super) fn check_tuple_type(&self, node: Id<Node> /*TupleTypeNode*/) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_tuple_type_node = node_ref.as_tuple_type_node();
-        let element_types = &node_as_tuple_type_node.elements;
+        let element_types = node.ref_(self).as_tuple_type_node().elements;
         let mut seen_optional_element = false;
         let mut seen_rest_element = false;
         let has_named_element = some(
@@ -650,7 +648,7 @@ impl TypeChecker {
             }
         }
         try_for_each(
-            &*node_as_tuple_type_node.elements.ref_(self),
+            &*node.ref_(self).as_tuple_type_node().elements.ref_(self),
             |&element: &Id<Node>, _| -> io::Result<Option<()>> {
                 self.check_source_element(Some(element))?;
                 Ok(None)
@@ -939,10 +937,16 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*NamedTupleMember*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_named_tuple_member = node_ref.as_named_tuple_member();
-        if node_as_named_tuple_member.dot_dot_dot_token.is_some()
-            && node_as_named_tuple_member.question_token.is_some()
+        if node
+            .ref_(self)
+            .as_named_tuple_member()
+            .dot_dot_dot_token
+            .is_some()
+            && node
+                .ref_(self)
+                .as_named_tuple_member()
+                .question_token
+                .is_some()
         {
             self.grammar_error_on_node(
                 node,
@@ -950,21 +954,35 @@ impl TypeChecker {
                 None,
             );
         }
-        if node_as_named_tuple_member.type_.ref_(self).kind() == SyntaxKind::OptionalType {
+        if node
+            .ref_(self)
+            .as_named_tuple_member()
+            .type_
+            .ref_(self)
+            .kind()
+            == SyntaxKind::OptionalType
+        {
             self.grammar_error_on_node(
-                node_as_named_tuple_member.type_,
+                node.ref_(self).as_named_tuple_member().type_,
                 &Diagnostics::A_labeled_tuple_element_is_declared_as_optional_with_a_question_mark_after_the_name_and_before_the_colon_rather_than_after_the_type,
                 None,
             );
         }
-        if node_as_named_tuple_member.type_.ref_(self).kind() == SyntaxKind::RestType {
+        if node
+            .ref_(self)
+            .as_named_tuple_member()
+            .type_
+            .ref_(self)
+            .kind()
+            == SyntaxKind::RestType
+        {
             self.grammar_error_on_node(
-                node_as_named_tuple_member.type_,
+                node.ref_(self).as_named_tuple_member().type_,
                 &Diagnostics::A_labeled_tuple_element_is_declared_as_rest_with_a_before_the_name_rather_than_before_the_type,
                 None,
             );
         }
-        self.check_source_element(Some(node_as_named_tuple_member.type_))?;
+        self.check_source_element(Some(node.ref_(self).as_named_tuple_member().type_))?;
         self.get_type_from_type_node_(node)?;
 
         Ok(())

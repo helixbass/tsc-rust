@@ -734,9 +734,11 @@ impl TransformTypeScript {
 
         let module_reference = create_expression_from_entity_name(
             &self.factory.ref_(self),
-            node.ref_(self)
-                .as_import_equals_declaration()
-                .module_reference,
+            released!(
+                node.ref_(self)
+                    .as_import_equals_declaration()
+                    .module_reference
+            ),
         )
         .set_emit_flags(EmitFlags::NoComments | EmitFlags::NoNestedComments, self);
 

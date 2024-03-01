@@ -427,7 +427,7 @@ impl Printer {
                 self.decrease_indent();
                 self.emit_list(
                     Some(body),
-                    Some(body.ref_(self).as_block().statements),
+                    released!(Some(body.ref_(self).as_block().statements)),
                     ListFormat::SingleLineFunctionBodyStatements,
                     None,
                     None,

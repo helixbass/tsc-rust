@@ -345,10 +345,13 @@ impl TransformClassFields {
         node: Id<Node>, /*ClassDeclaration | ClassExpression*/
         is_derived_class: bool,
     ) -> Id<NodeArray> {
-        let node_ref = node.ref_(self);
-        let node_as_class_like_declaration = node_ref.as_class_like_declaration();
         if self.should_transform_private_elements_or_class_static_blocks {
-            for &member in &*node_as_class_like_declaration.members().ref_(self) {
+            for &member in &*node
+                .ref_(self)
+                .as_class_like_declaration()
+                .members()
+                .ref_(self)
+            {
                 if is_private_identifier_class_element_declaration(member, self) {
                     self.add_private_identifier_to_environment(member);
                 }
@@ -371,7 +374,7 @@ impl TransformClassFields {
             &mut members,
             Some(
                 &visit_nodes(
-                    node_as_class_like_declaration.members(),
+                    node.ref_(self).as_class_like_declaration().members(),
                     Some(|node: Id<Node>| self.class_element_visitor(node)),
                     Some(|node: Id<Node>| is_class_element(&node.ref_(self))),
                     None,
@@ -387,7 +390,13 @@ impl TransformClassFields {
             .ref_(self)
             .create_node_array(Some(members), None)
             .set_text_range(
-                Some(&*node_as_class_like_declaration.members().ref_(self)),
+                Some(
+                    &*node
+                        .ref_(self)
+                        .as_class_like_declaration()
+                        .members()
+                        .ref_(self),
+                ),
                 self,
             )
     }
@@ -439,15 +448,15 @@ impl TransformClassFields {
         node: Id<Node>, /*ClassDeclaration | ClassExpression*/
         is_derived_class: bool,
     ) -> Option<Id<Node>> {
-        let node_ref = node.ref_(self);
-        let node_as_class_like_declaration = node_ref.as_class_like_declaration();
         let constructor = maybe_visit_node(
             get_first_constructor_with_body(node, self),
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node: Id<Node>| is_constructor_declaration(&node.ref_(self))),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
-        let elements = node_as_class_like_declaration
+        let elements = node
+            .ref_(self)
+            .as_class_like_declaration()
             .members()
             .ref_(self)
             .iter()
@@ -490,8 +499,6 @@ impl TransformClassFields {
         constructor: Option<Id<Node /*ConstructorDeclaration*/>>,
         is_derived_class: bool,
     ) -> Option<Id<Node>> {
-        let node_ref = node.ref_(self);
-        let node_as_class_like_declaration = node_ref.as_class_like_declaration();
         let mut properties = get_properties(node, false, false, self);
         if !self.use_define_for_class_fields {
             properties = filter(&properties, |property: &Id<Node>| {
@@ -641,7 +648,7 @@ impl TransformClassFields {
                                 &*constructor
                                     .as_ref()
                                     .map_or_else(
-                                        || node_as_class_like_declaration.members(),
+                                        || node.ref_(self).as_class_like_declaration().members(),
                                         |constructor| {
                                             constructor
                                                 .ref_(self)

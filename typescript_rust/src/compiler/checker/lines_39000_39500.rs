@@ -184,9 +184,9 @@ impl TypeChecker {
                 .as_interface_declaration()
                 .maybe_type_parameters()
                 .refed(self)
-                .as_ref()
+                .as_deref()
                 .cloned())
-            .as_double_deref(),
+            .as_deref(),
         )?;
         if self.produce_diagnostics {
             self.check_type_name_is_reserved(

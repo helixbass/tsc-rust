@@ -66,12 +66,15 @@ impl NodeFactory {
         if let Some(original_modifiers) = original.ref_(self).maybe_modifiers() {
             updated.set_modifiers(Some(original_modifiers));
         }
-        let original_ref = original.ref_(self);
-        let original_as_property_assignment = original_ref.as_property_assignment();
-        if let Some(original_question_token) = original_as_property_assignment.question_token {
+        if let Some(original_question_token) =
+            original.ref_(self).as_property_assignment().question_token
+        {
             updated.question_token = Some(original_question_token.clone());
         }
-        if let Some(original_exclamation_token) = original_as_property_assignment.exclamation_token
+        if let Some(original_exclamation_token) = original
+            .ref_(self)
+            .as_property_assignment()
+            .exclamation_token
         {
             updated.exclamation_token = Some(original_exclamation_token.clone());
         }
@@ -84,10 +87,13 @@ impl NodeFactory {
         name: Id<Node>, /*PropertyName*/
         initializer: Id<Node /*Expression*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_property_assignment = node_ref.as_property_assignment();
-        if node_as_property_assignment.name() != name
-            || node_as_property_assignment.maybe_initializer().unwrap() != initializer
+        if node.ref_(self).as_property_assignment().name() != name
+            || node
+                .ref_(self)
+                .as_property_assignment()
+                .maybe_initializer()
+                .unwrap()
+                != initializer
         {
             self.finish_update_property_assignment(
                 self.create_property_assignment_raw(name, initializer),

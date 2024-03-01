@@ -440,7 +440,12 @@ impl TransformJsx {
         if self.should_use_create_element(node.ref_(self).as_jsx_element().opening_element) {
             self.visit_jsx_opening_like_element_create_element(
                 released!(node.ref_(self).as_jsx_element().opening_element),
-                Some(&released!(node.ref_(self).as_jsx_element().children).ref_(self)),
+                Some(&released!(node
+                    .ref_(self)
+                    .as_jsx_element()
+                    .children
+                    .ref_(self)
+                    .clone())),
                 is_child,
                 &released!(ReadonlyTextRangeConcrete::from(&*node.ref_(self))),
             )
@@ -715,7 +720,7 @@ impl TransformJsx {
             .clone();
         let object_properties = if !attrs.ref_(self).is_empty() {
             self.transform_jsx_attributes_to_object_props(
-                &attrs.ref_(self),
+                &released!(attrs.ref_(self).clone()),
                 Option::<Id<Node>>::None,
             )
         } else {

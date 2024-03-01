@@ -475,7 +475,7 @@ impl Printer {
         )?;
         self.write_lines_and_indent(lines_after_colon, true);
         self.emit_expression(
-            Some(node.ref_(self).as_conditional_expression().when_false),
+            released!(Some(node.ref_(self).as_conditional_expression().when_false)),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeBranchOfConditionalExpressionCurrentParenthesizerRule::new(
                     self.parenthesizer(),

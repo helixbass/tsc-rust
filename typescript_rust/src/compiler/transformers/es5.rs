@@ -10,7 +10,7 @@ use id_arena::Id;
 use crate::{
     chain_bundle, downcast_transformer_ref, get_original_node_id, id_text, impl_has_arena,
     is_identifier, is_private_identifier, is_property_access_expression, is_property_assignment,
-    node_is_synthesized, ref_mut_unwrapped, string_to_token, AllArenas, BoolExt,
+    node_is_synthesized, ref_mut_unwrapped, released, string_to_token, AllArenas, BoolExt,
     CoreTransformationContext, EmitHint, HasArena, InArena, JsxEmit, Matches,
     NamedDeclarationInterface, Node, NodeExt, NodeFactory, NodeId, NodeInterface, SyntaxKind,
     TransformNodesTransformationResult, TransformationContext,
@@ -180,8 +180,9 @@ impl TransformES5OnSubstituteNodeOverrider {
         ) {
             return node;
         }
-        let literal_name =
-            self.try_substitute_reserved_name(node.ref_(self).as_property_access_expression().name);
+        let literal_name = self.try_substitute_reserved_name(released!(
+            node.ref_(self).as_property_access_expression().name
+        ));
         if let Some(literal_name) = literal_name {
             return self
                 .transform_es5()

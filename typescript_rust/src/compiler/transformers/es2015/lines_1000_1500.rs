@@ -358,19 +358,21 @@ impl TransformES2015 {
         node: Id<Node>, /*FunctionLikeDeclaration*/
         in_constructor_with_synthesized_super: bool,
     ) -> io::Result<bool> {
-        let node_ref = node.ref_(self);
-        let node_as_function_like_declaration = node_ref.as_function_like_declaration();
         let mut prologue_statements: Vec<Id<Node /*Statement*/>> = Default::default();
-        let parameter =
-            last_or_undefined(&node_as_function_like_declaration.parameters().ref_(self)).cloned();
+        let parameter = last_or_undefined(
+            &node
+                .ref_(self)
+                .as_function_like_declaration()
+                .parameters()
+                .ref_(self),
+        )
+        .cloned();
         if !self.should_add_rest_parameter(parameter, in_constructor_with_synthesized_super) {
             return Ok(false);
         }
         let parameter = parameter.unwrap();
-        let parameter_ref = parameter.ref_(self);
-        let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
 
-        let parameter_name = parameter_as_parameter_declaration.name();
+        let parameter_name = parameter.ref_(self).as_parameter_declaration().name();
         let declaration_name = if parameter_name.ref_(self).kind() == SyntaxKind::Identifier {
             self.factory
                 .ref_(self)
@@ -389,7 +391,9 @@ impl TransformES2015 {
         } else {
             declaration_name
         };
-        let rest_index = node_as_function_like_declaration
+        let rest_index = node
+            .ref_(self)
+            .as_function_like_declaration()
             .parameters()
             .ref_(self)
             .len()

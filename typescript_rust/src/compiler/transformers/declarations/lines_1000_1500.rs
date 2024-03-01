@@ -252,35 +252,33 @@ impl TransformDeclarations {
                 can_prodice_diagnostic,
                 &old_diag,
                 previous_needs_declare,
-                Some(
-                    self.factory.ref_(self).update_type_alias_declaration(
-                        input,
-                        Option::<Id<NodeArray>>::None,
-                        self.ensure_modifiers(input),
-                        input.ref_(self).as_type_alias_declaration().name(),
-                        try_maybe_visit_nodes(
-                            input
+                Some(self.factory.ref_(self).update_type_alias_declaration(
+                    input,
+                    Option::<Id<NodeArray>>::None,
+                    self.ensure_modifiers(input),
+                    released!(input.ref_(self).as_type_alias_declaration().name()),
+                    try_maybe_visit_nodes(
+                        released!(input
                                 .ref_(self)
                                 .as_type_alias_declaration()
-                                .maybe_type_parameters(),
-                            Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
-                            Some(|node: Id<Node>| is_type_parameter_declaration(&node.ref_(self))),
-                            None,
-                            None,
-                            self,
-                        )?,
-                        try_visit_node(
-                            input
+                                .maybe_type_parameters()),
+                        Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
+                        Some(|node: Id<Node>| is_type_parameter_declaration(&node.ref_(self))),
+                        None,
+                        None,
+                        self,
+                    )?,
+                    try_visit_node(
+                        released!(input
                                 .ref_(self)
                                 .as_type_alias_declaration()
                                 .maybe_type()
-                                .unwrap(),
-                            Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
-                            Some(|node: Id<Node>| is_type_node(&node.ref_(self))),
-                            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
-                        )?,
-                    ),
-                ),
+                                .unwrap()),
+                        Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
+                        Some(|node: Id<Node>| is_type_node(&node.ref_(self))),
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
+                    )?,
+                )),
             ),
             SyntaxKind::InterfaceDeclaration => self.transform_top_level_declaration_cleanup(
                 input,

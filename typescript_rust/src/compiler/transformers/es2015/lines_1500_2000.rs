@@ -594,9 +594,10 @@ impl TransformES2015 {
         Ok(self.factory.ref_(self).update_function_expression(
             node,
             Option::<Id<NodeArray>>::None,
-            node.ref_(self)
+            released!(node
+                .ref_(self)
                 .as_function_expression()
-                .maybe_asterisk_token(),
+                .maybe_asterisk_token()),
             name,
             Option::<Id<NodeArray>>::None,
             parameters,
@@ -616,7 +617,7 @@ impl TransformES2015 {
             HierarchyFacts::FunctionIncludes,
         );
         let parameters = try_visit_parameter_list(
-            Some(node.ref_(self).as_function_declaration().parameters()),
+            released!(Some(node.ref_(self).as_function_declaration().parameters())),
             |node: Id<Node>| self.visitor(node),
             &*self.context.ref_(self),
             self,
