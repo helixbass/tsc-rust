@@ -493,15 +493,13 @@ impl TransformTypeScript {
                         self,
                     )?
                     .unwrap(),
-                    Some(
-                        self.transform_constructor_body(
-                            node.ref_(self)
+                    Some(self.transform_constructor_body(
+                        released!(node.ref_(self)
                                 .as_constructor_declaration()
                                 .maybe_body()
-                                .unwrap(),
-                            node,
-                        )?,
-                    ),
+                                .unwrap()),
+                        node,
+                    )?),
                 )
                 .into(),
         ))
@@ -512,8 +510,6 @@ impl TransformTypeScript {
         body: Id<Node>,        /*Block*/
         constructor: Id<Node>, /*ConstructorDeclaration*/
     ) -> io::Result<Id<Node>> {
-        let body_ref = body.ref_(self);
-        let body_as_block = body_ref.as_block();
         let parameters_with_property_assignments =
             /*constructor &&*/
             constructor
@@ -568,7 +564,7 @@ impl TransformTypeScript {
             &mut statements,
             Some(
                 &try_visit_nodes(
-                    body_as_block.statements,
+                    body.ref_(self).as_block().statements,
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_statement(node, self)),
                     Some(index_of_first_statement),
@@ -596,7 +592,10 @@ impl TransformTypeScript {
                 self.factory
                     .ref_(self)
                     .create_node_array(Some(statements), None)
-                    .set_text_range(Some(&*body_as_block.statements.ref_(self)), self),
+                    .set_text_range(
+                        Some(&*body.ref_(self).as_block().statements.ref_(self)),
+                        self,
+                    ),
                 Some(true),
             )
             .set_text_range(Some(&*body.ref_(self)), self)

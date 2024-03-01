@@ -14,11 +14,12 @@ use crate::{
     is_private_identifier, is_private_identifier_property_access_expression,
     is_property_access_expression, is_property_declaration, is_simple_inlineable_expression,
     is_statement, is_static, is_super_property, is_template_literal, maybe_visit_node,
-    move_range_pos, node_is_synthesized, set_comment_range, set_text_range, visit_each_child,
-    visit_iteration_body, visit_node, visit_nodes, CallBinding, CoreTransformationContext,
-    EmitFlags, InArena, MapOrDefault, Matches, NamedDeclarationInterface, Node, NodeArray, NodeExt,
-    NodeInterface, NonEmpty, PrivateIdentifierKind, ReadonlyTextRangeConcrete, SyntaxKind,
-    TransformFlags, TransformationContext, VecExt, VisitResult,
+    move_range_pos, node_is_synthesized, released, set_comment_range, set_text_range,
+    visit_each_child, visit_iteration_body, visit_node, visit_nodes, CallBinding,
+    CoreTransformationContext, EmitFlags, InArena, MapOrDefault, Matches,
+    NamedDeclarationInterface, Node, NodeArray, NodeExt, NodeInterface, NonEmpty,
+    PrivateIdentifierKind, ReadonlyTextRangeConcrete, SyntaxKind, TransformFlags,
+    TransformationContext, VecExt, VisitResult,
 };
 
 impl TransformClassFields {
@@ -372,7 +373,7 @@ impl TransformClassFields {
                 .update_expression_statement(
                     node,
                     visit_node(
-                        node.ref_(self).as_expression_statement().expression,
+                        released!(node.ref_(self).as_expression_statement().expression),
                         Some(|node: Id<Node>| self.discarded_value_visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

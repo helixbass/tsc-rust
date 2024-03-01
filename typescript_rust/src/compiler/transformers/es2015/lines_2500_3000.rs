@@ -267,9 +267,7 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*ObjectLiteralExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_object_literal_expression = node_ref.as_object_literal_expression();
-        let properties = node_as_object_literal_expression.properties;
+        let properties = node.ref_(self).as_object_literal_expression().properties;
 
         let mut num_initial_properties: Option<usize> = _d();
         let mut has_computed = false;
@@ -330,7 +328,7 @@ impl TransformES2015 {
                         Some(num_initial_properties),
                         self,
                     )?,
-                    node_as_object_literal_expression.multi_line,
+                    node.ref_(self).as_object_literal_expression().multi_line,
                 )
                 .set_emit_flags(
                     if has_computed {
@@ -342,7 +340,7 @@ impl TransformES2015 {
                 ),
         );
 
-        if node_as_object_literal_expression.multi_line == Some(true) {
+        if node.ref_(self).as_object_literal_expression().multi_line == Some(true) {
             start_on_new_line(assignment, self);
         }
 
@@ -351,7 +349,7 @@ impl TransformES2015 {
         self.add_object_literal_members(&mut expressions, node, temp, num_initial_properties)?;
 
         expressions.push(
-            if node_as_object_literal_expression.multi_line == Some(true) {
+            if node.ref_(self).as_object_literal_expression().multi_line == Some(true) {
                 self.factory
                     .ref_(self)
                     .clone_node(temp)

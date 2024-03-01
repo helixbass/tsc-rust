@@ -686,9 +686,7 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*ImportEqualsDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_ref = node.ref_(self);
-        let node_as_import_equals_declaration = node_ref.as_import_equals_declaration();
-        if node_as_import_equals_declaration.is_type_only {
+        if node.ref_(self).as_import_equals_declaration().is_type_only {
             return Ok(None);
         }
 
@@ -705,7 +703,8 @@ impl TransformTypeScript {
                             Option::<Id<NodeArray>>::None,
                             Option::<Id<NodeArray>>::None,
                             None,
-                            node_as_import_equals_declaration
+                            node.ref_(self)
+                                .as_import_equals_declaration()
                                 .module_reference
                                 .ref_(self)
                                 .as_external_module_reference()
@@ -735,7 +734,9 @@ impl TransformTypeScript {
 
         let module_reference = create_expression_from_entity_name(
             &self.factory.ref_(self),
-            node_as_import_equals_declaration.module_reference,
+            node.ref_(self)
+                .as_import_equals_declaration()
+                .module_reference,
         )
         .set_emit_flags(EmitFlags::NoComments | EmitFlags::NoNestedComments, self);
 
@@ -757,7 +758,7 @@ impl TransformTypeScript {
                                 .factory
                                 .ref_(self)
                                 .create_variable_declaration(
-                                    node_as_import_equals_declaration.maybe_name(),
+                                    node.ref_(self).as_import_equals_declaration().maybe_name(),
                                     None,
                                     None,
                                     Some(module_reference),
@@ -771,7 +772,7 @@ impl TransformTypeScript {
                     .into()
             } else {
                 self.create_namespace_export(
-                    node_as_import_equals_declaration.name(),
+                    node.ref_(self).as_import_equals_declaration().name(),
                     module_reference,
                     Some(&*node.ref_(self)),
                 )

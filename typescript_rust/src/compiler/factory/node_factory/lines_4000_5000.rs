@@ -1292,12 +1292,10 @@ impl NodeFactory {
         node: Id<Node>,                   /*HeritageClause*/
         types: impl Into<NodeArrayOrVec>, /*<ExpressionWithTypeArguments>*/
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_heritage_clause = node_ref.as_heritage_clause();
         let types = types.into();
-        if has_node_array_changed(node_as_heritage_clause.types, &types) {
+        if has_node_array_changed(node.ref_(self).as_heritage_clause().types, &types) {
             self.update(
-                self.create_heritage_clause(node_as_heritage_clause.token, types),
+                self.create_heritage_clause(node.ref_(self).as_heritage_clause().token, types),
                 node,
             )
         } else {

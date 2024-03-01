@@ -294,10 +294,15 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         self.check_grammar_method(node)?;
 
-        let node_ref = node.ref_(self);
-        let node_as_method_declaration = node_ref.as_method_declaration();
-        if node_as_method_declaration.name().ref_(self).kind() == SyntaxKind::ComputedPropertyName {
-            self.check_computed_property_name(node_as_method_declaration.name())?;
+        if node
+            .ref_(self)
+            .as_method_declaration()
+            .name()
+            .ref_(self)
+            .kind()
+            == SyntaxKind::ComputedPropertyName
+        {
+            self.check_computed_property_name(node.ref_(self).as_method_declaration().name())?;
         }
 
         let uninstantiated_type =

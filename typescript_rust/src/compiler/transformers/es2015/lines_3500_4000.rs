@@ -14,7 +14,7 @@ use crate::{
     HasInitializerInterface, Matches, NamedDeclarationInterface, Node, NodeArray, NodeExt,
     NodeInterface, ReadonlyTextRangeConcrete, SyntaxKind, VecExt, VisitResult, _d, add_range,
     downcast_transformer_ref, element_at, flatten, impl_has_arena, is_call_to_helper,
-    is_expression_statement, is_identifier, is_packed_array_literal, is_return_statement,
+    is_expression_statement, is_identifier, is_packed_array_literal, is_return_statement, released,
     set_emit_flags, set_original_node, try_span_map, AllArenas, AsDoubleDeref, CallBinding,
     CoreTransformationContext, GeneratedIdentifierFlags, HasArena, InArena, OptionInArena,
     SignatureDeclarationInterface, TransformFlags, Transformer,
@@ -155,19 +155,17 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*MethodDeclaration*/
     ) -> io::Result<Id<Node /*ObjectLiteralElementLike*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_method_declaration = node_ref.as_method_declaration();
         Debug_.assert(
-            !is_computed_property_name(&node_as_method_declaration.name().ref_(self)),
+            !is_computed_property_name(&node.ref_(self).as_method_declaration().name().ref_(self)),
             None,
         );
         let function_expression = self
             .transform_function_like_to_expression(
                 node,
-                Some(&ReadonlyTextRangeConcrete::from(move_range_pos(
+                Some(&released!(ReadonlyTextRangeConcrete::from(move_range_pos(
                     &*node.ref_(self),
                     -1,
-                ))),
+                )))),
                 Option::<Id<Node>>::None,
                 Option::<Id<Node>>::None,
             )?
@@ -175,7 +173,10 @@ impl TransformES2015 {
         Ok(self
             .factory
             .ref_(self)
-            .create_property_assignment(node_as_method_declaration.name(), function_expression)
+            .create_property_assignment(
+                node.ref_(self).as_method_declaration().name(),
+                function_expression,
+            )
             .set_text_range(Some(&*node.ref_(self)), self))
     }
 
@@ -338,14 +339,14 @@ impl TransformES2015 {
                 .update_call_expression(
                     node,
                     try_visit_node(
-                        node.ref_(self).as_call_expression().expression,
+                        released!(node.ref_(self).as_call_expression().expression),
                         Some(|node: Id<Node>| self.call_expression_visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     Option::<Id<NodeArray>>::None,
                     try_visit_nodes(
-                        node.ref_(self).as_call_expression().arguments,
+                        released!(node.ref_(self).as_call_expression().arguments),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         None,

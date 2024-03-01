@@ -226,14 +226,14 @@ impl TransformDeclarations {
             nodes.try_map(|nodes| -> io::Result<_> {
                 let mut ret = vec![];
                 for &clause in &*released!(nodes.ref_(self).clone()) {
-                    let clause_ref = clause.ref_(self);
-                    let clause_as_heritage_clause = clause_ref.as_heritage_clause();
                     let clause = self.factory.ref_(self).update_heritage_clause(
                         clause,
                         try_visit_nodes(
                             self.factory.ref_(self).create_node_array(
                                 released!(Some(
-                                    clause_as_heritage_clause
+                                    clause
+                                        .ref_(self)
+                                        .as_heritage_clause()
                                         .types
                                         .ref_(self)
                                         .iter()
@@ -244,7 +244,7 @@ impl TransformDeclarations {
                                             is_entity_name_expression(
                                                 t_as_expression_with_type_arguments.expression,
                                                 self,
-                                            ) || clause_as_heritage_clause.token
+                                            ) || clause.ref_(self).as_heritage_clause().token
                                                 == SyntaxKind::ExtendsKeyword
                                                 && t_as_expression_with_type_arguments
                                                     .expression

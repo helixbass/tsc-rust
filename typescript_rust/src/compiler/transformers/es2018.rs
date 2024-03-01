@@ -2027,10 +2027,10 @@ impl TransformES2018 {
                     .as_function_expression()
                     .maybe_asterisk_token()
             },
-            node.ref_(self).as_function_expression().maybe_name(),
+            released!(node.ref_(self).as_function_expression().maybe_name()),
             Option::<Id<NodeArray>>::None,
             visit_parameter_list(
-                Some(node.ref_(self).as_function_expression().parameters()),
+                released!(Some(node.ref_(self).as_function_expression().parameters())),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
@@ -2207,7 +2207,7 @@ impl TransformES2018 {
         let mut statement_offset = 0;
         let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
         let body = maybe_visit_node(
-            node.ref_(self).as_function_like_declaration().maybe_body(),
+            released!(node.ref_(self).as_function_like_declaration().maybe_body()),
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_concise_body(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -2256,7 +2256,7 @@ impl TransformES2018 {
                     .ref_(self)
                     .create_node_array(Some(statements), None)
                     .set_text_range(
-                        Some(&*block.ref_(self).as_block().statements.ref_(self)),
+                        Some(&*released!(block.ref_(self).as_block().statements).ref_(self)),
                         self,
                     ),
             );

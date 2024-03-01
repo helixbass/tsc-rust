@@ -452,7 +452,7 @@ impl TransformTypeScript {
             }
             return Ok(Some(node.into()));
         }
-        Ok(match node.ref_(self).kind() {
+        Ok(match released!(node.ref_(self).kind()) {
             SyntaxKind::ImportDeclaration => self.visit_import_declaration(node)?,
             SyntaxKind::ImportEqualsDeclaration => self.visit_import_equals_declaration(node)?,
             SyntaxKind::ExportAssignment => self.visit_export_assignment(node)?,

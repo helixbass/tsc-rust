@@ -9,8 +9,8 @@ use crate::{
     get_comment_range, get_emit_flags, get_factory, get_line_and_character_of_position,
     get_text_of_jsdoc_comment, is_jsx_closing_element, is_jsx_opening_element,
     is_prologue_directive, is_unparsed_source, node_is_synthesized,
-    range_start_positions_are_on_same_line, BundleFileSection, BundleFileSectionKind, EmitFlags,
-    FileReference, HasArena, HasInitializerInterface, HasStatementsInterface,
+    range_start_positions_are_on_same_line, released, BundleFileSection, BundleFileSectionKind,
+    EmitFlags, FileReference, HasArena, HasInitializerInterface, HasStatementsInterface,
     HasTypeArgumentsInterface, HasTypeParametersInterface, InArena, JSDocTagInterface,
     JSDocTypeLikeTagInterface, ListFormat, LiteralLikeNodeInterface, NamedDeclarationInterface,
     Node, NodeArray, NodeInterface, OptionInArena, Printer, ReadonlyTextRange, SourceFileLike,
@@ -1111,7 +1111,9 @@ impl Printer {
         node: Id<Node>, /*PartiallyEmittedExpression*/
     ) -> io::Result<()> {
         self.emit_expression(
-            Some(node.ref_(self).as_partially_emitted_expression().expression),
+            released!(Some(
+                node.ref_(self).as_partially_emitted_expression().expression
+            )),
             None,
         )?;
 

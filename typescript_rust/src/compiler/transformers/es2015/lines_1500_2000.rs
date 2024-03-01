@@ -552,8 +552,6 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*FunctionExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_function_expression = node_ref.as_function_expression();
         let ancestor_facts = if get_emit_flags(node, self).intersects(EmitFlags::AsyncFunctionBody)
         {
             self.enter_subtree(
@@ -570,7 +568,7 @@ impl TransformES2015 {
         self.set_converted_loop_state(None);
 
         let parameters = try_visit_parameter_list(
-            Some(node_as_function_expression.parameters()),
+            Some(node.ref_(self).as_function_expression().parameters()),
             |node: Id<Node>| self.visitor(node),
             &*self.context.ref_(self),
             self,
@@ -584,7 +582,7 @@ impl TransformES2015 {
         {
             Some(self.factory.ref_(self).get_local_name(node, None, None))
         } else {
-            node_as_function_expression.maybe_name()
+            node.ref_(self).as_function_expression().maybe_name()
         };
 
         self.exit_subtree(
@@ -596,7 +594,9 @@ impl TransformES2015 {
         Ok(self.factory.ref_(self).update_function_expression(
             node,
             Option::<Id<NodeArray>>::None,
-            node_as_function_expression.maybe_asterisk_token(),
+            node.ref_(self)
+                .as_function_expression()
+                .maybe_asterisk_token(),
             name,
             Option::<Id<NodeArray>>::None,
             parameters,

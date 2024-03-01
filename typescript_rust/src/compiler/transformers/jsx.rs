@@ -387,7 +387,7 @@ impl TransformJsx {
         &self,
         node: Id<Node>, /*JsxChild*/
     ) -> Option<Id<Node /*Expression*/>> {
-        match node.ref_(self).kind() {
+        match released!(node.ref_(self).kind()) {
             SyntaxKind::JsxText => self.visit_jsx_text(node),
             SyntaxKind::JsxExpression => self.visit_jsx_expression(node),
             SyntaxKind::JsxElement => self.visit_jsx_element(node, true),
@@ -440,7 +440,7 @@ impl TransformJsx {
         if self.should_use_create_element(node.ref_(self).as_jsx_element().opening_element) {
             self.visit_jsx_opening_like_element_create_element(
                 released!(node.ref_(self).as_jsx_element().opening_element),
-                released!(Some(&node.ref_(self).as_jsx_element().children.ref_(self))),
+                Some(&released!(node.ref_(self).as_jsx_element().children).ref_(self)),
                 is_child,
                 &released!(ReadonlyTextRangeConcrete::from(&*node.ref_(self))),
             )
@@ -943,11 +943,9 @@ impl TransformJsx {
         &self,
         node: Id<Node>, /*JsxAttribute*/
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_jsx_attribute = node_ref.as_jsx_attribute();
         let name = self.get_attribute_name(node);
-        let expression =
-            self.transform_jsx_attribute_initializer(node_as_jsx_attribute.initializer);
+        let expression = self
+            .transform_jsx_attribute_initializer(node.ref_(self).as_jsx_attribute().initializer);
         self.factory
             .ref_(self)
             .create_property_assignment(name, expression)

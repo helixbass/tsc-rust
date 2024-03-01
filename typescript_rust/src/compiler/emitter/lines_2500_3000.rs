@@ -421,31 +421,29 @@ impl Printer {
         &self,
         node: Id<Node>, /*ConditionalExpression*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_conditional_expression = node_ref.as_conditional_expression();
         let lines_before_question = self.get_lines_between_nodes(
             node,
-            node_as_conditional_expression.condition,
-            node_as_conditional_expression.question_token,
+            node.ref_(self).as_conditional_expression().condition,
+            node.ref_(self).as_conditional_expression().question_token,
         );
         let lines_after_question = self.get_lines_between_nodes(
             node,
-            node_as_conditional_expression.question_token,
-            node_as_conditional_expression.when_true,
+            node.ref_(self).as_conditional_expression().question_token,
+            node.ref_(self).as_conditional_expression().when_true,
         );
         let lines_before_colon = self.get_lines_between_nodes(
             node,
-            node_as_conditional_expression.when_true,
-            node_as_conditional_expression.colon_token,
+            node.ref_(self).as_conditional_expression().when_true,
+            node.ref_(self).as_conditional_expression().colon_token,
         );
         let lines_after_colon = self.get_lines_between_nodes(
             node,
-            node_as_conditional_expression.colon_token,
-            node_as_conditional_expression.when_false,
+            node.ref_(self).as_conditional_expression().colon_token,
+            node.ref_(self).as_conditional_expression().when_false,
         );
 
         self.emit_expression(
-            Some(node_as_conditional_expression.condition),
+            Some(node.ref_(self).as_conditional_expression().condition),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeConditionOfConditionalExpressionCurrentParenthesizerRule::new(
                     self.parenthesizer(),
@@ -454,10 +452,13 @@ impl Printer {
             ))),
         )?;
         self.write_lines_and_indent(lines_before_question, true);
-        self.emit(Some(node_as_conditional_expression.question_token), None)?;
+        self.emit(
+            Some(node.ref_(self).as_conditional_expression().question_token),
+            None,
+        )?;
         self.write_lines_and_indent(lines_after_question, true);
         self.emit_expression(
-            Some(node_as_conditional_expression.when_true),
+            released!(Some(node.ref_(self).as_conditional_expression().when_true)),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeBranchOfConditionalExpressionCurrentParenthesizerRule::new(
                     self.parenthesizer(),
@@ -468,10 +469,13 @@ impl Printer {
         self.decrease_indent_if(lines_before_question != 0, Some(lines_after_question != 0));
 
         self.write_lines_and_indent(lines_before_colon, true);
-        self.emit(Some(node_as_conditional_expression.colon_token), None)?;
+        self.emit(
+            Some(node.ref_(self).as_conditional_expression().colon_token),
+            None,
+        )?;
         self.write_lines_and_indent(lines_after_colon, true);
         self.emit_expression(
-            Some(node_as_conditional_expression.when_false),
+            Some(node.ref_(self).as_conditional_expression().when_false),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeBranchOfConditionalExpressionCurrentParenthesizerRule::new(
                     self.parenthesizer(),

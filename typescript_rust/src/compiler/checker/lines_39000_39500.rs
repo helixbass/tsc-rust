@@ -182,8 +182,10 @@ impl TypeChecker {
             released!(node
                 .ref_(self)
                 .as_interface_declaration()
-                .maybe_type_parameters())
-            .refed(self)
+                .maybe_type_parameters()
+                .refed(self)
+                .as_ref()
+                .cloned())
             .as_double_deref(),
         )?;
         if self.produce_diagnostics {

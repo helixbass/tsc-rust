@@ -29,7 +29,9 @@ impl TypeChecker {
             self.grammar_error_on_first_token(node_expression, &Diagnostics::Type_expected, None);
         }
 
-        self.check_source_element(node.ref_(self).as_type_parameter_declaration().constraint)?;
+        self.check_source_element(released!(
+            node.ref_(self).as_type_parameter_declaration().constraint
+        ))?;
         self.check_source_element(node.ref_(self).as_type_parameter_declaration().default)?;
         let type_parameter =
             self.get_declared_type_of_type_parameter(self.get_symbol_of_node(node)?.unwrap());

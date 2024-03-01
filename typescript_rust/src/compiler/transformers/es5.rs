@@ -171,20 +171,27 @@ impl TransformES5OnSubstituteNodeOverrider {
         &self,
         node: Id<Node>, /*PropertyAccessExpression*/
     ) -> Id<Node /*Expression*/> {
-        let node_ref = node.ref_(self);
-        let node_as_property_access_expression = node_ref.as_property_access_expression();
-        if is_private_identifier(&node_as_property_access_expression.name.ref_(self)) {
+        if is_private_identifier(
+            &node
+                .ref_(self)
+                .as_property_access_expression()
+                .name
+                .ref_(self),
+        ) {
             return node;
         }
         let literal_name =
-            self.try_substitute_reserved_name(node_as_property_access_expression.name);
+            self.try_substitute_reserved_name(node.ref_(self).as_property_access_expression().name);
         if let Some(literal_name) = literal_name {
             return self
                 .transform_es5()
                 .factory
                 .ref_(self)
                 .create_element_access_expression(
-                    node_as_property_access_expression.expression.clone(),
+                    node.ref_(self)
+                        .as_property_access_expression()
+                        .expression
+                        .clone(),
                     literal_name,
                 )
                 .set_text_range(Some(&*node.ref_(self)), self);
@@ -215,12 +222,14 @@ impl TransformES5OnSubstituteNodeOverrider {
     }
 
     fn try_substitute_reserved_name(&self, name: Id<Node> /*Identifier*/) -> Option<Id<Node>> {
-        let name_ref = name.ref_(self);
-        let name_as_identifier = name_ref.as_identifier();
-        let token = name_as_identifier.original_keyword_kind.or_else(|| {
-            node_is_synthesized(&*name.ref_(self))
-                .then_and(|| string_to_token(id_text(&name.ref_(self))))
-        });
+        let token = name
+            .ref_(self)
+            .as_identifier()
+            .original_keyword_kind
+            .or_else(|| {
+                node_is_synthesized(&*name.ref_(self))
+                    .then_and(|| string_to_token(id_text(&name.ref_(self))))
+            });
         if token.matches(|token| {
             token >= SyntaxKind::FirstReservedWord && token <= SyntaxKind::LastReservedWord
         }) {
