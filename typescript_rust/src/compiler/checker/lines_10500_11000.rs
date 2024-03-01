@@ -276,7 +276,9 @@ impl TypeChecker {
 
             let late_symbols =
                 self.alloc_symbol_table(create_symbol_table(Option::<&[Id<Symbol>]>::None, self));
-            if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
+            if let Some(symbol_declarations) =
+                released!(symbol.ref_(self).maybe_declarations().clone()).as_deref()
+            {
                 for &decl in symbol_declarations {
                     let members = get_members_of_declaration(&decl.ref_(self));
                     if let Some(members) = members {

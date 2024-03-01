@@ -408,9 +408,10 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete {
     fn parenthesize_expression_of_expression_statement(&self, expression: Id<Node>) -> Id<Node> {
         let emitted_expression = skip_partially_emitted_expressions(expression, self);
         if is_call_expression(&emitted_expression.ref_(self)) {
-            let emitted_expression_ref = emitted_expression.ref_(self);
-            let emitted_expression_as_call_expression = emitted_expression_ref.as_call_expression();
-            let callee = emitted_expression_as_call_expression.expression;
+            let callee = emitted_expression
+                .ref_(self)
+                .as_call_expression()
+                .expression;
             let kind = skip_partially_emitted_expressions(callee, self)
                 .ref_(self)
                 .kind();
@@ -427,8 +428,15 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete {
                         Some(&*callee.ref_(self)),
                         self,
                     ),
-                    emitted_expression_as_call_expression.maybe_type_arguments(),
-                    emitted_expression_as_call_expression.arguments.clone(),
+                    emitted_expression
+                        .ref_(self)
+                        .as_call_expression()
+                        .maybe_type_arguments(),
+                    emitted_expression
+                        .ref_(self)
+                        .as_call_expression()
+                        .arguments
+                        .clone(),
                 );
                 return self.factory.ref_(self).restore_outer_expressions(
                     Some(expression),

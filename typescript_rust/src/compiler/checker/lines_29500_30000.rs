@@ -1384,7 +1384,9 @@ impl TypeChecker {
                     check_candidate = self.get_signature_instantiation(
                         candidate.clone(),
                         Some(&type_argument_types),
-                        is_in_js_file(candidate.ref_(self).declaration.refed(self).as_deref()),
+                        released!(is_in_js_file(
+                            candidate.ref_(self).declaration.refed(self).as_deref()
+                        )),
                         /*inferenceContext &&*/
                         inference_context
                             .ref_(self)

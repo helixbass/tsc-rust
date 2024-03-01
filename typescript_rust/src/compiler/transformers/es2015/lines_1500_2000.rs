@@ -248,18 +248,18 @@ impl TransformES2015 {
         member: Id<Node>,   /*MethodDeclaration*/
         container: Id<Node>,
     ) -> io::Result<Id<Node>> {
-        let member_ref = member.ref_(self);
-        let member_as_method_declaration = member_ref.as_method_declaration();
         let comment_range: ReadonlyTextRangeConcrete = get_comment_range(member, self).into();
         let source_map_range = get_source_map_range(&member.ref_(self), self);
         let member_function = self.transform_function_like_to_expression(
             member,
-            Some(&*member.ref_(self)),
+            Some(&released!(ReadonlyTextRangeConcrete::from(
+                &*member.ref_(self)
+            ))),
             Option::<Id<Node>>::None,
             Some(container),
         )?;
         let property_name = try_visit_node(
-            member_as_method_declaration.name(),
+            member.ref_(self).as_method_declaration().name(),
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node: Id<Node>| is_property_name(&node.ref_(self))),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -306,7 +306,9 @@ impl TransformES2015 {
                 &self.factory.ref_(self),
                 receiver,
                 property_name,
-                member_as_method_declaration
+                member
+                    .ref_(self)
+                    .as_method_declaration()
                     .maybe_name()
                     .refed(self)
                     .as_deref(),
@@ -522,7 +524,7 @@ impl TransformES2015 {
                 Option::<Id<Node>>::None,
                 Option::<Id<NodeArray>>::None,
                 try_visit_parameter_list(
-                    Some(node.ref_(self).as_arrow_function().parameters()),
+                    released!(Some(node.ref_(self).as_arrow_function().parameters())),
                     |node: Id<Node>| self.visitor(node),
                     &*self.context.ref_(self),
                     self,
@@ -665,8 +667,6 @@ impl TransformES2015 {
         mut name: Option<Id<Node /*Identifier*/>>,
         container: Option<Id<Node>>,
     ) -> io::Result<Id<Node /*FunctionExpression*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_function_like_declaration = node_ref.as_function_like_declaration();
         let saved_converted_loop_state = self.maybe_converted_loop_state();
         self.set_converted_loop_state(None);
         let ancestor_facts = if container
@@ -684,7 +684,7 @@ impl TransformES2015 {
             )
         };
         let parameters = try_visit_parameter_list(
-            Some(node_as_function_like_declaration.parameters()),
+            Some(node.ref_(self).as_function_like_declaration().parameters()),
             |node: Id<Node>| self.visitor(node),
             &*self.context.ref_(self),
             self,
@@ -719,7 +719,9 @@ impl TransformES2015 {
             .ref_(self)
             .create_function_expression(
                 Option::<Id<NodeArray>>::None,
-                node_as_function_like_declaration.maybe_asterisk_token(),
+                node.ref_(self)
+                    .as_function_like_declaration()
+                    .maybe_asterisk_token(),
                 name,
                 Option::<Id<NodeArray>>::None,
                 Some(parameters),

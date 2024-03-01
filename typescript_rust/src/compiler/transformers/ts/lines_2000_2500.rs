@@ -590,22 +590,20 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*NewExpression*/
     ) -> io::Result<VisitResult> {
-        let node_ref = node.ref_(self);
-        let node_as_new_expression = node_ref.as_new_expression();
         Ok(Some(
             self.factory
                 .ref_(self)
                 .update_new_expression(
                     node,
                     try_visit_node(
-                        node_as_new_expression.expression,
+                        released!(node.ref_(self).as_new_expression().expression),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     Option::<Id<NodeArray>>::None,
                     try_maybe_visit_nodes(
-                        node_as_new_expression.arguments,
+                        released!(node.ref_(self).as_new_expression().arguments),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         None,
@@ -846,7 +844,7 @@ impl TransformTypeScript {
                 .ref_(self)
                 .create_node_array(Some(statements), None)
                 .set_text_range(
-                    Some(&*node.ref_(self).as_enum_declaration().members.ref_(self)),
+                    Some(&*released!(node.ref_(self).as_enum_declaration().members).ref_(self)),
                     self,
                 ),
             Some(true),
@@ -880,11 +878,11 @@ impl TransformTypeScript {
         Ok(self
             .factory
             .ref_(self)
-            .create_expression_statement(set_text_range_id_node(
+            .create_expression_statement(released!(set_text_range_id_node(
                 outer_assignment,
                 Some(&*member.ref_(self)),
                 self,
-            ))
+            )))
             .set_text_range(Some(&*member.ref_(self)), self))
     }
 

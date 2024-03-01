@@ -1014,17 +1014,15 @@ impl NodeFactory {
             /*<Expression>*/
         >,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_new_expression = node_ref.as_new_expression();
         let type_arguments = type_arguments.map(Into::into);
         let arguments_array = arguments_array.map(Into::into);
-        if node_as_new_expression.expression != expression
+        if node.ref_(self).as_new_expression().expression != expression
             || has_option_node_array_changed(
-                node_as_new_expression.maybe_type_arguments(),
+                node.ref_(self).as_new_expression().maybe_type_arguments(),
                 type_arguments.as_ref(),
             )
             || has_option_node_array_changed(
-                node_as_new_expression.arguments,
+                node.ref_(self).as_new_expression().arguments,
                 arguments_array.as_ref(),
             )
         {
@@ -1208,21 +1206,33 @@ impl NodeFactory {
         type_: Option<Id<Node /*TypeNode*/>>,
         body: Id<Node /*Block*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_function_expression = node_ref.as_function_expression();
         let modifiers = modifiers.map(Into::into);
         let type_parameters = type_parameters.map(Into::into);
         let parameters = parameters.into();
-        if node_as_function_expression.maybe_name() != name
+        if node.ref_(self).as_function_expression().maybe_name() != name
             || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
-            || node_as_function_expression.maybe_asterisk_token() != asterisk_token
+            || node
+                .ref_(self)
+                .as_function_expression()
+                .maybe_asterisk_token()
+                != asterisk_token
             || has_option_node_array_changed(
-                node_as_function_expression.maybe_type_parameters(),
+                node.ref_(self)
+                    .as_function_expression()
+                    .maybe_type_parameters(),
                 type_parameters.as_ref(),
             )
-            || has_node_array_changed(node_as_function_expression.parameters(), &parameters)
-            || node_as_function_expression.maybe_type() != type_
-            || node_as_function_expression.maybe_body().unwrap() != body
+            || has_node_array_changed(
+                node.ref_(self).as_function_expression().parameters(),
+                &parameters,
+            )
+            || node.ref_(self).as_function_expression().maybe_type() != type_
+            || node
+                .ref_(self)
+                .as_function_expression()
+                .maybe_body()
+                .unwrap()
+                != body
         {
             self.update_base_function_like_declaration(
                 self.create_function_expression(

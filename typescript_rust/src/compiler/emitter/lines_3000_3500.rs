@@ -158,10 +158,12 @@ impl Printer {
         )?;
         self.emit_type_annotation(node.ref_(self).as_variable_declaration().maybe_type())?;
         self.emit_initializer(
-            node.ref_(self)
+            released!(node
+                .ref_(self)
                 .as_variable_declaration()
-                .maybe_initializer(),
-            node.ref_(self)
+                .maybe_initializer()),
+            released!(node
+                .ref_(self)
                 .as_variable_declaration()
                 .maybe_type()
                 .map_or_else(
@@ -173,7 +175,7 @@ impl Printer {
                             .end()
                     },
                     |node_type| node_type.ref_(self).end(),
-                ),
+                )),
             node,
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
@@ -228,14 +230,14 @@ impl Printer {
         self.emit_decorators(node, node.ref_(self).maybe_decorators())?;
         self.emit_modifiers(node, node.ref_(self).maybe_modifiers())?;
         self.write_keyword("function");
-        let node_ref = node.ref_(self);
-        let node_as_function_like_declaration = node_ref.as_function_like_declaration();
         self.emit(
-            node_as_function_like_declaration.maybe_asterisk_token(),
+            node.ref_(self)
+                .as_function_like_declaration()
+                .maybe_asterisk_token(),
             None,
         )?;
         self.write_space();
-        self.emit_identifier_name(node_as_function_like_declaration.maybe_name())?;
+        self.emit_identifier_name(node.ref_(self).as_function_like_declaration().maybe_name())?;
         self.emit_signature_and_body(node, |node: Id<Node>| self.emit_signature_head(node))?;
 
         Ok(())
@@ -246,9 +248,7 @@ impl Printer {
         node: Id<Node>, /*FunctionLikeDeclaration*/
         mut emit_signature_head: impl FnMut(Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_function_like_declaration = node_ref.as_function_like_declaration();
-        let body = node_as_function_like_declaration.maybe_body();
+        let body = node.ref_(self).as_function_like_declaration().maybe_body();
         Ok(if let Some(body) = body {
             if is_block(&body.ref_(self)) {
                 let indented_flag = get_emit_flags(node, self).intersects(EmitFlags::Indented);
@@ -258,13 +258,17 @@ impl Printer {
 
                 self.push_name_generation_scope(Some(node));
                 for_each(
-                    &*node_as_function_like_declaration.parameters().ref_(self),
+                    &*node
+                        .ref_(self)
+                        .as_function_like_declaration()
+                        .parameters()
+                        .ref_(self),
                     |&parameter: &Id<Node>, _| -> Option<()> {
                         self.generate_names(Some(parameter));
                         None
                     },
                 );
-                self.generate_names(node_as_function_like_declaration.maybe_body());
+                self.generate_names(node.ref_(self).as_function_like_declaration().maybe_body());
 
                 emit_signature_head(node)?;
                 self.emit_block_function_body(body)?;
@@ -362,14 +366,12 @@ impl Printer {
         self.write_punctuation("{");
         self.increase_indent();
 
-        let body_ref = body.ref_(self);
-        let body_as_block = body_ref.as_block();
         let should_emit_block_function_body_on_single_line =
             self.should_emit_block_function_body_on_single_line(body);
         // if (emitBodyWithDetachedComments) {
         self.try_emit_body_with_detached_comments(
             body,
-            &*body_as_block.statements.ref_(self),
+            &*body.ref_(self).as_block().statements.ref_(self),
             |node: Id<Node>| {
                 Ok(if should_emit_block_function_body_on_single_line {
                     self.emit_block_function_body_on_single_line(node)?;
@@ -386,7 +388,7 @@ impl Printer {
         self.decrease_indent();
         self.write_token(
             SyntaxKind::CloseBraceToken,
-            body_as_block.statements.ref_(self).end(),
+            body.ref_(self).as_block().statements.ref_(self).end(),
             |text: &str| self.write_punctuation(text),
             Some(body),
         );
@@ -409,10 +411,8 @@ impl Printer {
         body: Id<Node>, /*Block*/
         emit_block_function_body_on_single_line: Option<bool>,
     ) -> io::Result<()> {
-        let body_ref = body.ref_(self);
-        let body_as_block = body_ref.as_block();
         let statement_offset = self.emit_prologue_directives(
-            &body_as_block.statements.ref_(self),
+            &body.ref_(self).as_block().statements.ref_(self),
             None,
             &mut None,
             None,
@@ -427,7 +427,7 @@ impl Printer {
                 self.decrease_indent();
                 self.emit_list(
                     Some(body),
-                    Some(body_as_block.statements),
+                    Some(body.ref_(self).as_block().statements),
                     ListFormat::SingleLineFunctionBodyStatements,
                     None,
                     None,
@@ -437,7 +437,7 @@ impl Printer {
             } else {
                 self.emit_list(
                     Some(body),
-                    Some(body_as_block.statements),
+                    Some(body.ref_(self).as_block().statements),
                     ListFormat::MultiLineFunctionBodyStatements,
                     None,
                     Some(statement_offset),

@@ -516,7 +516,7 @@ impl TransformTypeScript {
             &mut members,
             Some(
                 &try_visit_nodes(
-                    node.ref_(self).as_class_like_declaration().members(),
+                    released!(node.ref_(self).as_class_like_declaration().members()),
                     Some(|node: Id<Node>| self.class_element_visitor(node)),
                     Some(|node: Id<Node>| is_class_element(&node.ref_(self))),
                     None,

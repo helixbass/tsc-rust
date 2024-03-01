@@ -837,11 +837,14 @@ impl TypeChecker {
             )?;
         } else if node.ref_(self).kind() != SyntaxKind::Decorator {
             try_maybe_for_each(
-                node.ref_(self)
+                released!(node
+                    .ref_(self)
                     .as_has_arguments()
                     .maybe_arguments()
                     .refed(self)
-                    .as_deref(),
+                    .as_deref()
+                    .cloned())
+                .as_deref(),
                 |&argument: &Id<Node>, _| -> io::Result<Option<()>> {
                     self.check_expression(argument, None, None)?;
                     Ok(None)

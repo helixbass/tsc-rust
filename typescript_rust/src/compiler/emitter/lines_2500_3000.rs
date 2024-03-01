@@ -74,10 +74,8 @@ impl Printer {
             None,
         );
         self.write_space();
-        let node_ref = node.ref_(self);
-        let node_as_new_expression = node_ref.as_new_expression();
         self.emit_expression(
-            Some(node_as_new_expression.expression),
+            Some(node.ref_(self).as_new_expression().expression),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionOfNewCurrentParenthesizerRule::new(
                     self.parenthesizer(),
@@ -85,10 +83,13 @@ impl Printer {
                 ),
             ))),
         )?;
-        self.emit_type_arguments(node, node_as_new_expression.maybe_type_arguments())?;
+        self.emit_type_arguments(
+            node,
+            node.ref_(self).as_new_expression().maybe_type_arguments(),
+        )?;
         self.emit_expression_list(
             Some(node),
-            node_as_new_expression.arguments,
+            node.ref_(self).as_new_expression().arguments,
             ListFormat::NewExpressionArguments,
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
@@ -1162,7 +1163,7 @@ impl Printer {
             None,
         );
         self.emit_expression_with_leading_space(
-            node.ref_(self).as_return_statement().expression,
+            released!(node.ref_(self).as_return_statement().expression),
             None,
         )?;
         self.write_trailing_semicolon();

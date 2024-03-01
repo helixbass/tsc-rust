@@ -89,18 +89,25 @@ fn create_jsx_factory_expression_from_entity_name(
     parent: Id<Node>,      /*JsxOpeningLikeElement | JsxOpeningFragment*/
 ) -> Id<Node /*Expression*/> {
     if is_qualified_name(&jsx_factory.ref_(factory)) {
-        let jsx_factory_ref = jsx_factory.ref_(factory);
-        let jsx_factory_as_qualified_name = jsx_factory_ref.as_qualified_name();
         let left = create_jsx_factory_expression_from_entity_name(
             factory,
-            jsx_factory_as_qualified_name.left,
+            jsx_factory.ref_(factory).as_qualified_name().left,
             parent,
         );
-        let right =
-            factory.create_identifier(id_text(&jsx_factory_as_qualified_name.right.ref_(factory)));
+        let right = factory.create_identifier(id_text(
+            &jsx_factory
+                .ref_(factory)
+                .as_qualified_name()
+                .right
+                .ref_(factory),
+        ));
         factory.create_property_access_expression(left, right)
     } else {
-        create_react_namespace(Some(id_text(&jsx_factory.ref_(factory))), parent, factory)
+        create_react_namespace(
+            Some(&released!(id_text(&jsx_factory.ref_(factory)).to_owned())),
+            parent,
+            factory,
+        )
     }
 }
 

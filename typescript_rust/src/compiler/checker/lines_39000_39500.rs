@@ -216,7 +216,7 @@ impl TypeChecker {
                                 },
                                 None,
                             )?,
-                            node.ref_(self).as_interface_declaration().maybe_name(),
+                            released!(node.ref_(self).as_interface_declaration().maybe_name()),
                             Some(&Diagnostics::Interface_0_incorrectly_extends_interface_1),
                             None,
                             None,

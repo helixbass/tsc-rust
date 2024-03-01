@@ -167,8 +167,6 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*ModuleDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_ref = node.ref_(self);
-        let node_as_module_declaration = node_ref.as_module_declaration();
         if !self.should_emit_module_declaration(node) {
             return Ok(Some(
                 self.factory
@@ -179,7 +177,7 @@ impl TransformTypeScript {
         }
 
         Debug_.assert_node(
-            node_as_module_declaration.maybe_name(),
+            node.ref_(self).as_module_declaration().maybe_name(),
             Some(|node: Id<Node>| is_identifier(&node.ref_(self))),
             Some("A TypeScript namespace should have an Identifier name."),
         );

@@ -628,9 +628,7 @@ impl CheckTypeRelatedTo {
                 .get_base_constraint_of_type(target)?;
             let mut needs_original_source: Option<bool> = None;
             if let Some(constraint) = constraint.try_filter(|&constraint| -> io::Result<_> {
-                Ok(self_
-                    .ref_(arena)
-                    .type_checker
+                Ok(released!(self_.ref_(arena).type_checker)
                     .ref_(arena)
                     .is_type_assignable_to(generalized_source, constraint)?
                     || {

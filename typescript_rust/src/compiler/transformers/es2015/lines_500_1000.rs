@@ -797,11 +797,11 @@ impl TransformES2015 {
             return Ok(self.create_default_constructor_body(node, is_derived_class));
         }
         let constructor = constructor.unwrap();
-        let constructor_ref = constructor.ref_(self);
-        let constructor_as_constructor_declaration = constructor_ref.as_constructor_declaration();
-        let constructor_body = constructor_as_constructor_declaration.maybe_body().unwrap();
-        let constructor_body_ref = constructor_body.ref_(self);
-        let constructor_body_as_block = constructor_body_ref.as_block();
+        let constructor_body = constructor
+            .ref_(self)
+            .as_constructor_declaration()
+            .maybe_body()
+            .unwrap();
 
         let mut prologue: Vec<Id<Node /*Statement*/>> = Default::default();
         let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
@@ -810,7 +810,7 @@ impl TransformES2015 {
         let mut statement_offset = 0;
         if !has_synthesized_super {
             statement_offset = self.factory.ref_(self).copy_standard_prologue(
-                &constructor_body_as_block.statements.ref_(self),
+                &constructor_body.ref_(self).as_block().statements.ref_(self),
                 &mut prologue,
                 Some(false),
             );
@@ -822,7 +822,7 @@ impl TransformES2015 {
                 .factory
                 .ref_(self)
                 .try_copy_custom_prologue(
-                    &constructor_body_as_block.statements.ref_(self),
+                    &constructor_body.ref_(self).as_block().statements.ref_(self),
                     &mut statements,
                     Some(statement_offset),
                     Some(|node: Id<Node>| self.visitor(node)),
@@ -835,10 +835,16 @@ impl TransformES2015 {
         if has_synthesized_super {
             super_call_expression = Some(self.create_default_super_call_or_this());
         } else if is_derived_class
-            && statement_offset < constructor_body_as_block.statements.ref_(self).len()
+            && statement_offset
+                < constructor_body
+                    .ref_(self)
+                    .as_block()
+                    .statements
+                    .ref_(self)
+                    .len()
         {
             let first_statement =
-                &constructor_body_as_block.statements.ref_(self)[statement_offset];
+                &constructor_body.ref_(self).as_block().statements.ref_(self)[statement_offset];
             if is_expression_statement(&first_statement.ref_(self))
                 && is_super_call(
                     first_statement
@@ -871,7 +877,7 @@ impl TransformES2015 {
             &mut statements,
             Some(
                 &try_visit_nodes(
-                    constructor_body_as_block.statements,
+                    constructor_body.ref_(self).as_block().statements,
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_statement(node, self)),
                     None,
@@ -896,7 +902,13 @@ impl TransformES2015 {
 
         if is_derived_class {
             if let Some(super_call_expression) = super_call_expression.clone().filter(|_| {
-                statement_offset == constructor_body_as_block.statements.ref_(self).len()
+                statement_offset
+                    == constructor_body
+                        .ref_(self)
+                        .as_block()
+                        .statements
+                        .ref_(self)
+                        .len()
                     && !constructor_body
                         .ref_(self)
                         .transform_flags()
@@ -952,7 +964,10 @@ impl TransformES2015 {
                     .ref_(self)
                     .create_node_array(Some(concatenate(prologue, statements)), None)
                     .set_text_range(
-                        Some(&*constructor_body_as_block.statements.ref_(self)),
+                        Some(
+                            &*released!(constructor_body.ref_(self).as_block().statements)
+                                .ref_(self),
+                        ),
                         self,
                     ),
                 Some(true),
