@@ -850,14 +850,7 @@ pub fn set_original_node(
                 }
                 node.ref_(arena).maybe_emit_node().unwrap()
             };
-            // looks like node and original can share the same Id<EmitNode> (eg from
-            // clone_node(), which I believe is correctly mimicking the Typescript version in
-            // cloning that field by reference) so we'd have a borrow error if we try
-            // and immutably + mutably borrow them "separately". So assume that we can skip
-            // merge_emit_node() if they're the same already?
-            if node_emit_node != emit_node {
-                merge_emit_node(&emit_node.ref_(arena), &mut node_emit_node.ref_mut(arena));
-            }
+            merge_emit_node(emit_node, node_emit_node, arena);
             // node.set_emit_node(node_emit_node);
         }
     }
@@ -865,68 +858,68 @@ pub fn set_original_node(
 }
 
 pub(super) fn merge_emit_node(
-    source_emit_node: &EmitNode,
-    dest_emit_node: /*Option<*/ &mut EmitNode, /*>*/
+    source_emit_node: Id<EmitNode>,
+    dest_emit_node: /*Option<*/ Id<EmitNode>, /*>*/
+    arena: &impl HasArena,
 ) /*-> EmitNode*/
 {
-    let flags = source_emit_node.flags.as_ref();
-    let leading_comments = source_emit_node.leading_comments.as_ref();
-    let trailing_comments = source_emit_node.trailing_comments.as_ref();
-    let comment_range = source_emit_node.comment_range.as_ref();
-    let source_map_range = source_emit_node.source_map_range;
-    let token_source_map_ranges = source_emit_node.token_source_map_ranges.as_ref();
-    let constant_value = source_emit_node.constant_value.as_ref();
-    let helpers = source_emit_node.helpers.as_ref();
-    let starts_on_new_line = source_emit_node.starts_on_new_line.as_ref();
-    if let Some(leading_comments) = leading_comments {
-        let mut new_leading_comments = leading_comments.to_vec();
+    let flags = source_emit_node.ref_(arena).flags;
+    let leading_comments = source_emit_node.ref_(arena).leading_comments.clone();
+    let trailing_comments = source_emit_node.ref_(arena).trailing_comments.clone();
+    let comment_range = source_emit_node.ref_(arena).comment_range.clone();
+    let source_map_range = source_emit_node.ref_(arena).source_map_range;
+    let token_source_map_ranges = source_emit_node.ref_(arena).token_source_map_ranges.clone();
+    let constant_value = source_emit_node.ref_(arena).constant_value.clone();
+    let helpers = source_emit_node.ref_(arena).helpers.clone();
+    let starts_on_new_line = source_emit_node.ref_(arena).starts_on_new_line;
+    if let Some(mut leading_comments) = leading_comments {
         add_range(
-            &mut new_leading_comments,
-            dest_emit_node.leading_comments.as_deref(),
+            &mut leading_comments,
+            dest_emit_node.ref_(arena).leading_comments.as_deref(),
             None,
             None,
         );
-        dest_emit_node.leading_comments = Some(new_leading_comments);
+        dest_emit_node.ref_mut(arena).leading_comments = Some(leading_comments);
     }
-    if let Some(trailing_comments) = trailing_comments {
-        let mut new_trailing_comments = trailing_comments.to_vec();
+    if let Some(mut trailing_comments) = trailing_comments {
         add_range(
-            &mut new_trailing_comments,
-            dest_emit_node.trailing_comments.as_deref(),
+            &mut trailing_comments,
+            dest_emit_node.ref_(arena).trailing_comments.as_deref(),
             None,
             None,
         );
-        dest_emit_node.trailing_comments = Some(new_trailing_comments);
+        dest_emit_node.ref_mut(arena).trailing_comments = Some(trailing_comments);
     }
     // TODO: should this technically also check "truthiness" of flags?
     if let Some(flags) = flags {
-        dest_emit_node.flags = Some(*flags & !EmitFlags::Immutable);
+        dest_emit_node.ref_mut(arena).flags = Some(flags & !EmitFlags::Immutable);
     }
     if comment_range.is_some() {
-        dest_emit_node.comment_range = comment_range.map(Clone::clone);
+        dest_emit_node.ref_mut(arena).comment_range = comment_range;
     }
     if source_map_range.is_some() {
-        dest_emit_node.source_map_range = source_map_range;
+        dest_emit_node.ref_mut(arena).source_map_range = source_map_range;
     }
     if let Some(token_source_map_ranges) = token_source_map_ranges {
-        dest_emit_node.token_source_map_ranges = Some(merge_token_source_map_ranges(
-            token_source_map_ranges,
-            dest_emit_node.token_source_map_ranges.as_ref(),
-        ));
+        let token_source_map_ranges = merge_token_source_map_ranges(
+            &token_source_map_ranges,
+            dest_emit_node.ref_(arena).token_source_map_ranges.as_ref(),
+        );
+        dest_emit_node.ref_mut(arena).token_source_map_ranges = Some(token_source_map_ranges);
     }
     if constant_value.is_some() {
-        dest_emit_node.constant_value = constant_value.map(Clone::clone);
+        dest_emit_node.ref_mut(arena).constant_value = constant_value;
     }
     if let Some(helpers) = helpers {
-        let mut dest_emit_node_helpers = dest_emit_node.helpers.clone();
+        let mut dest_emit_node_helpers = dest_emit_node.ref_(arena).helpers.clone();
         for helper in helpers {
             dest_emit_node_helpers =
-                Some(maybe_append_if_unique_eq(dest_emit_node_helpers, helper));
+                Some(maybe_append_if_unique_eq(dest_emit_node_helpers, &helper));
         }
-        dest_emit_node.helpers = dest_emit_node_helpers;
+        dest_emit_node.ref_mut(arena).helpers = dest_emit_node_helpers;
     }
     if starts_on_new_line.is_some() {
-        dest_emit_node.starts_on_new_line = starts_on_new_line.map(Clone::clone);
+        dest_emit_node.ref_mut(arena).starts_on_new_line = starts_on_new_line;
     }
     // return destEmitNode
 }
