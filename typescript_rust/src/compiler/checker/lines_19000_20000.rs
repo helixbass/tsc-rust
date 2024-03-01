@@ -1483,9 +1483,9 @@ impl CheckTypeRelatedTo {
                 .type_checker
                 .ref_(arena)
                 .is_tuple_type(target);
-        for &target_prop in &self_
+        for &target_prop in &released!(self_
             .ref_(arena)
-            .exclude_properties(&properties, excluded_properties)
+            .exclude_properties(&properties, excluded_properties))
         {
             let ref name = target_prop.ref_(arena).escaped_name().to_owned();
             if !target_prop
@@ -1523,14 +1523,14 @@ impl CheckTypeRelatedTo {
                             },
                             report_errors,
                             intersection_state,
-                            Rc::ptr_eq(
+                            released!(Rc::ptr_eq(
                                 &self_.ref_(arena).relation,
                                 &self_
                                     .ref_(arena)
                                     .type_checker
                                     .ref_(arena)
                                     .comparable_relation,
-                            ),
+                            )),
                         )?;
                         if related == Ternary::False {
                             return Ok(Ternary::False);

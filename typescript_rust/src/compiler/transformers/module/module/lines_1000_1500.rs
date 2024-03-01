@@ -680,17 +680,19 @@ impl TransformModule {
                 )?
             } else {
                 self.factory.ref_(self).create_assignment(
-                    self.factory
+                    released!(self
+                        .factory
                         .ref_(self)
                         .create_property_access_expression(
                             self.factory.ref_(self).create_identifier("exports"),
-                            node.ref_(self).as_variable_declaration().name(),
+                            released!(node.ref_(self).as_variable_declaration().name()),
                         )
                         .set_text_range(
                             Some(&*node.ref_(self).as_variable_declaration().name().ref_(self)),
                             self,
-                        ),
-                    node.ref_(self)
+                        )),
+                    released!(node
+                        .ref_(self)
                         .as_variable_declaration()
                         .maybe_initializer()
                         .try_map_or_else(
@@ -703,7 +705,7 @@ impl TransformModule {
                                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 )
                             },
-                        )?,
+                        )?),
                 )
             },
         )

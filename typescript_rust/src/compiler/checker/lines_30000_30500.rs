@@ -478,7 +478,7 @@ impl TypeChecker {
                     }
                 }
                 self.invocation_error(
-                    node.ref_(self).as_call_expression().expression,
+                    released!(node.ref_(self).as_call_expression().expression),
                     apparent_type,
                     SignatureKind::Call,
                     related_information,

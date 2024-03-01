@@ -269,14 +269,18 @@ impl TypeChecker {
         node: Id<Node>, /*PropertyAssignment*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
-        let node_ref = node.ref_(self);
-        let node_as_property_assignment = node_ref.as_property_assignment();
-        if node_as_property_assignment.name().ref_(self).kind() == SyntaxKind::ComputedPropertyName
+        if node
+            .ref_(self)
+            .as_property_assignment()
+            .name()
+            .ref_(self)
+            .kind()
+            == SyntaxKind::ComputedPropertyName
         {
-            self.check_computed_property_name(node_as_property_assignment.name())?;
+            self.check_computed_property_name(node.ref_(self).as_property_assignment().name())?;
         }
         self.check_expression_for_mutable_location(
-            node_as_property_assignment.initializer,
+            node.ref_(self).as_property_assignment().initializer,
             check_mode,
             None,
             None,

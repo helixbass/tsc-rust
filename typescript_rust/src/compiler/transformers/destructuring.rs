@@ -1317,7 +1317,7 @@ fn create_destructuring_property_access(
             .ref_(arena)
             .factory()
             .ref_(arena)
-            .create_identifier(id_text(&property_name.ref_(arena)));
+            .create_identifier(&released!(id_text(&property_name.ref_(arena)).to_owned()));
         flatten_context
             .context()
             .ref_(arena)

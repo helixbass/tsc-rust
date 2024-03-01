@@ -27,8 +27,6 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*MethodDeclaration*/
     ) -> io::Result<VisitResult> {
-        let node_ref = node.ref_(self);
-        let node_as_method_declaration = node_ref.as_method_declaration();
         if !self.should_emit_function_like_declaration(node) {
             return Ok(None);
         }
@@ -36,19 +34,22 @@ impl TransformTypeScript {
             node,
             Option::<Id<NodeArray>>::None,
             maybe_visit_nodes(
-                node.ref_(self).maybe_modifiers(),
+                released!(node.ref_(self).maybe_modifiers()),
                 Some(|node: Id<Node>| self.modifier_visitor(node)),
                 Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                 None,
                 None,
                 self,
             ),
-            node_as_method_declaration.maybe_asterisk_token(),
+            released!(node
+                .ref_(self)
+                .as_method_declaration()
+                .maybe_asterisk_token()),
             self.visit_property_name_of_class_element(node)?,
             None,
             Option::<Id<NodeArray>>::None,
             try_visit_parameter_list(
-                Some(node_as_method_declaration.parameters()),
+                released!(Some(node.ref_(self).as_method_declaration().parameters())),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
@@ -56,7 +57,7 @@ impl TransformTypeScript {
             .unwrap(),
             None,
             try_visit_function_body(
-                node_as_method_declaration.maybe_body(),
+                released!(node.ref_(self).as_method_declaration().maybe_body()),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
@@ -288,12 +289,10 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*ArrowFunction*/
     ) -> io::Result<VisitResult> {
-        let node_ref = node.ref_(self);
-        let node_as_arrow_function = node_ref.as_arrow_function();
         let updated = self.factory.ref_(self).update_arrow_function(
             node,
             maybe_visit_nodes(
-                node.ref_(self).maybe_modifiers(),
+                released!(node.ref_(self).maybe_modifiers()),
                 Some(|node: Id<Node>| self.modifier_visitor(node)),
                 Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                 None,
@@ -302,16 +301,20 @@ impl TransformTypeScript {
             ),
             Option::<Id<NodeArray>>::None,
             try_visit_parameter_list(
-                Some(node_as_arrow_function.parameters()),
+                released!(Some(node.ref_(self).as_arrow_function().parameters())),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
             )?
             .unwrap(),
             None,
-            node_as_arrow_function.equals_greater_than_token.clone(),
+            released!(node
+                .ref_(self)
+                .as_arrow_function()
+                .equals_greater_than_token
+                .clone()),
             try_visit_function_body(
-                node_as_arrow_function.maybe_body(),
+                released!(node.ref_(self).as_arrow_function().maybe_body()),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
@@ -563,14 +566,14 @@ impl TransformTypeScript {
                 .update_call_expression(
                     node,
                     try_visit_node(
-                        node.ref_(self).as_call_expression().expression,
+                        released!(node.ref_(self).as_call_expression().expression),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     Option::<Id<NodeArray>>::None,
                     try_visit_nodes(
-                        node.ref_(self).as_call_expression().arguments,
+                        released!(node.ref_(self).as_call_expression().arguments),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         None,

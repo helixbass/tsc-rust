@@ -906,9 +906,11 @@ impl TypeChecker {
                 type_
             } else {
                 if type_.ref_(self).maybe_permissive_instantiation().is_none() {
-                    type_.ref_(self).set_permissive_instantiation(Some(
-                        self.instantiate_type(type_, self.permissive_mapper.clone())?,
-                    ));
+                    let permissive_instantiation =
+                        self.instantiate_type(type_, self.permissive_mapper.clone())?;
+                    type_
+                        .ref_(self)
+                        .set_permissive_instantiation(Some(permissive_instantiation));
                 }
                 type_.ref_(self).maybe_permissive_instantiation().unwrap()
             },

@@ -11,7 +11,7 @@ use crate::{
     get_declaration_of_kind, get_effective_container_for_jsdoc_template_tag, get_object_flags,
     index_of_eq, is_entity_name_expression, is_expression_with_type_arguments, is_identifier,
     is_in_js_file, is_jsdoc_augments_tag, is_jsdoc_index_signature, is_jsdoc_template_tag,
-    is_statement, is_type_alias, length, maybe_concatenate, skip_parentheses, try_map,
+    is_statement, is_type_alias, length, maybe_concatenate, released, skip_parentheses, try_map,
     walk_up_parenthesized_types_and_get_parent_and_child, AsDoubleDeref, BaseObjectType,
     CheckFlags, Diagnostics, GetOrInsertDefault, HasArena, HasTypeArgumentsInterface, InArena,
     InterfaceTypeInterface, Node, NodeFlags, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
@@ -766,28 +766,26 @@ impl TypeChecker {
             .get(&id)
             .copied();
         if instantiation.is_none() {
-            instantiation = Some(
-                self.instantiate_type_with_alias(
-                    type_,
-                    self.create_type_mapper(
-                        type_parameters.clone(),
-                        self.fill_missing_type_arguments(
-                            type_arguments.map(ToOwned::to_owned),
-                            Some(&type_parameters),
-                            self.get_min_type_argument_count(Some(&type_parameters)),
-                            is_in_js_file(
+            instantiation = Some(self.instantiate_type_with_alias(
+                type_,
+                self.create_type_mapper(
+                    type_parameters.clone(),
+                    self.fill_missing_type_arguments(
+                        type_arguments.map(ToOwned::to_owned),
+                        Some(&type_parameters),
+                        self.get_min_type_argument_count(Some(&type_parameters)),
+                        released!(is_in_js_file(
                                 symbol
                                     .ref_(self)
                                     .maybe_value_declaration()
                                     .refed(self)
                                     .as_deref(),
-                            ),
-                        )?,
-                    ),
-                    alias_symbol,
-                    alias_type_arguments,
-                )?,
-            );
+                            )),
+                    )?,
+                ),
+                alias_symbol,
+                alias_type_arguments,
+            )?);
             links
                 .ref_mut(self)
                 .instantiations

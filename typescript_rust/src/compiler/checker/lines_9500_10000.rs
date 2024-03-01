@@ -1021,12 +1021,12 @@ impl TypeChecker {
                     .object_flags()
                     .intersects(ObjectFlags::Tuple)
                 {
+                    let resolved_base_types =
+                        self.alloc_vec_type(vec![self.get_tuple_base_type(type_)?]);
                     type_
                         .ref_(self)
                         .as_not_actually_interface_type()
-                        .set_resolved_base_types(Some(
-                            self.alloc_vec_type(vec![self.get_tuple_base_type(type_)?]),
-                        ));
+                        .set_resolved_base_types(Some(resolved_base_types));
                 } else if type_
                     .ref_(self)
                     .symbol()

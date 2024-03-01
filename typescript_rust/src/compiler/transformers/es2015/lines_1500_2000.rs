@@ -182,10 +182,13 @@ impl TransformES2015 {
         statements: &mut Vec<Id<Node /*Statement*/>>,
         node: Id<Node>, /*ClassExpression | ClassDeclaration*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_class_like_declaration = node_ref.as_class_like_declaration();
-        for &member in &*node_as_class_like_declaration.members().ref_(self) {
-            match member.ref_(self).kind() {
+        for &member in &*node
+            .ref_(self)
+            .as_class_like_declaration()
+            .members()
+            .ref_(self)
+        {
+            match released!(member.ref_(self).kind()) {
                 SyntaxKind::SemicolonClassElement => {
                     statements.push(self.transform_semicolon_class_element_to_statement(member));
                 }
@@ -198,7 +201,11 @@ impl TransformES2015 {
                 }
                 SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
                     let accessors = get_all_accessor_declarations(
-                        &node_as_class_like_declaration.members().ref_(self),
+                        &node
+                            .ref_(self)
+                            .as_class_like_declaration()
+                            .members()
+                            .ref_(self),
                         member,
                         self,
                     );
@@ -636,16 +643,17 @@ impl TransformES2015 {
             node,
             Option::<Id<NodeArray>>::None,
             try_maybe_visit_nodes(
-                node.ref_(self).maybe_modifiers(),
+                released!(node.ref_(self).maybe_modifiers()),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                 None,
                 None,
                 self,
             )?,
-            node.ref_(self)
+            released!(node
+                .ref_(self)
                 .as_function_declaration()
-                .maybe_asterisk_token(),
+                .maybe_asterisk_token()),
             name,
             Option::<Id<NodeArray>>::None,
             parameters,

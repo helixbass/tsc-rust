@@ -10,7 +10,7 @@ use crate::{
     is_function_expression_or_arrow_function, is_in_js_file, is_in_json_file,
     is_interface_declaration, is_known_symbol, is_named_declaration, is_object_literal_method,
     is_property_declaration, is_type_literal_node, length, maybe_is_class_like,
-    parameter_is_this_keyword, return_ok_default_if_none, try_filter, try_map,
+    parameter_is_this_keyword, released, return_ok_default_if_none, try_filter, try_map,
     try_reduce_left_no_initial_value_optional, unescape_leading_underscores, CheckFlags,
     ContextFlags, Debug_, Diagnostics, ElementFlags, ExternalEmitHelpers, HasArena,
     HasInitializerInterface, InArena, IndexInfo, InterfaceTypeInterface, NamedDeclarationInterface,
@@ -1060,11 +1060,8 @@ impl TypeChecker {
         }
 
         let mut offset = 0;
-        for &member_decl in &*node
-            .ref_(self)
-            .as_object_literal_expression()
-            .properties
-            .ref_(self)
+        for &member_decl in
+            &*released!(node.ref_(self).as_object_literal_expression().properties).ref_(self)
         {
             let mut member = self.get_symbol_of_node(member_decl)?;
             let computed_name_type = member_decl

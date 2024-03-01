@@ -719,9 +719,7 @@ impl NodeFactory {
         node: Id<Node>, /*ReturnStatement*/
         expression: Option<Id<Node /*Expression*/>>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_return_statement = node_ref.as_return_statement();
-        if node_as_return_statement.expression != expression {
+        if node.ref_(self).as_return_statement().expression != expression {
             self.update(self.create_return_statement(expression), node)
         } else {
             node

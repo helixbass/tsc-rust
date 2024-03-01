@@ -10,11 +10,11 @@ use crate::{
     ReverseMappedType, SymbolInterface, SyntaxKind, TransientSymbolInterface, TypeComparer,
     TypeMapper, TypeMapperCallback, __String, declaration_name_to_string, get_name_of_declaration,
     get_object_flags, get_source_file_of_node, impl_has_arena, is_call_signature_declaration,
-    is_check_js_enabled_for_file, is_in_js_file, is_type_node_kind, try_for_each_bool, try_map,
-    try_some, AllArenas, DiagnosticMessage, Diagnostics, HasArena, InArena, InferenceContext,
-    InferenceFlags, InferenceInfo, IteratorExt, Node, NodeInterface, ObjectFlags, Signature,
-    Symbol, SymbolFlags, Ternary, Type, TypeChecker, TypeComparerCall, TypeFlags, TypeInterface,
-    UnionReduction, WideningContext,
+    is_check_js_enabled_for_file, is_in_js_file, is_type_node_kind, released, try_for_each_bool,
+    try_map, try_some, AllArenas, DiagnosticMessage, Diagnostics, HasArena, InArena,
+    InferenceContext, InferenceFlags, InferenceInfo, IteratorExt, Node, NodeInterface, ObjectFlags,
+    Signature, Symbol, SymbolFlags, Ternary, Type, TypeChecker, TypeComparerCall, TypeFlags,
+    TypeInterface, UnionReduction, WideningContext,
 };
 
 impl TypeChecker {
@@ -324,7 +324,7 @@ impl TypeChecker {
                 )?);
             } else if self.is_array_type(type_) || self.is_tuple_type(type_) {
                 result = Some(self.create_type_reference(
-                    type_.ref_(self).as_type_reference().target,
+                    released!(type_.ref_(self).as_type_reference().target),
                     Some(try_map(
                         &self.get_type_arguments(type_)?,
                         |&type_: &Id<Type>, _| self.get_widened_type(type_),

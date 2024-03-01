@@ -645,10 +645,10 @@ impl TypeChecker {
                                 Some(right),
                                 &Diagnostics::Property_0_does_not_exist_on_type_1,
                                 Some(vec![
-                                    unescape_leading_underscores(
+                                    released!(unescape_leading_underscores(
                                         &right.ref_(self).as_member_name().escaped_text(),
                                     )
-                                    .to_owned(),
+                                    .to_owned()),
                                     self.type_to_string_(
                                         left_type,
                                         Option::<Id<Node>>::None,

@@ -1391,43 +1391,42 @@ impl TransformDeclarations {
                         )),
                     )?
                 }
-                SyntaxKind::FunctionType => {
-                    let input_ref = input.ref_(self);
-                    let input_as_function_type_node = input_ref.as_function_type_node();
-                    self.visit_declaration_subtree_cleanup(
-                        input,
-                        can_produce_diagnostic,
-                        previous_enclosing_declaration,
-                        &old_diag,
-                        should_enter_suppress_new_diagnostics_context_context,
-                        old_within_object_literal_type,
-                        Some(
-                            self.factory.ref_(self).update_function_type_node(
+                SyntaxKind::FunctionType => self.visit_declaration_subtree_cleanup(
+                    input,
+                    can_produce_diagnostic,
+                    previous_enclosing_declaration,
+                    &old_diag,
+                    should_enter_suppress_new_diagnostics_context_context,
+                    old_within_object_literal_type,
+                    Some(
+                        self.factory.ref_(self).update_function_type_node(
+                            input,
+                            try_maybe_visit_nodes(
+                                input
+                                    .ref_(self)
+                                    .as_function_type_node()
+                                    .maybe_type_parameters(),
+                                Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
+                                Option::<fn(Id<Node>) -> bool>::None,
+                                None,
+                                None,
+                                self,
+                            )?,
+                            self.update_params_list(
                                 input,
-                                try_maybe_visit_nodes(
-                                    input_as_function_type_node.maybe_type_parameters(),
-                                    Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
-                                    Option::<fn(Id<Node>) -> bool>::None,
-                                    None,
-                                    None,
-                                    self,
-                                )?,
-                                self.update_params_list(
-                                    input,
-                                    Some(input_as_function_type_node.parameters()),
-                                    None,
-                                )?
-                                .unwrap(),
-                                try_maybe_visit_node(
-                                    input_as_function_type_node.maybe_type(),
-                                    Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
-                                    Option::<fn(Id<Node>) -> bool>::None,
-                                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
-                                )?,
-                            ),
+                                Some(input.ref_(self).as_function_type_node().parameters()),
+                                None,
+                            )?
+                            .unwrap(),
+                            try_maybe_visit_node(
+                                input.ref_(self).as_function_type_node().maybe_type(),
+                                Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
+                                Option::<fn(Id<Node>) -> bool>::None,
+                                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
+                            )?,
                         ),
-                    )?
-                }
+                    ),
+                )?,
                 SyntaxKind::ConstructorType => {
                     let input_ref = input.ref_(self);
                     let input_as_constructor_type_node = input_ref.as_constructor_type_node();

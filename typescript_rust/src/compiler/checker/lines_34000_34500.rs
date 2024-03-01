@@ -13,11 +13,11 @@ use crate::{
     get_effective_type_parameter_declarations, get_function_flags, get_name_of_declaration,
     get_property_name_for_property_name_node, get_text_of_node, has_syntactic_modifier, id_text,
     is_binding_pattern, is_identifier, is_omitted_expression, is_parameter_property_declaration,
-    is_private_identifier, is_static, node_is_present, return_ok_default_if_none, try_for_each,
-    DiagnosticMessageChain, Diagnostics, ExternalEmitHelpers, FunctionFlags, HasArena, InArena,
-    ModifierFlags, NamedDeclarationInterface, Node, NodeInterface, OptionInArena, ScriptTarget,
-    SignatureDeclarationInterface, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    TypePredicateKind,
+    is_private_identifier, is_static, node_is_present, released, return_ok_default_if_none,
+    try_for_each, DiagnosticMessageChain, Diagnostics, ExternalEmitHelpers, FunctionFlags,
+    HasArena, InArena, ModifierFlags, NamedDeclarationInterface, Node, NodeInterface,
+    OptionInArena, ScriptTarget, SignatureDeclarationInterface, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypePredicateKind,
 };
 
 impl TypeChecker {
@@ -420,11 +420,7 @@ impl TypeChecker {
         self.check_type_parameters(Some(&get_effective_type_parameter_declarations(node, self)))?;
 
         try_for_each(
-            &*node
-                .ref_(self)
-                .as_signature_declaration()
-                .parameters()
-                .ref_(self),
+            &*released!(node.ref_(self).as_signature_declaration().parameters()).ref_(self),
             |&parameter: &Id<Node>, _| -> io::Result<Option<()>> {
                 self.check_parameter(parameter)?;
                 Ok(None)

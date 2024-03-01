@@ -7,7 +7,7 @@ use crate::{
     add_range, concatenate, create_range, first_or_undefined, get_emit_flags,
     has_syntactic_modifier, id_text, is_binding_pattern, is_block, is_destructuring_assignment,
     is_expression, is_for_initializer, is_identifier, is_iteration_statement, is_statement,
-    is_variable_declaration_list, last, move_range_end, move_range_pos, set_emit_flags,
+    is_variable_declaration_list, last, move_range_end, move_range_pos, released, set_emit_flags,
     set_source_map_range, set_text_range_end, try_flat_map, try_flatten_destructuring_assignment,
     try_flatten_destructuring_binding, try_maybe_visit_node, try_visit_each_child, try_visit_node,
     unwrap_innermost_statement_of_label, EmitFlags, FlattenLevel, GetOrInsertDefault, HasArena,
@@ -348,10 +348,7 @@ impl TransformES2015 {
 
             let declarations: Vec<Id<Node>> = try_flat_map(
                 Some(
-                    &*node
-                        .ref_(self)
-                        .as_variable_declaration_list()
-                        .declarations
+                    &*released!(node.ref_(self).as_variable_declaration_list().declarations)
                         .ref_(self),
                 ),
                 |&declaration: &Id<Node>, _| -> io::Result<_> {
