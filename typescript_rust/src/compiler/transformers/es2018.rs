@@ -1937,10 +1937,10 @@ impl TransformES2018 {
                     .as_function_declaration()
                     .maybe_asterisk_token()
             },
-            node.ref_(self).as_function_declaration().maybe_name(),
+            released!(node.ref_(self).as_function_declaration().maybe_name()),
             Option::<Id<NodeArray>>::None,
             visit_parameter_list(
-                Some(node.ref_(self).as_function_declaration().parameters()),
+                released!(Some(node.ref_(self).as_function_declaration().parameters())),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,

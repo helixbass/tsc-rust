@@ -141,8 +141,6 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*SetAccessorDeclaration*/
     ) -> io::Result<VisitResult> {
-        let node_ref = node.ref_(self);
-        let node_as_set_accessor_declaration = node_ref.as_set_accessor_declaration();
         if !self.should_emit_accessor_declaration(node) {
             return Ok(None);
         }
@@ -150,7 +148,7 @@ impl TransformTypeScript {
             node,
             Option::<Id<NodeArray>>::None,
             maybe_visit_nodes(
-                node.ref_(self).maybe_modifiers(),
+                released!(node.ref_(self).maybe_modifiers()),
                 Some(|node: Id<Node>| self.modifier_visitor(node)),
                 Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                 None,
@@ -159,7 +157,7 @@ impl TransformTypeScript {
             ),
             self.visit_property_name_of_class_element(node)?,
             try_visit_parameter_list(
-                Some(node_as_set_accessor_declaration.parameters()),
+                Some(node.ref_(self).as_set_accessor_declaration().parameters()),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
@@ -167,7 +165,7 @@ impl TransformTypeScript {
             .unwrap(),
             Some(
                 try_visit_function_body(
-                    node_as_set_accessor_declaration.maybe_body(),
+                    node.ref_(self).as_set_accessor_declaration().maybe_body(),
                     |node: Id<Node>| self.visitor(node),
                     &*self.context.ref_(self),
                     self,

@@ -52,7 +52,10 @@ impl Printer {
             None,
         );
         self.write_space();
-        self.emit(Some(node.ref_(self).as_switch_statement().case_block), None)?;
+        self.emit(
+            Some(released!(node.ref_(self).as_switch_statement().case_block)),
+            None,
+        )?;
 
         Ok(())
     }
@@ -659,7 +662,7 @@ impl Printer {
         );
         self.emit_list(
             Some(node),
-            Some(node.ref_(self).as_case_block().clauses),
+            released!(Some(node.ref_(self).as_case_block().clauses)),
             ListFormat::CaseBlockClauses,
             None,
             None,

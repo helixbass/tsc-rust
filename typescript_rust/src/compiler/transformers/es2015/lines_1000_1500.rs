@@ -173,11 +173,8 @@ impl TransformES2015 {
         }
 
         let mut added = false;
-        for &parameter in &*node
-            .ref_(self)
-            .as_function_like_declaration()
-            .parameters()
-            .ref_(self)
+        for &parameter in
+            &*released!(node.ref_(self).as_function_like_declaration().parameters()).ref_(self)
         {
             let name = parameter
                 .ref_(self)

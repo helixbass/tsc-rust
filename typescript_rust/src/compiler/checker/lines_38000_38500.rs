@@ -482,7 +482,7 @@ impl TypeChecker {
                         })
                 })?;
             if error_node.is_some()
-                && !self.is_type_assignable_to(prop_type, info.ref_(self).type_)?
+                && !self.is_type_assignable_to(prop_type, released!(info.ref_(self).type_))?
             {
                 self.error(
                     error_node,

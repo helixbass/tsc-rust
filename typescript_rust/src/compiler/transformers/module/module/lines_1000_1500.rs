@@ -576,7 +576,7 @@ impl TransformModule {
                         node,
                         modifiers,
                         self.factory.ref_(self).update_variable_declaration_list(
-                            node.ref_(self).as_variable_statement().declaration_list,
+                            released!(node.ref_(self).as_variable_statement().declaration_list),
                             variables,
                         ),
                     ),

@@ -1120,13 +1120,15 @@ impl TransformES2015 {
                                         ),
                                     )
                                     .set_text_range(
-                                        Some(&ReadonlyTextRangeConcrete::from(move_range_pos(
-                                            &*node
-                                                .ref_(self)
-                                                .as_for_of_statement()
-                                                .expression
-                                                .ref_(self),
-                                            -1,
+                                        Some(&released!(ReadonlyTextRangeConcrete::from(
+                                            move_range_pos(
+                                                &*node
+                                                    .ref_(self)
+                                                    .as_for_of_statement()
+                                                    .expression
+                                                    .ref_(self),
+                                                -1,
+                                            )
                                         ))),
                                         self,
                                     ),

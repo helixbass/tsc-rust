@@ -396,19 +396,19 @@ impl TransformES2015 {
             cast_present(first(&class_statements).clone(), |statement: &Id<Node>| {
                 is_variable_statement(&statement.ref_(self))
             });
-        let var_statement_ref = var_statement.ref_(self);
-        let var_statement_as_variable_statement = var_statement_ref.as_variable_statement();
 
-        let variable = var_statement_as_variable_statement
+        let variable = var_statement
+            .ref_(self)
+            .as_variable_statement()
             .declaration_list
             .ref_(self)
             .as_variable_declaration_list()
             .declarations
             .ref_(self)[0];
-        let variable_ref = variable.ref_(self);
-        let variable_as_variable_declaration = variable_ref.as_variable_declaration();
         let initializer = skip_outer_expressions(
-            variable_as_variable_declaration
+            variable
+                .ref_(self)
+                .as_variable_declaration()
                 .maybe_initializer()
                 .unwrap(),
             None,
@@ -449,16 +449,14 @@ impl TransformES2015 {
             ),
             |node: &Id<Node>| is_call_expression(&node.ref_(self)),
         );
-        let call_ref = call.ref_(self);
-        let call_as_call_expression = call_ref.as_call_expression();
         let func = cast_present(
-            skip_outer_expressions(call_as_call_expression.expression, None, self),
+            skip_outer_expressions(call.ref_(self).as_call_expression().expression, None, self),
             |node: &Id<Node>| is_function_expression(&node.ref_(self)),
         );
-        let func_ref = func.ref_(self);
-        let func_as_function_expression = func_ref.as_function_expression();
 
-        let func_statements = func_as_function_expression
+        let func_statements = func
+            .ref_(self)
+            .as_function_expression()
             .maybe_body()
             .unwrap()
             .ref_(self)
@@ -489,7 +487,7 @@ impl TransformES2015 {
                 self.factory.ref_(self).create_assignment(
                     alias_assignment.ref_(self).as_binary_expression().left,
                     cast_present(
-                        variable_as_variable_declaration.name(),
+                        variable.ref_(self).as_variable_declaration().name(),
                         |node: &Id<Node>| is_identifier(&node.ref_(self)),
                     ),
                 ),
@@ -528,9 +526,12 @@ impl TransformES2015 {
             self.factory
                 .ref_(self)
                 .restore_outer_expressions(
-                    Some(node.ref_(self).as_call_expression().expression),
+                    released!(Some(node.ref_(self).as_call_expression().expression)),
                     self.factory.ref_(self).restore_outer_expressions(
-                        variable_as_variable_declaration.maybe_initializer(),
+                        variable
+                            .ref_(self)
+                            .as_variable_declaration()
+                            .maybe_initializer(),
                         self.factory.ref_(self).restore_outer_expressions(
                             alias_assignment.map(|alias_assignment| {
                                 alias_assignment.ref_(self).as_binary_expression().right
@@ -538,24 +539,27 @@ impl TransformES2015 {
                             self.factory.ref_(self).update_call_expression(
                                 call,
                                 self.factory.ref_(self).restore_outer_expressions(
-                                    Some(call_as_call_expression.expression),
+                                    Some(call.ref_(self).as_call_expression().expression),
                                     self.factory.ref_(self).update_function_expression(
                                         func,
                                         Option::<Id<NodeArray>>::None,
                                         None,
                                         None,
                                         Option::<Id<NodeArray>>::None,
-                                        func_as_function_expression.parameters(),
+                                        func.ref_(self).as_function_expression().parameters(),
                                         None,
                                         self.factory.ref_(self).update_block(
-                                            func_as_function_expression.maybe_body().unwrap(),
+                                            func.ref_(self)
+                                                .as_function_expression()
+                                                .maybe_body()
+                                                .unwrap(),
                                             statements,
                                         ),
                                     ),
                                     None,
                                 ),
                                 Option::<Id<NodeArray>>::None,
-                                call_as_call_expression.arguments.clone(),
+                                call.ref_(self).as_call_expression().arguments.clone(),
                             ),
                             None,
                         ),

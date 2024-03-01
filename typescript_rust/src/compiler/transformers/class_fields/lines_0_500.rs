@@ -1276,7 +1276,7 @@ impl TransformationContextOnEmitNodeOverrider for TransformClassFieldsOnEmitNode
             }
         }
 
-        match node.ref_(self).kind() {
+        match released!(node.ref_(self).kind()) {
             SyntaxKind::FunctionExpression
             | SyntaxKind::FunctionDeclaration
             | SyntaxKind::Constructor => 'arm: {

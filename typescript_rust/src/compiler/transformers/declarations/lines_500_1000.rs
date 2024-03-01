@@ -980,21 +980,21 @@ impl TransformDeclarations {
                         Option::<Id<NodeArray>>::None,
                         self.ensure_modifiers(input),
                         None,
-                        input.ref_(self).as_method_declaration().name(),
-                        input
+                        released!(input.ref_(self).as_method_declaration().name()),
+                        released!(input
                             .ref_(self)
                             .as_method_declaration()
-                            .maybe_question_token(),
+                            .maybe_question_token()),
                         self.ensure_type_params(
                             input,
-                            input
+                            released!(input
                                 .ref_(self)
                                 .as_method_declaration()
-                                .maybe_type_parameters(),
+                                .maybe_type_parameters()),
                         )?,
                         self.update_params_list(
                             input,
-                            Some(input.ref_(self).as_method_declaration().parameters()),
+                            released!(Some(input.ref_(self).as_method_declaration().parameters())),
                             None,
                         )?
                         .unwrap(),

@@ -924,10 +924,12 @@ impl Printer {
         &self,
         node: Id<Node>, /*ObjectLiteralExpression*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_object_literal_expression = node_ref.as_object_literal_expression();
         for_each(
-            &*node_as_object_literal_expression.properties.ref_(self),
+            &*node
+                .ref_(self)
+                .as_object_literal_expression()
+                .properties
+                .ref_(self),
             |&property: &Id<Node>, _| -> Option<()> {
                 self.generate_member_names(Some(property));
                 None
@@ -939,11 +941,12 @@ impl Printer {
             self.increase_indent();
         }
 
-        let prefer_new_line = if node_as_object_literal_expression.multi_line == Some(true) {
-            ListFormat::PreferNewLine
-        } else {
-            ListFormat::None
-        };
+        let prefer_new_line =
+            if node.ref_(self).as_object_literal_expression().multi_line == Some(true) {
+                ListFormat::PreferNewLine
+            } else {
+                ListFormat::None
+            };
         let allow_trailing_comma = if self
             .current_source_file()
             .ref_(self)
@@ -958,7 +961,7 @@ impl Printer {
         };
         self.emit_list(
             Some(node),
-            Some(node_as_object_literal_expression.properties),
+            Some(node.ref_(self).as_object_literal_expression().properties),
             ListFormat::ObjectLiteralExpressionProperties | allow_trailing_comma | prefer_new_line,
             None,
             None,

@@ -1055,8 +1055,8 @@ impl CheckTypeRelatedTo {
                 original_source,
                 original_target,
                 Ternary::False,
-                get_object_flags(&original_source.ref_(arena))
-                    .intersects(ObjectFlags::JsxAttributes),
+                released!(get_object_flags(&original_source.ref_(arena))
+                    .intersects(ObjectFlags::JsxAttributes)),
             )?;
             return Ok(Ternary::False);
         }
