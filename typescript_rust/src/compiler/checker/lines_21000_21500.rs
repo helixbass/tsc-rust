@@ -758,7 +758,7 @@ impl TypeChecker {
             self.create_inference_context_worker(
                 map(
                     &*context.ref_(self).inferences(),
-                    |inference: &Id<InferenceInfo>, _| {
+                    |&inference: &Id<InferenceInfo>, _| {
                         self.alloc_inference_info(self.clone_inference_info(inference))
                     },
                 ),
