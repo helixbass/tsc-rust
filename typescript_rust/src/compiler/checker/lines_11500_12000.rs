@@ -626,24 +626,23 @@ impl TypeChecker {
         {
             let true_constraint = self.get_inferred_true_type_from_conditional_type(type_)?;
             let false_constraint = self.get_false_type_from_conditional_type(type_)?;
+            let resolved_default_constraint = if self.is_type_any(Some(true_constraint)) {
+                false_constraint
+            } else if self.is_type_any(Some(false_constraint)) {
+                true_constraint
+            } else {
+                self.get_union_type(
+                    &[true_constraint, false_constraint],
+                    None,
+                    Option::<Id<Symbol>>::None,
+                    None,
+                    None,
+                )?
+            };
             type_
                 .ref_(self)
                 .as_conditional_type()
-                .set_resolved_default_constraint(Some(
-                    if self.is_type_any(Some(true_constraint)) {
-                        false_constraint
-                    } else if self.is_type_any(Some(false_constraint)) {
-                        true_constraint
-                    } else {
-                        self.get_union_type(
-                            &[true_constraint, false_constraint],
-                            None,
-                            Option::<Id<Symbol>>::None,
-                            None,
-                            None,
-                        )?
-                    },
-                ));
+                .set_resolved_default_constraint(Some(resolved_default_constraint));
         }
         Ok(type_
             .ref_(self)

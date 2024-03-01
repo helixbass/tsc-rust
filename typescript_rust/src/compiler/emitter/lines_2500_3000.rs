@@ -75,7 +75,7 @@ impl Printer {
         );
         self.write_space();
         self.emit_expression(
-            Some(node.ref_(self).as_new_expression().expression),
+            released!(Some(node.ref_(self).as_new_expression().expression)),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionOfNewCurrentParenthesizerRule::new(
                     self.parenthesizer(),

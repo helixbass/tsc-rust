@@ -5,8 +5,8 @@ use id_arena::Id;
 use super::MappedTypeModifiers;
 use crate::{
     add_range, append, concatenate, count_where, create_symbol_table, get_check_flags, index_of,
-    try_count_where, try_every, try_map, try_map_defined, try_reduce_left, try_some, CheckFlags,
-    Diagnostics, HasArena, InArena, IndexInfo, InternalSymbolName, Node, Number,
+    released, try_count_where, try_every, try_map, try_map_defined, try_reduce_left, try_some,
+    CheckFlags, Diagnostics, HasArena, InArena, IndexInfo, InternalSymbolName, Node, Number,
     ObjectTypeInterface, OptionInArena, OptionTry, ResolvedTypeInterface, Signature,
     SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable, Ternary,
     TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
@@ -537,7 +537,7 @@ impl TypeChecker {
             )?;
             let construct_signatures = self.instantiate_signatures(
                 &*self.get_signatures_of_type(type_target, SignatureKind::Construct)?,
-                type_.ref_(self).as_object_type().maybe_mapper().unwrap(),
+                released!(type_.ref_(self).as_object_type().maybe_mapper().unwrap()),
             )?;
             let index_infos = self.instantiate_index_infos(
                 &self.get_index_infos_of_type(type_target)?,

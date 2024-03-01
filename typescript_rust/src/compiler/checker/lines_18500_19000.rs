@@ -1107,9 +1107,7 @@ impl CheckTypeRelatedTo {
                                 .maybe_alias_type_arguments_contains_marker(),
                             Some(true)
                         )) {
-                            let variances = self_
-                                .ref_(arena)
-                                .type_checker
+                            let variances = released!(self_.ref_(arena).type_checker)
                                 .ref_(arena)
                                 .get_alias_variances(source_alias_symbol)?;
                             if variances.is_empty() {

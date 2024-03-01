@@ -229,10 +229,10 @@ impl TypeChecker {
             if merged_instantiations {
                 let clone = self.create_symbol_with_type(
                     single_prop,
-                    single_prop
+                    released!(single_prop
                         .ref_(self)
                         .maybe_as_transient_symbol()
-                        .and_then(|single_prop| single_prop.symbol_links().ref_(self).type_),
+                        .and_then(|single_prop| single_prop.symbol_links().ref_(self).type_)),
                 );
                 clone.ref_(self).set_parent(
                     single_prop

@@ -937,7 +937,8 @@ impl TransformES2015 {
                         .ref_(self)
                         .create_variable_statement(
                             Option::<Id<NodeArray>>::None,
-                            self.factory
+                            released!(self
+                                .factory
                                 .ref_(self)
                                 .create_variable_declaration_list(
                                     vec![self.factory.ref_(self).create_variable_declaration(
@@ -967,7 +968,7 @@ impl TransformES2015 {
                                     ))),
                                     self,
                                 )
-                                .set_original_node(Some(initializer), self),
+                                .set_original_node(Some(initializer), self)),
                         )
                         .set_text_range(
                             Some(&ReadonlyTextRangeConcrete::from(move_range_end(

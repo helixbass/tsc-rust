@@ -187,7 +187,12 @@ impl TransformES2015 {
                 None,
                 None,
             );
-        for span in &*released!(node.ref_(self).as_template_expression().template_spans).ref_(self)
+        for span in &*released!(node
+            .ref_(self)
+            .as_template_expression()
+            .template_spans
+            .ref_(self)
+            .clone())
         {
             let mut args = vec![try_visit_node(
                 span.ref_(self).as_template_span().expression,

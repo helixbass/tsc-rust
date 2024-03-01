@@ -479,12 +479,11 @@ impl TransformES2015 {
                         ),
                     )
                     .set_text_range(Some(&*parameter.ref_(self)), self))),
-                Some(
-                    self.factory
-                        .ref_(self)
-                        .create_postfix_increment(temp.clone())
-                        .set_text_range(Some(&*parameter.ref_(self)), self),
-                ),
+                Some(released!(self
+                    .factory
+                    .ref_(self)
+                    .create_postfix_increment(temp.clone())
+                    .set_text_range(Some(&*parameter.ref_(self)), self))),
                 self.factory.ref_(self).create_block(
                     vec![self
                         .factory
