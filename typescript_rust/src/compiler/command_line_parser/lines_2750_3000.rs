@@ -381,6 +381,7 @@ pub(super) fn parse_own_config_of_json_source_file(
         errors.clone(),
         source_file,
         &root_compiler_options,
+        arena,
     );
     let json = convert_config_file_to_object(
         source_file,
@@ -450,6 +451,7 @@ pub(super) fn parse_own_config_of_json_source_file(
 }
 
 struct ParseOwnConfigOfJsonSourceFileOptionsIterator<'a, THost: ParseConfigHost + ?Sized> {
+    arena: *const AllArenas,
     options: RefCell<&'a mut CompilerOptions>,
     base_path: &'a str,
     watch_options: &'a RefCell<Option<WatchOptions>>,
@@ -476,8 +478,10 @@ impl<'a, THost: ParseConfigHost + ?Sized> ParseOwnConfigOfJsonSourceFileOptionsI
         errors: Id<Vec<Id<Diagnostic>>>,
         source_file: Id<Node>,
         root_compiler_options: &'a RefCell<Option<Vec<Id<Node>>>>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             options: RefCell::new(options),
             base_path,
             watch_options,
@@ -633,7 +637,7 @@ impl<'a, THost: ParseConfigHost + ?Sized> HasArena
     for ParseOwnConfigOfJsonSourceFileOptionsIterator<'a, THost>
 {
     fn arena(&self) -> &AllArenas {
-        unimplemented!()
+        unsafe { &*self.arena }
     }
 }
 
