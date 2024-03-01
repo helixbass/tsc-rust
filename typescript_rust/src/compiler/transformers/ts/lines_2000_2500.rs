@@ -157,7 +157,9 @@ impl TransformTypeScript {
             ),
             self.visit_property_name_of_class_element(node)?,
             try_visit_parameter_list(
-                Some(node.ref_(self).as_set_accessor_declaration().parameters()),
+                released!(Some(
+                    node.ref_(self).as_set_accessor_declaration().parameters()
+                )),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
@@ -165,7 +167,7 @@ impl TransformTypeScript {
             .unwrap(),
             Some(
                 try_visit_function_body(
-                    node.ref_(self).as_set_accessor_declaration().maybe_body(),
+                    released!(node.ref_(self).as_set_accessor_declaration().maybe_body()),
                     |node: Id<Node>| self.visitor(node),
                     &*self.context.ref_(self),
                     self,

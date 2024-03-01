@@ -26,7 +26,7 @@ use crate::{
 };
 
 pub fn get_first_identifier(mut node: Id<Node>, arena: &impl HasArena) -> Id<Node /*Identifier*/> {
-    match node.ref_(arena).kind() {
+    match released!(node.ref_(arena).kind()) {
         SyntaxKind::Identifier => node,
         SyntaxKind::QualifiedName => {
             while {

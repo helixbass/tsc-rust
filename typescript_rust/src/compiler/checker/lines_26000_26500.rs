@@ -874,7 +874,7 @@ impl TypeChecker {
         if type_.ref_(self).flags().intersects(TypeFlags::Union) {
             return self.get_union_type(
                 &try_map(
-                    type_.ref_(self).as_union_type().types().to_owned(),
+                    released!(type_.ref_(self).as_union_type().types().to_owned()),
                     |t: Id<Type>, _| self.instantiate_instantiable_types(t, mapper.clone()),
                 )?,
                 Some(UnionReduction::None),

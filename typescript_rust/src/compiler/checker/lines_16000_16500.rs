@@ -1075,7 +1075,7 @@ impl TypeChecker {
         if let Some(symbol_value_declaration) = symbol.ref_(self).maybe_value_declaration() {
             result.set_value_declaration(symbol_value_declaration);
         }
-        if let Some(links_name_type) = links.ref_(self).name_type {
+        if let Some(links_name_type) = released!(links.ref_(self).name_type) {
             result_links.ref_mut(self).name_type = Some(links_name_type);
         }
         Ok(self.alloc_symbol(result.into()))

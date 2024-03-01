@@ -8,11 +8,12 @@ use super::{
 };
 use crate::{
     first_or_undefined, is_array_literal_expression, is_call_to_helper, is_expression,
-    is_identifier, is_packed_array_literal, is_static, node_is_synthesized, return_default_if_none,
-    single_or_undefined, try_map, try_process_tagged_template_expression, try_visit_node,
-    try_visit_nodes, FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, InArena,
-    LiteralLikeNodeInterface, Matches, Node, NodeArray, NodeExt, NodeInterface, ProcessLevel,
-    SignatureDeclarationInterface, SyntaxKind, TokenFlags, TransformationContext, VisitResult,
+    is_identifier, is_packed_array_literal, is_static, node_is_synthesized, released,
+    return_default_if_none, single_or_undefined, try_map, try_process_tagged_template_expression,
+    try_visit_node, try_visit_nodes, FunctionLikeDeclarationInterface, GeneratedIdentifierFlags,
+    InArena, LiteralLikeNodeInterface, Matches, Node, NodeArray, NodeExt, NodeInterface,
+    ProcessLevel, SignatureDeclarationInterface, SyntaxKind, TokenFlags, TransformationContext,
+    VisitResult,
 };
 
 impl TransformES2015 {
@@ -173,20 +174,25 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*TemplateExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_template_expression = node_ref.as_template_expression();
         let mut expression: Id<Node /*Expression*/> =
             self.factory.ref_(self).create_string_literal(
-                node_as_template_expression
+                released!(node
+                    .ref_(self)
+                    .as_template_expression()
                     .head
                     .ref_(self)
                     .as_template_literal_like_node()
                     .text()
-                    .clone(),
+                    .clone()),
                 None,
                 None,
             );
-        for span in &*node_as_template_expression.template_spans.ref_(self) {
+        for span in &*node
+            .ref_(self)
+            .as_template_expression()
+            .template_spans
+            .ref_(self)
+        {
             let span_ref = span.ref_(self);
             let span_as_template_span = span_ref.as_template_span();
             let mut args = vec![try_visit_node(

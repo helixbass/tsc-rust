@@ -961,7 +961,9 @@ impl Printer {
         };
         self.emit_list(
             Some(node),
-            Some(node.ref_(self).as_object_literal_expression().properties),
+            released!(Some(
+                node.ref_(self).as_object_literal_expression().properties
+            )),
             ListFormat::ObjectLiteralExpressionProperties | allow_trailing_comma | prefer_new_line,
             None,
             None,

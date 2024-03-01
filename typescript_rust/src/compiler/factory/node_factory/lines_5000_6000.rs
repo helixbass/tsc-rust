@@ -522,13 +522,13 @@ impl NodeFactory {
         node: Id<Node>, /*PartiallyEmittedExpression*/
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_partially_emitted_expression = node_ref.as_partially_emitted_expression();
-        if node_as_partially_emitted_expression.expression != expression {
+        if node.ref_(self).as_partially_emitted_expression().expression != expression {
             self.update(
                 self.create_partially_emitted_expression(
                     expression,
-                    node_as_partially_emitted_expression.maybe_original(),
+                    node.ref_(self)
+                        .as_partially_emitted_expression()
+                        .maybe_original(),
                 ),
                 node,
             )
@@ -935,7 +935,7 @@ impl NodeFactory {
         outer_expression: Id<Node>, /*OuterExpression*/
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
-        match outer_expression.ref_(self).kind() {
+        match released!(outer_expression.ref_(self).kind()) {
             SyntaxKind::ParenthesizedExpression => {
                 self.update_parenthesized_expression(outer_expression, expression)
             }
@@ -990,7 +990,9 @@ impl NodeFactory {
             return self.update_outer_expression(
                 outer_expression,
                 self.restore_outer_expressions(
-                    Some(outer_expression.ref_(self).as_has_expression().expression()),
+                    released!(Some(
+                        outer_expression.ref_(self).as_has_expression().expression()
+                    )),
                     inner_expression,
                     None,
                 ),

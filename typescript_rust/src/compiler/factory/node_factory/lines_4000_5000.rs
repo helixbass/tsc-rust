@@ -4,7 +4,7 @@ use local_macros::generate_node_factory_method_wrapper;
 use super::{get_default_tag_name_for_kind, propagate_child_flags, propagate_children_flags};
 use crate::{
     escape_leading_underscores, get_jsdoc_type_alias_name, has_node_array_changed,
-    has_option_node_array_changed, is_variable_declaration, AssertClause, AssertEntry,
+    has_option_node_array_changed, is_variable_declaration, released, AssertClause, AssertEntry,
     BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode, CaseClause, CatchClause,
     Debug_, DefaultClause, ExportAssignment, ExportDeclaration, ExportSpecifier,
     ExternalModuleReference, HasTypeArgumentsInterface, HeritageClause, ImportSpecifier, InArena,
@@ -1295,7 +1295,10 @@ impl NodeFactory {
         let types = types.into();
         if has_node_array_changed(node.ref_(self).as_heritage_clause().types, &types) {
             self.update(
-                self.create_heritage_clause(node.ref_(self).as_heritage_clause().token, types),
+                self.create_heritage_clause(
+                    released!(node.ref_(self).as_heritage_clause().token),
+                    types,
+                ),
                 node,
             )
         } else {

@@ -620,8 +620,6 @@ impl TransformES2018 {
     }
 
     fn visit_return_statement(&self, node: Id<Node> /*ReturnStatement*/) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_return_statement = node_ref.as_return_statement();
         if self
             .maybe_enclosing_function_flags()
             .matches(|enclosing_function_flags| {
@@ -638,19 +636,24 @@ impl TransformES2018 {
                     .ref_(self)
                     .update_return_statement(
                         node,
-                        Some(self.create_downlevel_await(
-                            node_as_return_statement.expression.map_or_else(
-                                || self.factory.ref_(self).create_void_zero(),
-                                |node_expression| {
-                                    visit_node(
-                                        node_expression,
-                                        Some(|node: Id<Node>| self.visitor(node)),
-                                        Some(|node| is_expression(node, self)),
-                                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
-                                    )
-                                },
+                        Some(
+                            self.create_downlevel_await(
+                                node.ref_(self)
+                                    .as_return_statement()
+                                    .expression
+                                    .map_or_else(
+                                        || self.factory.ref_(self).create_void_zero(),
+                                        |node_expression| {
+                                            visit_node(
+                                                node_expression,
+                                                Some(|node: Id<Node>| self.visitor(node)),
+                                                Some(|node| is_expression(node, self)),
+                                                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
+                                            )
+                                        },
+                                    ),
                             ),
-                        )),
+                        ),
                     )
                     .into(),
             );
@@ -735,12 +738,14 @@ impl TransformES2018 {
             } else {
                 chunk_object.get_or_insert_default_().push(
                     if e.ref_(self).kind() == SyntaxKind::PropertyAssignment {
-                        let e_ref = e.ref_(self);
-                        let e_as_property_assignment = e_ref.as_property_assignment();
                         self.factory.ref_(self).create_property_assignment(
-                            e_as_property_assignment.name(),
+                            released!(e.ref_(self).as_property_assignment().name()),
                             visit_node(
-                                e_as_property_assignment.maybe_initializer().unwrap(),
+                                released!(e
+                                    .ref_(self)
+                                    .as_property_assignment()
+                                    .maybe_initializer()
+                                    .unwrap()),
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -772,16 +777,17 @@ impl TransformES2018 {
         &self,
         node: Id<Node>, /*ObjectLiteralExpression*/
     ) -> Id<Node /*Expression*/> {
-        let node_ref = node.ref_(self);
-        let node_as_object_literal_expression = node_ref.as_object_literal_expression();
         if node
             .ref_(self)
             .transform_flags()
             .intersects(TransformFlags::ContainsObjectRestOrSpread)
         {
-            let mut objects = self.chunk_object_literal_elements(
-                &node_as_object_literal_expression.properties.ref_(self),
-            );
+            let mut objects = self.chunk_object_literal_elements(&released!(node
+                .ref_(self)
+                .as_object_literal_expression()
+                .properties
+                .ref_(self)
+                .clone()));
             if !objects.is_empty()
                 && objects[0].ref_(self).kind() != SyntaxKind::ObjectLiteralExpression
             {

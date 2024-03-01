@@ -940,14 +940,14 @@ impl TransformDeclarations {
                     )?
                 }
                 SyntaxKind::Constructor => {
-                    let input_ref = input.ref_(self);
-                    let input_as_constructor_declaration = input_ref.as_constructor_declaration();
                     let ctor = self.factory.ref_(self).create_constructor_declaration(
                         Option::<Id<NodeArray>>::None,
                         self.ensure_modifiers(input),
                         self.update_params_list(
                             input,
-                            Some(input_as_constructor_declaration.parameters()),
+                            released!(Some(
+                                input.ref_(self).as_constructor_declaration().parameters()
+                            )),
                             Some(ModifierFlags::None),
                         )?,
                         None,
@@ -1000,7 +1000,7 @@ impl TransformDeclarations {
                         .unwrap(),
                         self.ensure_type(
                             input,
-                            input.ref_(self).as_method_declaration().maybe_type(),
+                            released!(input.ref_(self).as_method_declaration().maybe_type()),
                             None,
                         )?,
                         None,

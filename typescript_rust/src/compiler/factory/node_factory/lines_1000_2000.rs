@@ -842,16 +842,17 @@ impl NodeFactory {
         parameters: impl Into<NodeArrayOrVec>,
         body: Option<Id<Node /*Block*/>>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_set_accessor_declaration = node_ref.as_set_accessor_declaration();
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
         let parameters = parameters.into();
         if has_option_node_array_changed(node.ref_(self).maybe_decorators(), decorators.as_ref())
             || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
-            || node_as_set_accessor_declaration.name() != name
-            || has_node_array_changed(node_as_set_accessor_declaration.parameters(), &parameters)
-            || node_as_set_accessor_declaration.maybe_body() != body
+            || node.ref_(self).as_set_accessor_declaration().name() != name
+            || has_node_array_changed(
+                node.ref_(self).as_set_accessor_declaration().parameters(),
+                &parameters,
+            )
+            || node.ref_(self).as_set_accessor_declaration().maybe_body() != body
         {
             self.update_base_function_like_declaration(
                 self.create_set_accessor_declaration(decorators, modifiers, name, parameters, body),

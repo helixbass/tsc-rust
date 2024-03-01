@@ -346,12 +346,12 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*TaggedTemplateExpression*/
     ) -> io::Result<Id<Type>> {
-        let node_ref = node.ref_(self);
-        let node_as_tagged_template_expression = node_ref.as_tagged_template_expression();
         if !self.check_grammar_tagged_template_chain(node) {
             self.check_grammar_type_arguments(
                 node,
-                node_as_tagged_template_expression.maybe_type_arguments(),
+                node.ref_(self)
+                    .as_tagged_template_expression()
+                    .maybe_type_arguments(),
             );
         }
         if self.language_version < ScriptTarget::ES2015 {

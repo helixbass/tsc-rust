@@ -1102,77 +1102,76 @@ impl TransformES2015 {
             .factory
             .ref_(self)
             .create_for_statement(
-                Some(
-                    self.factory
-                        .ref_(self)
-                        .create_variable_declaration_list(
-                            vec![
-                                self.factory
-                                    .ref_(self)
-                                    .create_variable_declaration(
-                                        Some(counter.clone()),
-                                        None,
-                                        None,
-                                        Some(
-                                            self.factory
-                                                .ref_(self)
-                                                .create_numeric_literal(Number::new(0.0), None),
-                                        ),
-                                    )
-                                    .set_text_range(
-                                        Some(&released!(ReadonlyTextRangeConcrete::from(
-                                            move_range_pos(
-                                                &*node
-                                                    .ref_(self)
-                                                    .as_for_of_statement()
-                                                    .expression
-                                                    .ref_(self),
-                                                -1,
-                                            )
-                                        ))),
-                                        self,
+                Some(released!(self
+                    .factory
+                    .ref_(self)
+                    .create_variable_declaration_list(
+                        vec![
+                            self.factory
+                                .ref_(self)
+                                .create_variable_declaration(
+                                    Some(counter.clone()),
+                                    None,
+                                    None,
+                                    Some(
+                                        self.factory
+                                            .ref_(self)
+                                            .create_numeric_literal(Number::new(0.0), None),
                                     ),
-                                self.factory
-                                    .ref_(self)
-                                    .create_variable_declaration(
-                                        Some(rhs_reference.clone()),
-                                        None,
-                                        None,
-                                        Some(expression.clone()),
-                                    )
-                                    .set_text_range(
-                                        Some(
+                                )
+                                .set_text_range(
+                                    Some(&released!(ReadonlyTextRangeConcrete::from(
+                                        move_range_pos(
                                             &*node
                                                 .ref_(self)
                                                 .as_for_of_statement()
                                                 .expression
                                                 .ref_(self),
-                                        ),
-                                        self,
-                                    ),
-                            ],
-                            None,
-                        )
-                        .set_text_range(
-                            Some(&*node.ref_(self).as_for_of_statement().expression.ref_(self)),
-                            self,
-                        )
-                        .set_emit_flags(EmitFlags::NoHoisting, self),
-                ),
-                Some(
-                    self.factory
-                        .ref_(self)
-                        .create_less_than(
-                            counter.clone(),
-                            self.factory
+                                            -1,
+                                        )
+                                    ))),
+                                    self,
+                                ),
+                            released!(self
+                                .factory
                                 .ref_(self)
-                                .create_property_access_expression(rhs_reference.clone(), "length"),
-                        )
-                        .set_text_range(
-                            Some(&*node.ref_(self).as_for_of_statement().expression.ref_(self)),
-                            self,
-                        ),
-                ),
+                                .create_variable_declaration(
+                                    Some(rhs_reference.clone()),
+                                    None,
+                                    None,
+                                    Some(expression.clone()),
+                                )
+                                .set_text_range(
+                                    Some(
+                                        &*node
+                                            .ref_(self)
+                                            .as_for_of_statement()
+                                            .expression
+                                            .ref_(self),
+                                    ),
+                                    self,
+                                )),
+                        ],
+                        None,
+                    )
+                    .set_text_range(
+                        Some(&*node.ref_(self).as_for_of_statement().expression.ref_(self)),
+                        self,
+                    )
+                    .set_emit_flags(EmitFlags::NoHoisting, self))),
+                Some(released!(self
+                    .factory
+                    .ref_(self)
+                    .create_less_than(
+                        counter.clone(),
+                        self.factory
+                            .ref_(self)
+                            .create_property_access_expression(rhs_reference.clone(), "length"),
+                    )
+                    .set_text_range(
+                        Some(&*node.ref_(self).as_for_of_statement().expression.ref_(self)),
+                        self,
+                    ))),
                 Some(
                     self.factory
                         .ref_(self)

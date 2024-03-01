@@ -115,10 +115,8 @@ impl Printer {
             self.write_punctuation(",");
             self.write_space();
         }
-        let node_ref = node.ref_(self);
-        let node_as_tagged_template_expression = node_ref.as_tagged_template_expression();
         self.emit_expression(
-            Some(node_as_tagged_template_expression.tag),
+            Some(node.ref_(self).as_tagged_template_expression().tag),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(
                     self.parenthesizer(),
@@ -131,10 +129,15 @@ impl Printer {
         }
         self.emit_type_arguments(
             node,
-            node_as_tagged_template_expression.maybe_type_arguments(),
+            node.ref_(self)
+                .as_tagged_template_expression()
+                .maybe_type_arguments(),
         )?;
         self.write_space();
-        self.emit_expression(Some(node_as_tagged_template_expression.template), None)?;
+        self.emit_expression(
+            Some(node.ref_(self).as_tagged_template_expression().template),
+            None,
+        )?;
 
         Ok(())
     }
@@ -443,7 +446,7 @@ impl Printer {
         );
 
         self.emit_expression(
-            Some(node.ref_(self).as_conditional_expression().condition),
+            released!(Some(node.ref_(self).as_conditional_expression().condition)),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeConditionOfConditionalExpressionCurrentParenthesizerRule::new(
                     self.parenthesizer(),

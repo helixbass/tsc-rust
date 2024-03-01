@@ -564,7 +564,7 @@ impl TransformTypeScript {
             &mut statements,
             Some(
                 &try_visit_nodes(
-                    body.ref_(self).as_block().statements,
+                    released!(body.ref_(self).as_block().statements),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_statement(node, self)),
                     Some(index_of_first_statement),

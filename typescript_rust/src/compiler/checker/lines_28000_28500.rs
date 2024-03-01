@@ -755,7 +755,7 @@ impl TypeChecker {
                 let writing = is_write_access(node, self);
                 self.check_property_accessibility(
                     node,
-                    left.ref_(self).kind() == SyntaxKind::SuperKeyword,
+                    released!(left.ref_(self).kind()) == SyntaxKind::SuperKeyword,
                     writing,
                     apparent_type,
                     prop,

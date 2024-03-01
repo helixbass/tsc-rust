@@ -800,8 +800,8 @@ impl TypeChecker {
             if let Some(prop_declarations) = prop.ref_(self).maybe_declarations().clone() {
                 inferred_prop.set_declarations(prop_declarations);
             }
-            inferred_prop.symbol_links().ref_mut(self).name_type =
-                self.get_symbol_links(prop).ref_(self).name_type;
+            let name_type = self.get_symbol_links(prop).ref_(self).name_type;
+            inferred_prop.symbol_links().ref_mut(self).name_type = name_type;
             let property_type = self.get_type_of_symbol(prop)?;
             let mapped_type: Id<Type>;
             let constraint_type: Id<Type>;

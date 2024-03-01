@@ -173,8 +173,12 @@ impl TransformES2015 {
         }
 
         let mut added = false;
-        for &parameter in
-            &*released!(node.ref_(self).as_function_like_declaration().parameters()).ref_(self)
+        for &parameter in &*released!(node
+            .ref_(self)
+            .as_function_like_declaration()
+            .parameters()
+            .ref_(self)
+            .clone())
         {
             let name = parameter
                 .ref_(self)
@@ -309,16 +313,20 @@ impl TransformES2015 {
                 self.factory
                     .ref_(self)
                     .create_block(
-                        vec![self.factory.ref_(self).create_expression_statement(
-                            self.factory
+                        vec![self
+                            .factory
+                            .ref_(self)
+                            .create_expression_statement(released!(self
+                                .factory
                                 .ref_(self)
                                 .create_assignment(
-                                    self.factory
+                                    released!(self
+                                        .factory
                                         .ref_(self)
                                         .clone_node(name)
                                         .set_text_range(Some(&*name.ref_(self)), self)
                                         .and_set_parent(name.ref_(self).maybe_parent(), self)
-                                        .set_emit_flags(EmitFlags::NoSourceMap, self),
+                                        .set_emit_flags(EmitFlags::NoSourceMap, self)),
                                     initializer.set_emit_flags(
                                         EmitFlags::NoSourceMap
                                             | get_emit_flags(initializer, self)
@@ -327,8 +335,7 @@ impl TransformES2015 {
                                     ),
                                 )
                                 .set_text_range(Some(&*parameter.ref_(self)), self)
-                                .set_emit_flags(EmitFlags::NoComments, self),
-                        )],
+                                .set_emit_flags(EmitFlags::NoComments, self)))],
                         None,
                     )
                     .set_text_range(Some(&*parameter.ref_(self)), self)

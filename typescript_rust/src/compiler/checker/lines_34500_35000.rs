@@ -918,7 +918,7 @@ impl TypeChecker {
             self.check_type_assignable_to(
                 type_,
                 self.template_constraint_type(),
-                Some(span.ref_(self).as_template_literal_type_span().type_),
+                released!(Some(span.ref_(self).as_template_literal_type_span().type_)),
                 None,
                 None,
                 None,

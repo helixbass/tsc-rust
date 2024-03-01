@@ -129,9 +129,11 @@ impl TypeChecker {
         candidates_out_array: Option<&mut Vec<Id<Signature>>>,
         check_mode: CheckMode,
     ) -> io::Result<Id<Signature>> {
-        let node_ref = node.ref_(self);
-        let node_as_tagged_template_expression = node_ref.as_tagged_template_expression();
-        let tag_type = self.check_expression(node_as_tagged_template_expression.tag, None, None)?;
+        let tag_type = self.check_expression(
+            node.ref_(self).as_tagged_template_expression().tag,
+            None,
+            None,
+        )?;
         let apparent_type = self.get_apparent_type(tag_type)?;
 
         if self.is_error_type(apparent_type) {
@@ -156,7 +158,7 @@ impl TypeChecker {
             if is_array_literal_expression(&node.ref_(self).parent().ref_(self)) {
                 let diagnostic: Id<Diagnostic> = self.alloc_diagnostic(
                     create_diagnostic_for_node(
-                        node_as_tagged_template_expression.tag,
+                        node.ref_(self).as_tagged_template_expression().tag,
                         &Diagnostics::It_is_likely_that_you_are_missing_a_comma_to_separate_these_two_template_expressions_They_form_a_tagged_template_expression_which_cannot_be_invoked,
                         None,
                         self,
@@ -167,7 +169,7 @@ impl TypeChecker {
             }
 
             self.invocation_error(
-                node_as_tagged_template_expression.tag,
+                node.ref_(self).as_tagged_template_expression().tag,
                 apparent_type,
                 SignatureKind::Call,
                 None,

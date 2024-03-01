@@ -319,8 +319,8 @@ impl Printer {
 
         self.emit_case_or_default_clause_rest(
             node,
-            node.ref_(self).as_case_clause().statements,
-            node.ref_(self).as_case_clause().expression.ref_(self).end(),
+            released!(node.ref_(self).as_case_clause().statements),
+            released!(node.ref_(self).as_case_clause().expression.ref_(self).end()),
         )?;
 
         Ok(())

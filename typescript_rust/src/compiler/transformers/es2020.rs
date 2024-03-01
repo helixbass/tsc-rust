@@ -450,7 +450,7 @@ impl TransformES2020 {
                             right_expression,
                             Option::<Id<NodeArray>>::None,
                             Some(visit_nodes(
-                                segment.ref_(self).as_call_expression().arguments,
+                                released!(segment.ref_(self).as_call_expression().arguments),
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 None,

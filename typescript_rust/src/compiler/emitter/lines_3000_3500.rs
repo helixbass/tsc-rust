@@ -159,7 +159,10 @@ impl Printer {
         &self,
         node: Id<Node>, /*VariableDeclaration*/
     ) -> io::Result<()> {
-        self.emit(node.ref_(self).as_variable_declaration().maybe_name(), None)?;
+        self.emit(
+            released!(node.ref_(self).as_variable_declaration().maybe_name()),
+            None,
+        )?;
         self.emit(
             node.ref_(self).as_variable_declaration().exclamation_token,
             None,

@@ -1134,11 +1134,12 @@ impl InferTypes {
         {
             self.infer_to_multiple_types(
                 source,
-                target
+                &released!(target
                     .ref_(self)
                     .as_union_or_intersection_type_interface()
-                    .types(),
-                target.ref_(self).flags(),
+                    .types()
+                    .to_owned()),
+                released!(target.ref_(self).flags()),
             )?;
         } else if source.ref_(self).flags().intersects(TypeFlags::Union) {
             let source_types = &source

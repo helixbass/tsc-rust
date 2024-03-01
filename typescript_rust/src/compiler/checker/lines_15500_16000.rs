@@ -499,25 +499,20 @@ impl TypeChecker {
             type_
                 .ref_(self)
                 .as_conditional_type()
-                .set_resolved_false_type(Some(
-                    self.instantiate_type(
-                        self.get_type_from_type_node_(
-                            {
-                                let root = type_.ref_(self).as_conditional_type().root.clone();
-                                root
-                            }
+                .set_resolved_false_type(Some(self.instantiate_type(
+                    self.get_type_from_type_node_(
+                        released!(type_.ref_(self).as_conditional_type().root
                             .ref_(self)
                             .node
                             .ref_(self)
                             .as_conditional_type_node()
-                            .false_type,
-                        )?,
-                        {
-                            let mapper = type_.ref_(self).as_conditional_type().mapper.clone();
-                            mapper
-                        },
+                            .false_type),
                     )?,
-                ));
+                    {
+                        let mapper = type_.ref_(self).as_conditional_type().mapper.clone();
+                        mapper
+                    },
+                )?));
         }
         Ok(type_
             .ref_(self)
