@@ -14,8 +14,9 @@ use crate::{
     Debug_, DiagnosticMessageChain, Diagnostics, HasTypeInterface, JsxEmit, JsxFlags,
     JsxReferenceKind, ModifierFlags, NodeFlags, ScriptTarget, Signature, SignatureKind,
     SymbolFlags, UnionOrIntersectionTypeInterface, __String, get_object_flags, impl_has_arena,
-    try_map, AllArenas, HasArena, InArena, Node, NodeInterface, ObjectFlags, OptionInArena,
-    OptionTry, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    released, try_map, AllArenas, HasArena, InArena, Node, NodeInterface, ObjectFlags,
+    OptionInArena, OptionTry, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
