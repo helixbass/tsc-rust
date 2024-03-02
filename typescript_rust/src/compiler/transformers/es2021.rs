@@ -176,10 +176,11 @@ impl TransformES2021 {
                     } else {
                         self.factory.ref_(self).create_assignment(
                             element_access_argument,
-                            left.ref_(self)
-                                .as_element_access_expression()
-                                .argument_expression
-                                .clone(),
+                            released!(
+                                left.ref_(self)
+                                    .as_element_access_expression()
+                                    .argument_expression
+                            ),
                         )
                     },
                 );

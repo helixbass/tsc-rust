@@ -3,9 +3,9 @@ use std::{any::Any, io};
 use id_arena::Id;
 
 use crate::{
-    chain_bundle, impl_has_arena, is_block, maybe_visit_each_child, visit_each_child, visit_node,
-    AllArenas, CoreTransformationContext, HasArena, InArena, Node, NodeFactory, NodeInterface,
-    SyntaxKind, TransformFlags, TransformNodesTransformationResult, Transformer,
+    chain_bundle, impl_has_arena, is_block, maybe_visit_each_child, released, visit_each_child,
+    visit_node, AllArenas, CoreTransformationContext, HasArena, InArena, Node, NodeFactory,
+    NodeInterface, SyntaxKind, TransformFlags, TransformNodesTransformationResult, Transformer,
     TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
 };
 
@@ -50,7 +50,7 @@ impl TransformES2019 {
         {
             return Some(node.into());
         }
-        match node.ref_(self).kind() {
+        match released!(node.ref_(self).kind()) {
             SyntaxKind::CatchClause => Some(self.visit_catch_clause(node).into()),
             _ => maybe_visit_each_child(
                 Some(node),

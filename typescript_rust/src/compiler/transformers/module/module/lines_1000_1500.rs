@@ -421,9 +421,10 @@ impl TransformModule {
                         )),
                         Option::<Id<NodeArray>>::None,
                         try_maybe_visit_nodes(
-                            node.ref_(self)
+                            released!(node
+                                .ref_(self)
                                 .as_class_declaration()
-                                .maybe_heritage_clauses(),
+                                .maybe_heritage_clauses()),
                             Some(|node: Id<Node>| self.visitor(node)),
                             Option::<fn(Id<Node>) -> bool>::None,
                             None,
@@ -431,7 +432,7 @@ impl TransformModule {
                             self,
                         )?,
                         try_visit_nodes(
-                            node.ref_(self).as_class_declaration().members(),
+                            released!(node.ref_(self).as_class_declaration().members()),
                             Some(|node: Id<Node>| self.visitor(node)),
                             Option::<fn(Id<Node>) -> bool>::None,
                             None,

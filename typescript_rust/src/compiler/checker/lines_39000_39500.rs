@@ -339,7 +339,13 @@ impl TypeChecker {
         {
             node_links.ref_mut(self).flags |= NodeCheckFlags::EnumValuesComputed;
             let mut auto_value: Option<Number> = Some(Number::new(0.0));
-            for &member in &*released!(node.ref_(self).as_enum_declaration().members).ref_(self) {
+            for &member in &*released!(node
+                .ref_(self)
+                .as_enum_declaration()
+                .members
+                .ref_(self)
+                .clone())
+            {
                 let value = self.compute_member_value(member, auto_value)?;
                 self.get_node_links(member).ref_mut(self).enum_member_value = value.clone();
                 auto_value = if let Some(StringOrNumber::Number(value)) = value.as_ref() {

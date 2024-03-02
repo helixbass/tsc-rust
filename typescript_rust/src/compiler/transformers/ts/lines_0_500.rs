@@ -274,16 +274,14 @@ impl TransformTypeScript {
 
     pub(super) fn transform_bundle(&self, node: Id<Node> /*Bundle*/) -> io::Result<Id<Node>> {
         Ok(self.factory.ref_(self).create_bundle(
-            node.ref_(self)
-                .as_bundle()
-                .source_files
+            released!(node.ref_(self).as_bundle().source_files.clone())
                 .iter()
                 .map(|source_file| -> io::Result<_> {
                     Ok(Some(self.transform_source_file(source_file.unwrap())?))
                 })
                 .collect::<Result<Vec<_>, _>>()?,
             Some(map_defined(
-                Some(&node.ref_(self).as_bundle().prepends),
+                Some(&released!(node.ref_(self).as_bundle().prepends.clone())),
                 |prepend: &Id<Node>, _| {
                     if prepend.ref_(self).kind() == SyntaxKind::InputFiles {
                         return Some(create_unparsed_source_file(
