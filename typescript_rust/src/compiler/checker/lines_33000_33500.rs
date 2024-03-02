@@ -365,9 +365,12 @@ impl TypeChecker {
         }
 
         let is_async = function_flags.intersects(FunctionFlags::Async);
-        let node_ref = node.ref_(self);
-        let node_as_yield_expression = node_ref.as_yield_expression();
-        if node_as_yield_expression.asterisk_token.is_some() {
+        if node
+            .ref_(self)
+            .as_yield_expression()
+            .asterisk_token
+            .is_some()
+        {
             if is_async && self.language_version < ScriptTarget::ESNext {
                 self.check_external_emit_helpers(
                     node,
@@ -402,7 +405,7 @@ impl TypeChecker {
             signature_next_type
         };
         let yield_expression_type =
-            if let Some(node_expression) = node_as_yield_expression.expression {
+            if let Some(node_expression) = node.ref_(self).as_yield_expression().expression {
                 self.check_expression(node_expression, None, None)?
             } else {
                 self.undefined_widening_type()
@@ -418,15 +421,25 @@ impl TypeChecker {
                 self.check_type_assignable_to_and_optionally_elaborate(
                     yielded_type,
                     signature_yield_type,
-                    Some(node_as_yield_expression.expression.unwrap_or(node)),
-                    node_as_yield_expression.expression,
+                    Some(
+                        node.ref_(self)
+                            .as_yield_expression()
+                            .expression
+                            .unwrap_or(node),
+                    ),
+                    node.ref_(self).as_yield_expression().expression,
                     None,
                     None,
                 )?;
             }
         }
 
-        if node_as_yield_expression.asterisk_token.is_some() {
+        if node
+            .ref_(self)
+            .as_yield_expression()
+            .asterisk_token
+            .is_some()
+        {
             let use_ = if is_async {
                 IterationUse::AsyncYieldStar
             } else {
@@ -437,7 +450,7 @@ impl TypeChecker {
                     use_,
                     IterationTypeKind::Return,
                     yield_expression_type,
-                    node_as_yield_expression.expression,
+                    node.ref_(self).as_yield_expression().expression,
                 )?
                 .unwrap_or_else(|| self.any_type()));
         } else if let Some(return_type) = return_type {

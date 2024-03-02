@@ -609,10 +609,11 @@ impl TypeChecker {
         let mut next_types: Vec<Id<Type>> = vec![];
         let is_async = get_function_flags(Some(func), self).intersects(FunctionFlags::Async);
         try_for_each_yield_expression(
-            func.ref_(self)
+            released!(func
+                .ref_(self)
                 .as_function_like_declaration()
                 .maybe_body()
-                .unwrap(),
+                .unwrap()),
             |yield_expression: Id<Node>| -> io::Result<_> {
                 let yield_expression_ref = yield_expression.ref_(self);
                 let yield_expression_as_yield_expression =
@@ -672,10 +673,17 @@ impl TypeChecker {
         sent_type: Id<Type>,
         is_async: bool,
     ) -> io::Result<Option<Id<Type>>> {
-        let node_ref = node.ref_(self);
-        let node_as_yield_expression = node_ref.as_yield_expression();
-        let error_node = node_as_yield_expression.expression.unwrap_or(node);
-        let yielded_type = if node_as_yield_expression.asterisk_token.is_some() {
+        let error_node = node
+            .ref_(self)
+            .as_yield_expression()
+            .expression
+            .unwrap_or(node);
+        let yielded_type = if node
+            .ref_(self)
+            .as_yield_expression()
+            .asterisk_token
+            .is_some()
+        {
             self.check_iterated_type_or_element_type(
                 if is_async {
                     IterationUse::AsyncYieldStar
@@ -695,7 +703,7 @@ impl TypeChecker {
             self.get_awaited_type_(
                 yielded_type,
                 Some(error_node),
-                Some(if node_as_yield_expression.asterisk_token.is_some() {
+                Some(if node.ref_(self).as_yield_expression().asterisk_token.is_some() {
                     &*Diagnostics::Type_of_iterated_elements_of_a_yield_Asterisk_operand_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member
                 } else {
                     &*Diagnostics::Type_of_yield_operand_in_an_async_generator_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member

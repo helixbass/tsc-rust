@@ -721,7 +721,7 @@ impl TypeChecker {
         element_type: Id<Type>,
     ) -> Id<Type /*EvolvingArrayType*/> {
         self.evolving_array_types()
-            .entry(element_type.ref_(self).id())
+            .entry(released!(element_type.ref_(self).id()))
             .or_insert_with(|| self.create_evolving_array_type(element_type))
             .clone()
     }

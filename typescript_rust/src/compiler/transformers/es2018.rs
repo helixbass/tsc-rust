@@ -1784,22 +1784,22 @@ impl TransformES2018 {
         &self,
         node: Id<Node>, /*GetAccessorDeclaration*/
     ) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_get_accessor_declaration = node_ref.as_get_accessor_declaration();
         let saved_enclosing_function_flags = self.maybe_enclosing_function_flags();
         self.set_enclosing_function_flags(Some(FunctionFlags::Normal));
         let updated = self.factory.ref_(self).update_get_accessor_declaration(
             node,
             Option::<Id<NodeArray>>::None,
-            node.ref_(self).maybe_modifiers(),
+            released!(node.ref_(self).maybe_modifiers()),
             visit_node(
-                node_as_get_accessor_declaration.name(),
+                released!(node.ref_(self).as_get_accessor_declaration().name()),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node: Id<Node>| is_property_name(&node.ref_(self))),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ),
             visit_parameter_list(
-                Some(node_as_get_accessor_declaration.parameters()),
+                released!(Some(
+                    node.ref_(self).as_get_accessor_declaration().parameters()
+                )),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,

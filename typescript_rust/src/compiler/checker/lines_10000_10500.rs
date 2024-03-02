@@ -369,15 +369,15 @@ impl TypeChecker {
                 type_ = self.error_type();
                 if declaration.ref_(self).kind() == SyntaxKind::JSDocEnumTag {
                     self.error(
-                        Some(
+                        Some(released!(
                             declaration
                                 .ref_(self)
                                 .as_jsdoc_type_like_tag()
                                 .type_expression()
                                 .ref_(self)
                                 .as_jsdoc_type_expression()
-                                .type_,
-                        ),
+                                .type_
+                        )),
                         &Diagnostics::Type_alias_0_circularly_references_itself,
                         Some(vec![self.symbol_to_string_(
                             symbol,

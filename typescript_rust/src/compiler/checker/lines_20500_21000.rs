@@ -328,7 +328,7 @@ impl TypeChecker {
             return Ok(None);
         }
         if !self
-            .get_members_of_symbol(type_.ref_(self).symbol())?
+            .get_members_of_symbol(released!(type_.ref_(self).symbol()))?
             .ref_(self)
             .is_empty()
         {

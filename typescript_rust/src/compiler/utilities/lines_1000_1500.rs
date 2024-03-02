@@ -868,7 +868,7 @@ fn try_for_each_yield_expression_traverse<TError>(
     visitor: &mut impl FnMut(Id<Node>) -> Result<(), TError>,
     arena: &impl HasArena,
 ) -> Result<(), TError> {
-    match node.ref_(arena).kind() {
+    match released!(node.ref_(arena).kind()) {
         SyntaxKind::YieldExpression => {
             visitor(node)?;
             let operand = node.ref_(arena).as_yield_expression().expression;

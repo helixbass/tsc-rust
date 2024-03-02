@@ -738,7 +738,7 @@ impl TransformES2017 {
                         Some(self.transform_async_function_body(node)?)
                     } else {
                         try_visit_function_body(
-                            node.ref_(self).as_function_declaration().maybe_body(),
+                            released!(node.ref_(self).as_function_declaration().maybe_body()),
                             |node: Id<Node>| self.visitor(node),
                             &*self.context.ref_(self),
                             self,

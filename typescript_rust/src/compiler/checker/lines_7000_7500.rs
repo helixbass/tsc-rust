@@ -814,11 +814,9 @@ impl SymbolTableToDeclarationStatements {
         clauses: &[Id<Node /*ExpressionWithTypeArguments*/>],
     ) -> io::Result<Option<Vec<Id<Node /*ExpressionWithTypeArguments*/>>>> {
         let result = try_map_defined(Some(clauses), |&e: &Id<Node>, _| -> io::Result<_> {
-            let e_ref = e.ref_(self);
-            let e_as_expression_with_type_arguments = e_ref.as_expression_with_type_arguments();
             let old_enclosing = self.context().ref_(self).maybe_enclosing_declaration();
             self.context().ref_(self).set_enclosing_declaration(Some(e));
-            let mut expr = e_as_expression_with_type_arguments.expression;
+            let mut expr = e.ref_(self).as_expression_with_type_arguments().expression;
             if is_entity_name_expression(expr, self) {
                 if is_identifier(&expr.ref_(self)) && id_text(&expr.ref_(self)) == "" {
                     return Ok(self.sanitize_jsdoc_implements_cleanup(old_enclosing, None));
@@ -844,7 +842,8 @@ impl SymbolTableToDeclarationStatements {
                     get_factory(self).create_expression_with_type_arguments(
                         expr,
                         try_maybe_map(
-                            e_as_expression_with_type_arguments
+                            e.ref_(self)
+                                .as_expression_with_type_arguments()
                                 .maybe_type_arguments()
                                 .refed(self)
                                 .as_deref(),
