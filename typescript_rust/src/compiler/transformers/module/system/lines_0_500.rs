@@ -480,7 +480,7 @@ impl TransformSystemModule {
         )?;
 
         let execute_statements = try_visit_nodes(
-            node.ref_(self).as_source_file().statements(),
+            released!(node.ref_(self).as_source_file().statements()),
             Some(|node: Id<Node>| self.top_level_visitor(node)),
             Some(|node| is_statement(node, self)),
             Some(statement_offset),

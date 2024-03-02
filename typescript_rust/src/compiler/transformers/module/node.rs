@@ -6,9 +6,9 @@ use crate::{
     EmitHint, Node, NodeInterface, TransformationContext, TransformationContextOnEmitNodeOverrider,
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, _d, downcast_transformer_ref,
-    impl_has_arena, is_source_file, transform_ecmascript_module, transform_module, try_map,
-    AllArenas, CoreTransformationContext, Debug_, HasArena, InArena, ModuleKind, SyntaxKind,
-    TransformNodesTransformationResult,
+    impl_has_arena, is_source_file, released, transform_ecmascript_module, transform_module,
+    try_map, AllArenas, CoreTransformationContext, Debug_, HasArena, InArena, ModuleKind,
+    SyntaxKind, TransformNodesTransformationResult,
 };
 
 struct TransformNodeModule {
@@ -93,9 +93,7 @@ impl TransformNodeModule {
     }
 
     fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> io::Result<Id<Node>> {
-        let node_ref = node.ref_(self);
-        let node_as_source_file = node_ref.as_source_file();
-        if node_as_source_file.is_declaration_file() {
+        if node.ref_(self).as_source_file().is_declaration_file() {
             return Ok(node);
         }
 
@@ -113,7 +111,7 @@ impl TransformNodeModule {
         &self,
         node: Id<Node>, /*SourceFile | Bundle*/
     ) -> io::Result<Id<Node>> {
-        Ok(match node.ref_(self).kind() {
+        Ok(match released!(node.ref_(self).kind()) {
             SyntaxKind::SourceFile => self.transform_source_file(node)?,
             _ => self.transform_bundle(node)?,
         })

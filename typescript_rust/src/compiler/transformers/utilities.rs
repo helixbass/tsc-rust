@@ -13,8 +13,8 @@ use crate::{
     is_expression_statement, is_generated_identifier, is_identifier, is_keyword,
     is_method_or_accessor, is_named_exports, is_named_imports, is_omitted_expression,
     is_private_identifier, is_property_declaration, is_statement, is_static,
-    is_string_literal_like, is_super_call, per_arena, return_default_if_none, try_visit_node,
-    FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface, InArena,
+    is_string_literal_like, is_super_call, per_arena, released, return_default_if_none,
+    try_visit_node, FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface, InArena,
     InternalSymbolName, Matches, ModifierFlags, MultiMap, TransformNodesTransformationResult,
 };
 
@@ -172,8 +172,6 @@ pub fn collect_external_module_info(
     compiler_options: &CompilerOptions,
     arena: &impl HasArena,
 ) -> io::Result<ExternalModuleInfo> {
-    let source_file_ref = source_file.ref_(arena);
-    let source_file_as_source_file = source_file_ref.as_source_file();
     let mut external_imports: Vec<
         Id<Node /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/>,
     > = _d();
@@ -187,8 +185,13 @@ pub fn collect_external_module_info(
     let mut has_import_star = false;
     let mut has_import_default = false;
 
-    for &node in &*source_file_as_source_file.statements().ref_(arena) {
-        match node.ref_(arena).kind() {
+    for &node in &*source_file
+        .ref_(arena)
+        .as_source_file()
+        .statements()
+        .ref_(arena)
+    {
+        match released!(node.ref_(arena).kind()) {
             SyntaxKind::ImportDeclaration => {
                 external_imports.push(node.clone());
                 if !has_import_star && get_import_needs_import_star_helper(node, arena) {

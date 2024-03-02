@@ -460,7 +460,7 @@ impl TransformModule {
                         None,
                     )
                     .set_text_range(
-                        Some(&*node.ref_(self).as_source_file().statements().ref_(self)),
+                        Some(&*released!(node.ref_(self).as_source_file().statements()).ref_(self)),
                         self,
                     ),
                 None,
@@ -839,7 +839,10 @@ impl TransformModule {
                                     self.factory.ref_(self).create_identifier("exports"),
                                     self.factory
                                         .ref_(self)
-                                        .create_identifier(id_text(&next_id.ref_(self))),
+                                        .create_identifier(&released!(id_text(
+                                            &next_id.ref_(self)
+                                        )
+                                        .to_owned())),
                                 ),
                                 prev,
                             )
@@ -879,7 +882,7 @@ impl TransformModule {
             &mut statements,
             Some(
                 &try_visit_nodes(
-                    node.ref_(self).as_source_file().statements(),
+                    released!(node.ref_(self).as_source_file().statements()),
                     Some(|node: Id<Node>| self.top_level_visitor(node)),
                     Some(|node| is_statement(node, self)),
                     Some(statement_offset),

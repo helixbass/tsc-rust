@@ -165,21 +165,17 @@ impl TransformTypeScript {
             self.context.ref_(self).start_lexical_environment();
         }
 
-        let name = node
-            .ref_(self)
-            .as_class_declaration()
-            .maybe_name()
-            .or_else(|| {
-                if facts.intersects(ClassFacts::NeedsName) {
-                    Some(
-                        self.factory
-                            .ref_(self)
-                            .get_generated_name_for_node(Some(node), None),
-                    )
-                } else {
-                    None
-                }
-            });
+        let name = released!(node.ref_(self).as_class_declaration().maybe_name()).or_else(|| {
+            if facts.intersects(ClassFacts::NeedsName) {
+                Some(
+                    self.factory
+                        .ref_(self)
+                        .get_generated_name_for_node(Some(node), None),
+                )
+            } else {
+                None
+            }
+        });
         let class_statement = if facts.intersects(ClassFacts::HasConstructorDecorators) {
             self.create_class_declaration_head_with_decorators(node, name)?
         } else {

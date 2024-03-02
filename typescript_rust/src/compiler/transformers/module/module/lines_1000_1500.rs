@@ -309,12 +309,14 @@ impl TransformModule {
                 &mut statements,
                 self.factory.ref_(self).create_identifier("default"),
                 try_visit_node(
-                    node.ref_(self).as_export_assignment().expression,
+                    released!(node.ref_(self).as_export_assignment().expression),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Option::<fn(Id<Node>) -> bool>::None,
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?,
-                Some(&*node.ref_(self)),
+                Some(&released!(ReadonlyTextRangeConcrete::from(
+                    &*node.ref_(self)
+                ))),
                 Some(true),
                 None,
             );

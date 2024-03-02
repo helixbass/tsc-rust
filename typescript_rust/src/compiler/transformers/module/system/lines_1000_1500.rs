@@ -9,7 +9,7 @@ use crate::{
     is_omitted_expression, is_variable_declaration_list, set_emit_flags, EmitFlags,
     GetOrInsertDefault, HasInitializerInterface, ModifierFlags, Node, NodeArray, NodeExt,
     NodeInterface, SyntaxKind, VisitResult, _d, is_block, is_case_block, is_case_or_default_clause,
-    is_destructuring_assignment, is_import_call, is_statement, try_maybe_visit_node,
+    is_destructuring_assignment, is_import_call, is_statement, released, try_maybe_visit_node,
     try_visit_each_child, try_visit_iteration_body, try_visit_node, try_visit_nodes, InArena,
     TransformFlags,
 };
@@ -199,7 +199,7 @@ impl TransformSystemModule {
 
     pub(super) fn top_level_nested_visitor(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/
     {
-        Ok(match node.ref_(self).kind() {
+        Ok(match released!(node.ref_(self).kind()) {
             SyntaxKind::VariableStatement => self.visit_variable_statement(node)?,
             SyntaxKind::FunctionDeclaration => self.visit_function_declaration(node)?,
             SyntaxKind::ClassDeclaration => self.visit_class_declaration(node)?,

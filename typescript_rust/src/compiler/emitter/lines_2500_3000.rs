@@ -581,11 +581,11 @@ impl Printer {
         node: Id<Node>, /*ExpressionWithTypeArguments*/
     ) -> io::Result<()> {
         self.emit_expression(
-            Some(
+            Some(released!(
                 node.ref_(self)
                     .as_expression_with_type_arguments()
-                    .expression,
-            ),
+                    .expression
+            )),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(
                     self.parenthesizer(),

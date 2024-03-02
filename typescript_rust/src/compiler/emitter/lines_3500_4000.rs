@@ -405,7 +405,7 @@ impl Printer {
         self.write_space();
         self.emit_list(
             Some(node),
-            Some(node.ref_(self).as_heritage_clause().types),
+            released!(Some(node.ref_(self).as_heritage_clause().types)),
             ListFormat::HeritageClauseTypes,
             None,
             None,

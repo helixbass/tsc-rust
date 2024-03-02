@@ -19,7 +19,7 @@ use crate::{
 
 impl TransformSystemModule {
     pub(super) fn top_level_visitor(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/ {
-        Ok(match node.ref_(self).kind() {
+        Ok(match released!(node.ref_(self).kind()) {
             SyntaxKind::ImportDeclaration => self.visit_import_declaration(node),
             SyntaxKind::ImportEqualsDeclaration => self.visit_import_equals_declaration(node),
             SyntaxKind::ExportDeclaration => self.visit_export_declaration(node),
@@ -279,10 +279,9 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*VariableStatement*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_ref = node.ref_(self);
-        let node_as_variable_statement = node_ref.as_variable_statement();
-        if !self.should_hoist_variable_declaration_list(node_as_variable_statement.declaration_list)
-        {
+        if !self.should_hoist_variable_declaration_list(
+            node.ref_(self).as_variable_statement().declaration_list,
+        ) {
             return Ok(Some(
                 try_visit_node(
                     node,
@@ -297,16 +296,18 @@ impl TransformSystemModule {
         let mut expressions: Option<Vec<Id<Node /*Expression*/>>> = _d();
         let is_exported_declaration = has_syntactic_modifier(node, ModifierFlags::Export, self);
         let is_marked_declaration = self.has_associated_end_of_declaration_marker(node);
-        for &variable in &*node_as_variable_statement
-            .declaration_list
-            .ref_(self)
-            .as_variable_declaration_list()
-            .declarations
-            .ref_(self)
+        for &variable in &*released!(
+            node_as_variable_statement
+                .declaration_list
+                .ref_(self)
+                .as_variable_declaration_list()
+                .declarations
+        )
+        .ref_(self)
         {
-            let variable_ref = variable.ref_(self);
-            let variable_as_variable_declaration = variable_ref.as_variable_declaration();
-            if variable_as_variable_declaration
+            if variable
+                .ref_(self)
+                .as_variable_declaration()
                 .maybe_initializer()
                 .is_some()
             {
@@ -351,9 +352,7 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*VariableDeclaration | BindingElement*/
     ) {
-        let node_ref = node.ref_(self);
-        let node_as_named_declaration = node_ref.as_named_declaration();
-        let node_name = node_as_named_declaration.name();
+        let node_name = node.ref_(self).as_named_declaration().name();
         if is_binding_pattern(Some(&*node_name.ref_(self))) {
             for &element in &*node_name.ref_(self).as_has_elements().elements().ref_(self) {
                 if !is_omitted_expression(&element.ref_(self)) {

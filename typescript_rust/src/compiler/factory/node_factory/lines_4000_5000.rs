@@ -230,19 +230,17 @@ impl NodeFactory {
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_export_assignment = node_ref.as_export_assignment();
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
         if has_option_node_array_changed(node.ref_(self).maybe_decorators(), decorators.as_ref())
             || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
-            || node_as_export_assignment.expression != expression
+            || node.ref_(self).as_export_assignment().expression != expression
         {
             self.update(
                 self.create_export_assignment(
                     decorators,
                     modifiers,
-                    node_as_export_assignment.is_export_equals,
+                    released!(node.ref_(self).as_export_assignment().is_export_equals),
                     expression,
                 ),
                 node,

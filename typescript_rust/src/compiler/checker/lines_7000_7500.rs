@@ -842,11 +842,12 @@ impl SymbolTableToDeclarationStatements {
                     get_factory(self).create_expression_with_type_arguments(
                         expr,
                         try_maybe_map(
-                            e.ref_(self)
+                            released!(e
+                                .ref_(self)
                                 .as_expression_with_type_arguments()
-                                .maybe_type_arguments()
-                                .refed(self)
-                                .as_deref(),
+                                .maybe_type_arguments())
+                            .refed(self)
+                            .as_deref(),
                             |&a: &Id<Node>, _| -> io::Result<_> {
                                 self.node_builder
                                     .ref_(self)

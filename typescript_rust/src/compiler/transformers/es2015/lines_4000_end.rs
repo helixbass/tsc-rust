@@ -128,7 +128,7 @@ impl TransformES2015 {
                 self.factory
                     .ref_(self)
                     .create_string_literal(
-                        node.ref_(self).as_string_literal().text().clone(),
+                        released!(node.ref_(self).as_string_literal().text().clone()),
                         None,
                         None,
                     )

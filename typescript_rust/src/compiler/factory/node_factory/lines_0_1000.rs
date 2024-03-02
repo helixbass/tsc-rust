@@ -16,13 +16,14 @@ use crate::{
     create_node_converters, create_parenthesizer_rules, escape_leading_underscores,
     get_text_of_identifier_or_literal, id_text, impl_has_arena, is_identifier,
     null_node_converters, null_parenthesizer_rules, pseudo_big_int_to_string, ref_unwrapped,
-    starts_with, string_to_token, BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration,
-    BaseGenericNamedDeclaration, BaseInterfaceOrClassLikeDeclaration, BaseJSDocTag,
-    BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode,
-    BaseNodeFactory, BaseSignatureDeclaration, BaseVariableLikeDeclaration, BigIntLiteral,
-    BinaryExpression, BoolOrRcNode, ClassLikeDeclarationBase, ClassLikeDeclarationInterface,
-    Debug_, FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, HasArena,
-    HasInitializerInterface, HasTypeInterface, HasTypeParametersInterface, Identifier, InArena,
+    released, starts_with, string_to_token, BaseBindingLikeDeclaration,
+    BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration, BaseInterfaceOrClassLikeDeclaration,
+    BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseLiteralLikeNode,
+    BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseSignatureDeclaration,
+    BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, BoolOrRcNode,
+    ClassLikeDeclarationBase, ClassLikeDeclarationInterface, Debug_,
+    FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, HasArena, HasInitializerInterface,
+    HasTypeInterface, HasTypeParametersInterface, Identifier, InArena,
     InterfaceOrClassLikeDeclarationInterface, LiteralLikeNodeInterface, Node, NodeArray,
     NodeArrayOrVec, NodeConverters, NodeFactory, NodeInterface, Number, NumericLiteral,
     OptionInArena, ParenthesizerRules, PostfixUnaryExpression, PrefixUnaryExpression,
@@ -1119,7 +1120,11 @@ impl NodeFactory {
         let node_type_arguments = node.ref_(self).as_identifier().maybe_type_arguments();
         if has_option_node_array_changed(node_type_arguments, type_arguments.as_ref()) {
             self.update(
-                self.create_identifier_full(id_text(&node.ref_(self)), type_arguments, None),
+                self.create_identifier_full(
+                    &released!(id_text(&node.ref_(self)).to_owned()),
+                    type_arguments,
+                    None,
+                ),
                 node,
             )
         } else {
