@@ -496,7 +496,7 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete {
     }
 
     fn parenthesize_element_type_of_array_type(&self, member: Id<Node>) -> Id<Node> {
-        match member.ref_(self).kind() {
+        match released!(member.ref_(self).kind()) {
             SyntaxKind::TypeQuery | SyntaxKind::TypeOperator | SyntaxKind::InferType => {
                 self.factory.ref_(self).create_parenthesized_type(member)
             }

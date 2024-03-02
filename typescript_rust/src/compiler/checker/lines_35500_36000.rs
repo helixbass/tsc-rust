@@ -10,7 +10,7 @@ use crate::{
     get_first_constructor_with_body, get_first_identifier, get_host_signature_from_jsdoc,
     get_jsdoc_tags, get_parameter_symbol_from_jsdoc, get_rest_parameter_element_type, id_text,
     is_binding_pattern, is_entity_name, is_identifier, is_jsdoc_construct_signature,
-    is_jsdoc_parameter_tag, is_qualified_name, is_rest_parameter, node_can_be_decorated,
+    is_jsdoc_parameter_tag, is_qualified_name, is_rest_parameter, node_can_be_decorated, released,
     try_for_each, Debug_, DiagnosticMessageChain, Diagnostics, ExternalEmitHelpers, HasArena,
     HasTypeInterface, InArena, NamedDeclarationInterface, Node, NodeInterface, OptionInArena,
     OptionTry, ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker,
@@ -539,13 +539,14 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*JSDocTypedefTag | JSDocCallbackTag*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_jsdoc_type_like_tag = node_ref.as_jsdoc_type_like_tag();
-        let node_as_named_declaration = node_ref.maybe_as_named_declaration();
-        let node_name = node_as_named_declaration
+        let node_name = node
+            .ref_(self)
+            .maybe_as_named_declaration()
             .as_ref()
             .and_then(|node_as_named_declaration| node_as_named_declaration.maybe_name());
-        if node_as_jsdoc_type_like_tag
+        if node
+            .ref_(self)
+            .as_jsdoc_type_like_tag()
             .maybe_type_expression()
             .is_none()
         {
@@ -559,7 +560,10 @@ impl TypeChecker {
         if let Some(node_name) = node_name {
             self.check_type_name_is_reserved(node_name, &Diagnostics::Type_alias_name_cannot_be_0);
         }
-        self.check_source_element(node_as_jsdoc_type_like_tag.maybe_type_expression())?;
+        self.check_source_element(released!(node
+            .ref_(self)
+            .as_jsdoc_type_like_tag()
+            .maybe_type_expression()))?;
         self.check_type_parameters(Some(&get_effective_type_parameter_declarations(node, self)))?;
 
         Ok(())

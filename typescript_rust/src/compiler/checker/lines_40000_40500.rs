@@ -48,10 +48,9 @@ impl TypeChecker {
     pub(super) fn check_source_element_worker(&self, node: Id<Node>) -> io::Result<()> {
         if is_in_js_file(Some(&node.ref_(self))) {
             try_maybe_for_each(
-                node.ref_(self).maybe_js_doc().as_ref(),
+                released!(node.ref_(self).maybe_js_doc().clone()).as_ref(),
                 |jsdoc: &Id<Node>, _| -> io::Result<Option<()>> {
-                    let jsdoc_ref = jsdoc.ref_(self);
-                    let tags = jsdoc_ref.as_jsdoc().tags;
+                    let tags = jsdoc.ref_(self).as_jsdoc().tags;
                     try_maybe_for_each(
                         tags.refed(self).as_deref(),
                         |&tag: &Id<Node>, _| -> io::Result<Option<()>> {
@@ -220,7 +219,9 @@ impl TypeChecker {
                 self.check_jsdoc_variadic_type(node)?;
             }
             SyntaxKind::JSDocTypeExpression => {
-                self.check_source_element(Some(node.ref_(self).as_jsdoc_type_expression().type_))?;
+                self.check_source_element(Some(released!(
+                    node.ref_(self).as_jsdoc_type_expression().type_
+                )))?;
             }
             SyntaxKind::JSDocPublicTag
             | SyntaxKind::JSDocProtectedTag

@@ -286,11 +286,12 @@ impl TypeChecker {
         );
         self.check_exports_on_merged_declarations(node)?;
         self.check_type_parameters(
-            node.ref_(self)
+            released!(node
+                .ref_(self)
                 .as_type_alias_declaration()
-                .maybe_type_parameters()
-                .refed(self)
-                .as_double_deref(),
+                .maybe_type_parameters())
+            .refed(self)
+            .as_double_deref(),
         )?;
         if node
             .ref_(self)

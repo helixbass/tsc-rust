@@ -1227,9 +1227,7 @@ impl NodeFactory {
         node: Id<Node>, /*TypeQueryNode*/
         expr_name: Id<Node /*EntityName*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_type_query_node = node_ref.as_type_query_node();
-        if node_as_type_query_node.expr_name != expr_name {
+        if node.ref_(self).as_type_query_node().expr_name != expr_name {
             self.update(self.create_type_query_node(expr_name), node)
         } else {
             node

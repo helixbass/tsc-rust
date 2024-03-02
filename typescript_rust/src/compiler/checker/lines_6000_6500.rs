@@ -648,7 +648,7 @@ impl NodeBuilder {
         &self,
         context: Id<NodeBuilderContext>,
     ) -> Id<NodeBuilderContext> {
-        let initial = self.alloc_node_builder_context(context.ref_(self).clone());
+        let initial = self.alloc_node_builder_context(released!(context.ref_(self).clone()));
         {
             let initial_ref = initial.ref_(self);
             let mut initial_type_parameter_names = initial_ref.type_parameter_names.ref_mut(self);

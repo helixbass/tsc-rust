@@ -203,7 +203,7 @@ impl TypeChecker {
             for &prop in &self.get_properties_of_context(context)? {
                 if !members.contains_key(prop.ref_(self).escaped_name()) {
                     members.insert(
-                        prop.ref_(self).escaped_name().to_owned(),
+                        released!(prop.ref_(self).escaped_name().to_owned()),
                         self.get_undefined_property(prop),
                     );
                 }

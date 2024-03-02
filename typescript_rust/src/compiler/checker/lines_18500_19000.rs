@@ -837,9 +837,7 @@ impl CheckTypeRelatedTo {
                 return Self::type_related_to_some_type(
                     self_,
                     arena,
-                    self_
-                        .ref_(arena)
-                        .type_checker
+                    released!(self_.ref_(arena).type_checker)
                         .ref_(arena)
                         .get_regular_type_of_object_literal(source)?,
                     target,

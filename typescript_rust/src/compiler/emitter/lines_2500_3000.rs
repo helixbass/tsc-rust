@@ -937,7 +937,7 @@ impl Printer {
             None,
         );
         self.emit_expression_with_leading_space(
-            node.ref_(self).as_for_statement().condition,
+            released!(node.ref_(self).as_for_statement().condition),
             None,
         )?;
         pos = self.emit_token_with_comment(

@@ -437,9 +437,10 @@ impl TypeChecker {
     ) -> io::Result<Option<Vec<Id<Symbol>>>> {
         let mut result: Option<Vec<Id<Symbol>>> = None;
         for &source_property in source_properties {
-            if self
-                .is_discriminant_property(Some(target), source_property.ref_(self).escaped_name())?
-            {
+            if self.is_discriminant_property(
+                Some(target),
+                &released!(source_property.ref_(self).escaped_name().to_owned()),
+            )? {
                 if result.is_some() {
                     result.as_mut().unwrap().push(source_property.clone());
                     continue;

@@ -2137,7 +2137,10 @@ impl CheckTypeRelatedTo {
                         self_,
                         arena,
                         self_.ref_(arena).type_checker.ref_(arena).get_type_of_symbol(prop)?,
-                        self_.ref_(arena).get_type_of_property_in_types(check_types, prop.ref_(arena).escaped_name())?,
+                        self_.ref_(arena).get_type_of_property_in_types(
+                            check_types,
+                            &released!(prop.ref_(arena).escaped_name().to_owned()),
+                        )?,
                         Some(RecursionFlags::Both),
                         Some(report_errors),
                         None, None,

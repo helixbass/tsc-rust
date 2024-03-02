@@ -895,14 +895,13 @@ impl Printer {
         &self,
         node: Id<Node>, /*ArrayLiteralExpression*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_array_literal_expression = node_ref.as_array_literal_expression();
-        let elements = node_as_array_literal_expression.elements;
-        let prefer_new_line = if node_as_array_literal_expression.multi_line == Some(true) {
-            ListFormat::PreferNewLine
-        } else {
-            ListFormat::None
-        };
+        let elements = node.ref_(self).as_array_literal_expression().elements;
+        let prefer_new_line =
+            if node.ref_(self).as_array_literal_expression().multi_line == Some(true) {
+                ListFormat::PreferNewLine
+            } else {
+                ListFormat::None
+            };
         self.emit_expression_list(
             Some(node),
             Some(elements),

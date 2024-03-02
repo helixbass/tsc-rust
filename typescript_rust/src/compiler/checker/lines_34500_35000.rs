@@ -670,7 +670,12 @@ impl TypeChecker {
         node: Id<Node>, /*UnionOrIntersectionTypeNode*/
     ) -> io::Result<()> {
         try_for_each(
-            &*released!(node.ref_(self).as_union_or_intersection_type_node().types()).ref_(self),
+            &*released!(node
+                .ref_(self)
+                .as_union_or_intersection_type_node()
+                .types()
+                .ref_(self)
+                .clone()),
             |&type_, _| -> io::Result<_> {
                 self.check_source_element(Some(type_))?;
                 Ok(Option::<()>::None)

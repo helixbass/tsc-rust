@@ -298,35 +298,34 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
-        let mut links = links.ref_mut(self);
-        if links.type_.is_none() {
-            Debug_.assert_is_defined(&links.deferral_parent.as_ref(), None);
-            Debug_.assert_is_defined(&links.deferral_constituents.as_ref(), None);
-            links.type_ = Some(
-                if links
-                    .deferral_parent
-                    .unwrap()
-                    .ref_(self)
-                    .flags()
-                    .intersects(TypeFlags::Union)
-                {
-                    self.get_union_type(
-                        links.deferral_constituents.as_ref().unwrap(),
-                        None,
-                        Option::<Id<Symbol>>::None,
-                        None,
-                        None,
-                    )?
-                } else {
-                    self.get_intersection_type(
-                        links.deferral_constituents.as_deref().unwrap(),
-                        Option::<Id<Symbol>>::None,
-                        None,
-                    )?
-                },
-            );
+        if links.ref_(self).type_.is_none() {
+            Debug_.assert_is_defined(&links.ref_(self).deferral_parent.as_ref(), None);
+            Debug_.assert_is_defined(&links.ref_(self).deferral_constituents.as_ref(), None);
+            let type_ = if links
+                .ref_(self)
+                .deferral_parent
+                .unwrap()
+                .ref_(self)
+                .flags()
+                .intersects(TypeFlags::Union)
+            {
+                self.get_union_type(
+                    links.ref_(self).deferral_constituents.as_ref().unwrap(),
+                    None,
+                    Option::<Id<Symbol>>::None,
+                    None,
+                    None,
+                )?
+            } else {
+                self.get_intersection_type(
+                    links.ref_(self).deferral_constituents.as_deref().unwrap(),
+                    Option::<Id<Symbol>>::None,
+                    None,
+                )?
+            };
+            links.ref_mut(self).type_ = Some(type_);
         }
-        Ok(links.type_.clone().unwrap())
+        Ok(links.ref_(self).type_.clone().unwrap())
     }
 
     pub(super) fn get_set_accessor_type_of_symbol(
