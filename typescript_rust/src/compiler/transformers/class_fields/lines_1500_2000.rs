@@ -155,8 +155,7 @@ impl TransformClassFields {
         let node_name_as_private_identifier = node_name_ref.as_private_identifier();
         let text = get_text_of_property_name(node_name, self);
         let lex = self.get_class_lexical_environment();
-        let lex = lex.ref_(self);
-        let class_constructor = lex.class_constructor;
+        let class_constructor = lex.ref_(self).class_constructor;
 
         let private_env = self.get_private_identifier_environment();
         let weak_set_name = private_env.ref_(self).weak_set_name.clone();

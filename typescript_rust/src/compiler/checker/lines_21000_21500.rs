@@ -756,15 +756,15 @@ impl TypeChecker {
         let extra_flags = extra_flags.unwrap_or(InferenceFlags::None);
         context.map(|context| {
             self.create_inference_context_worker(
-                map(
+                released!(map(
                     &*context.ref_(self).inferences(),
                     |&inference: &Id<InferenceInfo>, _| {
                         self.alloc_inference_info(self.clone_inference_info(inference))
                     },
-                ),
-                context.ref_(self).signature.clone(),
-                context.ref_(self).flags() | extra_flags,
-                context.ref_(self).compare_types.clone(),
+                )),
+                released!(context.ref_(self).signature.clone()),
+                released!(context.ref_(self).flags() | extra_flags),
+                released!(context.ref_(self).compare_types.clone()),
             )
         })
     }

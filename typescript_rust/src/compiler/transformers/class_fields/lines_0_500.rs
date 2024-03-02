@@ -1120,18 +1120,22 @@ impl TransformClassFields {
         &self,
         node: Id<Node>, /*PropertyAccessExpression*/
     ) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_property_access_expression = node_ref.as_property_access_expression();
         if self.should_transform_private_elements_or_class_static_blocks
-            && is_private_identifier(&node_as_property_access_expression.name().ref_(self))
+            && is_private_identifier(
+                &node
+                    .ref_(self)
+                    .as_property_access_expression()
+                    .name()
+                    .ref_(self),
+            )
         {
-            let private_identifier_info =
-                self.access_private_identifier(node_as_property_access_expression.name());
+            let private_identifier_info = self
+                .access_private_identifier(node.ref_(self).as_property_access_expression().name());
             if let Some(private_identifier_info) = private_identifier_info {
                 return Some(
                     self.create_private_identifier_access(
                         &private_identifier_info.ref_(self),
-                        node_as_property_access_expression.expression,
+                        node.ref_(self).as_property_access_expression().expression,
                     )
                     .set_original_node(Some(node), self)
                     .set_text_range(Some(&*node.ref_(self)), self)
@@ -1141,7 +1145,13 @@ impl TransformClassFields {
         }
         if self.should_transform_super_in_static_initializers
             && is_super_property(node, self)
-            && is_identifier(&node_as_property_access_expression.name().ref_(self))
+            && is_identifier(
+                &node
+                    .ref_(self)
+                    .as_property_access_expression()
+                    .name()
+                    .ref_(self),
+            )
             && self
                 .maybe_current_static_property_declaration_or_static_block()
                 .is_some()
@@ -1168,17 +1178,23 @@ impl TransformClassFields {
                                 .create_reflect_get_call(
                                     super_class_reference.clone(),
                                     self.factory.ref_(self).create_string_literal_from_node(
-                                        node_as_property_access_expression.name(),
+                                        node.ref_(self).as_property_access_expression().name(),
                                     ),
                                     Some(class_constructor.clone()),
                                 )
                                 .set_original_node(
-                                    Some(node_as_property_access_expression.expression),
+                                    Some(
+                                        node.ref_(self).as_property_access_expression().expression,
+                                    ),
                                     self,
                                 )
                                 .set_text_range(
                                     Some(
-                                        &*node_as_property_access_expression.expression.ref_(self),
+                                        &*node
+                                            .ref_(self)
+                                            .as_property_access_expression()
+                                            .expression
+                                            .ref_(self),
                                     ),
                                     self,
                                 )

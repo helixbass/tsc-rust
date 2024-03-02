@@ -1126,7 +1126,7 @@ impl TransformModuleOnSubstituteNodeOverrider {
                         node,
                         expression,
                         Option::<Id<NodeArray>>::None,
-                        node.ref_(self).as_call_expression().arguments.clone(),
+                        released!(node.ref_(self).as_call_expression().arguments),
                     )
                     .add_emit_flags(EmitFlags::IndirectCall, self));
             }

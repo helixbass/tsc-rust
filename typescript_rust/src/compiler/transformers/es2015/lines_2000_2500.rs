@@ -113,14 +113,14 @@ impl TransformES2015 {
             return Ok(self.factory.ref_(self).update_binary_expression(
                 node,
                 try_visit_node(
-                    node.ref_(self).as_binary_expression().left,
+                    released!(node.ref_(self).as_binary_expression().left),
                     Some(|node: Id<Node>| self.visitor_with_unused_expression_result(node)),
                     Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?,
-                node.ref_(self).as_binary_expression().operator_token,
+                released!(node.ref_(self).as_binary_expression().operator_token),
                 try_visit_node(
-                    node.ref_(self).as_binary_expression().right,
+                    released!(node.ref_(self).as_binary_expression().right),
                     Some(|node: Id<Node>| {
                         Ok(if expression_result_is_unused {
                             self.visitor_with_unused_expression_result(node)?

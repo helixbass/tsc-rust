@@ -646,26 +646,30 @@ fn add_default_value_assignment_if_needed(
     context: &(impl TransformationContext + ?Sized),
     arena: &impl HasArena,
 ) -> Id<Node> {
-    let parameter_ref = parameter.ref_(arena);
-    let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
-    if parameter_as_parameter_declaration
+    if parameter
+        .ref_(arena)
+        .as_parameter_declaration()
         .dot_dot_dot_token
         .is_some()
     {
         parameter
     } else if is_binding_pattern(
-        parameter_as_parameter_declaration
+        parameter
+            .ref_(arena)
+            .as_parameter_declaration()
             .maybe_name()
             .refed(arena)
             .as_deref(),
     ) {
         add_default_value_assignment_for_binding_pattern(parameter, context, arena)
-    } else if let Some(parameter_initializer) =
-        parameter_as_parameter_declaration.maybe_initializer()
+    } else if let Some(parameter_initializer) = parameter
+        .ref_(arena)
+        .as_parameter_declaration()
+        .maybe_initializer()
     {
         add_default_value_assignment_for_initializer(
             parameter,
-            parameter_as_parameter_declaration.name(),
+            parameter.ref_(arena).as_parameter_declaration().name(),
             parameter_initializer,
             context,
             arena,
@@ -744,8 +748,6 @@ fn add_default_value_assignment_for_initializer(
     context: &(impl TransformationContext + ?Sized),
     arena: &impl HasArena,
 ) -> Id<Node> {
-    let parameter_ref = parameter.ref_(arena);
-    let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
     let factory = context.factory();
     context.add_initialization_statement(
         factory.ref_(arena).create_if_statement(
@@ -790,10 +792,22 @@ fn add_default_value_assignment_for_initializer(
         parameter,
         parameter.ref_(arena).maybe_decorators(),
         parameter.ref_(arena).maybe_modifiers(),
-        parameter_as_parameter_declaration.dot_dot_dot_token,
-        parameter_as_parameter_declaration.maybe_name(),
-        parameter_as_parameter_declaration.question_token,
-        parameter_as_parameter_declaration.maybe_type(),
+        parameter
+            .ref_(arena)
+            .as_parameter_declaration()
+            .dot_dot_dot_token,
+        parameter
+            .ref_(arena)
+            .as_parameter_declaration()
+            .maybe_name(),
+        parameter
+            .ref_(arena)
+            .as_parameter_declaration()
+            .question_token,
+        parameter
+            .ref_(arena)
+            .as_parameter_declaration()
+            .maybe_type(),
         None,
     )
 }

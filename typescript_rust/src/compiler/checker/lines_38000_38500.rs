@@ -876,7 +876,7 @@ impl TypeChecker {
         node: Id<Node>, /*ClassExpression*/
     ) -> io::Result<()> {
         try_for_each(
-            &*node.ref_(self).as_class_expression().members().ref_(self),
+            &*released!(node.ref_(self).as_class_expression().members()).ref_(self),
             |&member: &Id<Node>, _| -> io::Result<Option<()>> {
                 self.check_source_element(Some(member))?;
                 Ok(None)

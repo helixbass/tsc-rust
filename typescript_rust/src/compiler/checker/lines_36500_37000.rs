@@ -441,14 +441,12 @@ impl TypeChecker {
             {
                 self.check_external_emit_helpers(node, ExternalEmitHelpers::Rest)?;
             }
-            if let Some(node_property_name) = node
-                .ref_(self)
-                .as_binding_element()
-                .property_name
-                .filter(|node_property_name| {
-                    node_property_name.ref_(self).kind() == SyntaxKind::ComputedPropertyName
-                })
-            {
+            if let Some(node_property_name) = released!(
+                node.ref_(self).as_binding_element().property_name
+            )
+            .filter(|node_property_name| {
+                node_property_name.ref_(self).kind() == SyntaxKind::ComputedPropertyName
+            }) {
                 self.check_computed_property_name(node_property_name)?;
             }
 

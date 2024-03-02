@@ -6,10 +6,10 @@ use super::{ParenthesizeExpressionOfComputedPropertyNameCurrentParenthesizerRule
 use crate::{
     compare_emit_helpers, get_emit_helpers, get_external_helpers_module_name,
     has_recorded_external_helpers, is_source_file, is_template_literal_kind, is_unparsed_source,
-    stable_sort, BundleFileSection, BundleFileSectionKind, Debug_, EmitHelper, EmitHelperBase,
-    EmitHelperText, EmitHint, GetOrInsertDefault, HasArena, InArena, ListFormat, ModuleKind,
-    NamedDeclarationInterface, Node, NodeInterface, Printer, ReadonlyTextRange, SnippetElement,
-    SnippetKind, SortedArray, SourceFileLike, SyntaxKind, TextRange,
+    released, stable_sort, BundleFileSection, BundleFileSectionKind, Debug_, EmitHelper,
+    EmitHelperBase, EmitHelperText, EmitHint, GetOrInsertDefault, HasArena, InArena, ListFormat,
+    ModuleKind, NamedDeclarationInterface, Node, NodeInterface, Printer, ReadonlyTextRange,
+    SnippetElement, SnippetKind, SortedArray, SourceFileLike, SyntaxKind, TextRange,
 };
 
 impl Printer {
@@ -366,7 +366,7 @@ impl Printer {
     ) -> io::Result<()> {
         self.write_punctuation("[");
         self.emit_expression(
-            Some(node.ref_(self).as_computed_property_name().expression),
+            released!(Some(node.ref_(self).as_computed_property_name().expression)),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionOfComputedPropertyNameCurrentParenthesizerRule::new(
                     self.parenthesizer(),

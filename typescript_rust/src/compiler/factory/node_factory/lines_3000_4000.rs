@@ -1456,14 +1456,12 @@ impl NodeFactory {
         name: Id<Node /*ModuleName*/>,
         body: Option<Id<Node /*ModuleBody*/>>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_module_declaration = node_ref.as_module_declaration();
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
         if has_option_node_array_changed(node.ref_(self).maybe_decorators(), decorators.as_ref())
             || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
-            || node_as_module_declaration.name != name
-            || node_as_module_declaration.body != body
+            || node.ref_(self).as_module_declaration().name != name
+            || node.ref_(self).as_module_declaration().body != body
         {
             self.update(
                 self.create_module_declaration(
@@ -1471,7 +1469,7 @@ impl NodeFactory {
                     modifiers,
                     name,
                     body,
-                    Some(node.ref_(self).flags()),
+                    released!(Some(node.ref_(self).flags())),
                 ),
                 node,
             )

@@ -764,10 +764,9 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*NewExpression*/
     ) -> io::Result<Id<Node /*LeftHandSideExpression*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_new_expression = node_ref.as_new_expression();
         if some(
-            node_as_new_expression
+            node.ref_(self)
+                .as_new_expression()
                 .arguments
                 .refed(self)
                 .as_double_deref(),
@@ -775,7 +774,7 @@ impl TransformES2015 {
         ) {
             let CallBinding { target, this_arg } = self.factory.ref_(self).create_call_binding(
                 self.factory.ref_(self).create_property_access_expression(
-                    node_as_new_expression.expression.clone(),
+                    node.ref_(self).as_new_expression().expression.clone(),
                     "bind",
                 ),
                 |node: Id<Node>| {
@@ -797,7 +796,8 @@ impl TransformES2015 {
                         self.factory.ref_(self).create_node_array(
                             Some(
                                 vec![self.factory.ref_(self).create_void_zero()].and_extend(
-                                    node_as_new_expression
+                                    node.ref_(self)
+                                        .as_new_expression()
                                         .arguments
                                         .clone()
                                         .unwrap()

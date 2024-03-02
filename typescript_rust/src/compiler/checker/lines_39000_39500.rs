@@ -34,19 +34,13 @@ impl TypeChecker {
             return Ok(());
         }
         let constructor = self.find_constructor_declaration(node);
-        for &member in &*node
-            .ref_(self)
-            .as_class_like_declaration()
-            .members()
-            .ref_(self)
+        for &member in &*released!(node.ref_(self).as_class_like_declaration().members()).ref_(self)
         {
             if get_effective_modifier_flags(member, self).intersects(ModifierFlags::Ambient) {
                 continue;
             }
             if !is_static(member, self) && self.is_property_without_initializer(member) {
-                let member_ref = member.ref_(self);
-                let member_as_property_declaration = member_ref.as_property_declaration();
-                let prop_name = member_as_property_declaration.name();
+                let prop_name = member.ref_(self).as_property_declaration().name();
                 if is_identifier(&prop_name.ref_(self))
                     || is_private_identifier(&prop_name.ref_(self))
                 {
@@ -64,7 +58,7 @@ impl TypeChecker {
                             )?,
                         } {
                             self.error(
-                                member_as_property_declaration.maybe_name(),
+                                member.ref_(self).as_property_declaration().maybe_name(),
                                 &Diagnostics::Property_0_has_no_initializer_and_is_not_definitely_assigned_in_the_constructor,
                                 Some(vec![
                                     declaration_name_to_string(Some(prop_name), self).into_owned()

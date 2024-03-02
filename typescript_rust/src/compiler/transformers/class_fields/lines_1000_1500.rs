@@ -797,9 +797,9 @@ impl TransformClassFields {
                 .ref_(self),
         ) {
             self.factory.ref_(self).update_computed_property_name(
-                property.ref_(self).as_property_declaration().name(),
+                released!(property.ref_(self).as_property_declaration().name()),
                 self.factory.ref_(self).get_generated_name_for_node(
-                    Some(property.ref_(self).as_property_declaration().name()),
+                    released!(Some(property.ref_(self).as_property_declaration().name())),
                     None,
                 ),
             )

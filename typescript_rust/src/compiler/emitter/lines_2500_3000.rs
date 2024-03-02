@@ -235,7 +235,10 @@ impl Printer {
             node,
             node.ref_(self).as_arrow_function().maybe_type_parameters(),
         )?;
-        self.emit_parameters_for_arrow(node, node.ref_(self).as_arrow_function().parameters())?;
+        self.emit_parameters_for_arrow(
+            node,
+            released!(node.ref_(self).as_arrow_function().parameters()),
+        )?;
         self.emit_type_annotation(node.ref_(self).as_arrow_function().maybe_type())?;
         self.write_space();
         self.emit(

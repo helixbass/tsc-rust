@@ -871,7 +871,7 @@ impl TypeChecker {
                 return Ok(ret);
             }
             let links_resolved_type = self.check_expression(
-                node.ref_(self).as_computed_property_name().expression,
+                released!(node.ref_(self).as_computed_property_name().expression),
                 None,
                 None,
             )?;

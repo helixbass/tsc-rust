@@ -54,7 +54,7 @@ impl Printer {
             None,
         )?;
         self.emit_node_with_writer(
-            node.ref_(self).as_parameter_declaration().maybe_name(),
+            released!(node.ref_(self).as_parameter_declaration().maybe_name()),
             Printer::write_parameter,
         )?;
         self.emit(
@@ -143,22 +143,34 @@ impl Printer {
         &self,
         node: Id<Node>, /*PropertyDeclaration*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_property_declaration = node_ref.as_property_declaration();
         self.emit_decorators(node, node.ref_(self).maybe_decorators())?;
         self.emit_modifiers(node, node.ref_(self).maybe_modifiers())?;
-        self.emit(node_as_property_declaration.maybe_name(), None)?;
-        self.emit(node_as_property_declaration.question_token, None)?;
-        self.emit(node_as_property_declaration.exclamation_token, None)?;
-        self.emit_type_annotation(node_as_property_declaration.maybe_type())?;
+        self.emit(node.ref_(self).as_property_declaration().maybe_name(), None)?;
+        self.emit(
+            node.ref_(self).as_property_declaration().question_token,
+            None,
+        )?;
+        self.emit(
+            node.ref_(self).as_property_declaration().exclamation_token,
+            None,
+        )?;
+        self.emit_type_annotation(node.ref_(self).as_property_declaration().maybe_type())?;
         self.emit_initializer(
-            node_as_property_declaration.maybe_initializer(),
-            if let Some(node_type) = node_as_property_declaration.maybe_type() {
+            node.ref_(self)
+                .as_property_declaration()
+                .maybe_initializer(),
+            if let Some(node_type) = node.ref_(self).as_property_declaration().maybe_type() {
                 node_type.ref_(self).end()
-            } else if let Some(node_question_token) = node_as_property_declaration.question_token {
+            } else if let Some(node_question_token) =
+                node.ref_(self).as_property_declaration().question_token
+            {
                 node_question_token.ref_(self).end()
             } else {
-                node_as_property_declaration.name().ref_(self).pos()
+                node.ref_(self)
+                    .as_property_declaration()
+                    .name()
+                    .ref_(self)
+                    .pos()
             },
             node,
             None,
@@ -888,7 +900,9 @@ impl Printer {
         node: Id<Node>, /*BindingElement*/
     ) -> io::Result<()> {
         self.emit(node.ref_(self).as_binding_element().dot_dot_dot_token, None)?;
-        if let Some(node_property_name) = node.ref_(self).as_binding_element().property_name {
+        if let Some(node_property_name) =
+            released!(node.ref_(self).as_binding_element().property_name)
+        {
             self.emit(Some(node_property_name), None)?;
             self.write_punctuation(":");
             self.write_space();

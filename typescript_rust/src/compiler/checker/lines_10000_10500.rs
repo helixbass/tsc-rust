@@ -219,13 +219,12 @@ impl TypeChecker {
             } else {
                 ObjectFlags::Interface
             };
-            let merged =
-                self.merge_js_symbols(
-                    symbol,
-                    symbol.ref_(self).maybe_value_declaration().try_and_then(
-                        |value_declaration| self.get_assigned_class_symbol(value_declaration),
-                    )?,
-                )?;
+            let merged = self.merge_js_symbols(
+                symbol,
+                released!(symbol.ref_(self).maybe_value_declaration()).try_and_then(
+                    |value_declaration| self.get_assigned_class_symbol(value_declaration),
+                )?,
+            )?;
             if let Some(merged) = merged {
                 symbol = merged.clone();
                 links = merged.ref_(self).as_transient_symbol().symbol_links();
