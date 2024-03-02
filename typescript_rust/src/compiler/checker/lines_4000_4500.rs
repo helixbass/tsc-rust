@@ -683,7 +683,7 @@ impl TypeChecker {
         }
 
         let result: Option<Vec<Id<Symbol>>> = try_for_each_entry(
-            &*released!(symbols.ref_(self).clone()),
+            &released!(symbols.ref_(self).clone()),
             |&symbol_from_symbol_table, _| -> io::Result<_> {
                 if symbol_from_symbol_table
                     .ref_(self)

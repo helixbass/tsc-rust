@@ -5,7 +5,7 @@ use crate::{
     id_text, is_expression, is_statement, is_variable_declaration_list, maybe_visit_node,
     visit_each_child, visit_node, Matches, NamedDeclarationInterface, Node, NodeArray,
     NodeInterface, Number, SyntaxKind, TransformFlags, VisitResult, _d, get_emit_flags,
-    is_generated_identifier, CoreTransformationContext, EmitFlags, InArena,
+    is_generated_identifier, released, CoreTransformationContext, EmitFlags, InArena,
 };
 
 impl TransformGenerators {
