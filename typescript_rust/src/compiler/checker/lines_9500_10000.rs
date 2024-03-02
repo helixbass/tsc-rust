@@ -184,10 +184,7 @@ impl TypeChecker {
         let links = self.get_symbol_links(symbol);
         if links.ref_(self).type_.is_none() {
             let target_symbol = self.resolve_alias(symbol)?;
-            let export_symbol = symbol
-                .ref_(self)
-                .maybe_declarations()
-                .as_ref()
+            let export_symbol = released!(symbol.ref_(self).maybe_declarations().clone())
                 .try_and_then(|_| {
                     self.get_target_of_alias_declaration(
                         self.get_declaration_of_alias_symbol(symbol)?.unwrap(),

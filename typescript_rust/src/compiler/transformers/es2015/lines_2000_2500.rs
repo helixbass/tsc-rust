@@ -647,7 +647,7 @@ impl TransformES2015 {
         node: Id<Node>,                        /*IterationStatement*/
         outermost_labeled_statement: Id<Node>, /*LabeledStatement*/
     ) -> io::Result<VisitResult> {
-        Ok(match node.ref_(self).kind() {
+        Ok(match released!(node.ref_(self).kind()) {
             SyntaxKind::DoStatement | SyntaxKind::WhileStatement => {
                 self.visit_do_or_while_statement(node, Some(outermost_labeled_statement))
             }
@@ -1031,8 +1031,6 @@ impl TransformES2015 {
                     Some(|nodes: &[Id<Node>]| self.factory.ref_(self).lift_to_block(nodes)),
                 )?;
                 if is_block(&statement.ref_(self)) {
-                    let statement_ref = statement.ref_(self);
-                    let statement_as_block = statement_ref.as_block();
                     self.factory.ref_(self).update_block(
                         statement,
                         self.factory
@@ -1040,11 +1038,22 @@ impl TransformES2015 {
                             .create_node_array(
                                 Some(concatenate(
                                     statements,
-                                    statement_as_block.statements.ref_(self).to_vec(),
+                                    released!(statement
+                                        .ref_(self)
+                                        .as_block()
+                                        .statements
+                                        .ref_(self)
+                                        .to_vec()),
                                 )),
                                 None,
                             )
-                            .set_text_range(Some(&*statement_as_block.statements.ref_(self)), self),
+                            .set_text_range(
+                                Some(
+                                    &*released!(statement.ref_(self).as_block().statements)
+                                        .ref_(self),
+                                ),
+                                self,
+                            ),
                     )
                 } else {
                     statements.push(statement);

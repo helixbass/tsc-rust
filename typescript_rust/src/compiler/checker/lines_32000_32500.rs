@@ -692,51 +692,64 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*PrefixUnaryExpression*/
     ) -> io::Result<Id<Type>> {
-        let node_ref = node.ref_(self);
-        let node_as_prefix_unary_expression = node_ref.as_prefix_unary_expression();
-        let operand_type =
-            self.check_expression(node_as_prefix_unary_expression.operand, None, None)?;
+        let operand_type = self.check_expression(
+            node.ref_(self).as_prefix_unary_expression().operand,
+            None,
+            None,
+        )?;
         if operand_type == self.silent_never_type() {
             return Ok(self.silent_never_type());
         }
-        match node_as_prefix_unary_expression.operand.ref_(self).kind() {
-            SyntaxKind::NumericLiteral => match node_as_prefix_unary_expression.operator {
-                SyntaxKind::MinusToken => {
-                    return Ok(self.get_fresh_type_of_literal_type(
-                        self.get_number_literal_type(Number::new(
-                            node_as_prefix_unary_expression
-                                .operand
-                                .ref_(self)
-                                .as_numeric_literal()
-                                .text()
-                                .parse::<f64>()
-                                .unwrap()
-                                * -1.0,
-                        )),
-                    ));
+        match node
+            .ref_(self)
+            .as_prefix_unary_expression()
+            .operand
+            .ref_(self)
+            .kind()
+        {
+            SyntaxKind::NumericLiteral => {
+                match node.ref_(self).as_prefix_unary_expression().operator {
+                    SyntaxKind::MinusToken => {
+                        return Ok(self.get_fresh_type_of_literal_type(
+                            self.get_number_literal_type(Number::new(
+                                node.ref_(self)
+                                    .as_prefix_unary_expression()
+                                    .operand
+                                    .ref_(self)
+                                    .as_numeric_literal()
+                                    .text()
+                                    .parse::<f64>()
+                                    .unwrap()
+                                    * -1.0,
+                            )),
+                        ));
+                    }
+                    SyntaxKind::PlusToken => {
+                        return Ok(self.get_fresh_type_of_literal_type(
+                            self.get_number_literal_type(Number::new(
+                                node.ref_(self)
+                                    .as_prefix_unary_expression()
+                                    .operand
+                                    .ref_(self)
+                                    .as_numeric_literal()
+                                    .text()
+                                    .parse::<f64>()
+                                    .unwrap(),
+                            )),
+                        ));
+                    }
+                    _ => (),
                 }
-                SyntaxKind::PlusToken => {
-                    return Ok(self.get_fresh_type_of_literal_type(
-                        self.get_number_literal_type(Number::new(
-                            node_as_prefix_unary_expression
-                                .operand
-                                .ref_(self)
-                                .as_numeric_literal()
-                                .text()
-                                .parse::<f64>()
-                                .unwrap(),
-                        )),
-                    ));
-                }
-                _ => (),
-            },
+            }
             SyntaxKind::BigIntLiteral => {
-                if node_as_prefix_unary_expression.operator == SyntaxKind::MinusToken {
+                if node.ref_(self).as_prefix_unary_expression().operator == SyntaxKind::MinusToken {
                     return Ok(self.get_fresh_type_of_literal_type(
                         self.get_big_int_literal_type(PseudoBigInt::new(
                             true,
                             parse_pseudo_big_int(
-                                &node_as_prefix_unary_expression
+                                &node
+                                    .ref_(self)
+                                    .as_prefix_unary_expression()
                                     .operand
                                     .ref_(self)
                                     .as_big_int_literal()
@@ -748,70 +761,82 @@ impl TypeChecker {
             }
             _ => (),
         }
-        Ok(match node_as_prefix_unary_expression.operator {
-            SyntaxKind::PlusToken | SyntaxKind::MinusToken | SyntaxKind::TildeToken => {
-                self.check_non_null_type(operand_type, node_as_prefix_unary_expression.operand)?;
-                if self.maybe_type_of_kind(operand_type, TypeFlags::ESSymbolLike) {
-                    self.error(
-                        Some(node_as_prefix_unary_expression.operand),
-                        &Diagnostics::The_0_operator_cannot_be_applied_to_type_symbol,
-                        Some(vec![token_to_string(
-                            node_as_prefix_unary_expression.operator,
-                        )
-                        .unwrap()
-                        .to_owned()]),
-                    );
-                }
-                if node_as_prefix_unary_expression.operator == SyntaxKind::PlusToken {
-                    if self.maybe_type_of_kind(operand_type, TypeFlags::BigIntLike) {
+        Ok(
+            match node.ref_(self).as_prefix_unary_expression().operator {
+                SyntaxKind::PlusToken | SyntaxKind::MinusToken | SyntaxKind::TildeToken => {
+                    self.check_non_null_type(
+                        operand_type,
+                        node.ref_(self).as_prefix_unary_expression().operand,
+                    )?;
+                    if self.maybe_type_of_kind(operand_type, TypeFlags::ESSymbolLike) {
                         self.error(
-                            Some(node_as_prefix_unary_expression.operand),
-                            &Diagnostics::Operator_0_cannot_be_applied_to_type_1,
-                            Some(vec![
-                                token_to_string(node_as_prefix_unary_expression.operator)
-                                    .unwrap()
-                                    .to_owned(),
-                                self.type_to_string_(
-                                    self.get_base_type_of_literal_type(operand_type)?,
-                                    Option::<Id<Node>>::None,
-                                    None,
-                                    None,
-                                )?,
-                            ]),
+                            Some(node.ref_(self).as_prefix_unary_expression().operand),
+                            &Diagnostics::The_0_operator_cannot_be_applied_to_type_symbol,
+                            Some(vec![token_to_string(
+                                node.ref_(self).as_prefix_unary_expression().operator,
+                            )
+                            .unwrap()
+                            .to_owned()]),
                         );
                     }
-                    return Ok(self.number_type());
+                    if node.ref_(self).as_prefix_unary_expression().operator
+                        == SyntaxKind::PlusToken
+                    {
+                        if self.maybe_type_of_kind(operand_type, TypeFlags::BigIntLike) {
+                            self.error(
+                                Some(node.ref_(self).as_prefix_unary_expression().operand),
+                                &Diagnostics::Operator_0_cannot_be_applied_to_type_1,
+                                Some(vec![
+                                    token_to_string(
+                                        node.ref_(self).as_prefix_unary_expression().operator,
+                                    )
+                                    .unwrap()
+                                    .to_owned(),
+                                    self.type_to_string_(
+                                        self.get_base_type_of_literal_type(operand_type)?,
+                                        Option::<Id<Node>>::None,
+                                        None,
+                                        None,
+                                    )?,
+                                ]),
+                            );
+                        }
+                        return Ok(self.number_type());
+                    }
+                    self.get_unary_result_type(operand_type)?
                 }
-                self.get_unary_result_type(operand_type)?
-            }
-            SyntaxKind::ExclamationToken => {
-                self.check_truthiness_expression(node_as_prefix_unary_expression.operand, None)?;
-                let facts = self.get_type_facts(operand_type, None)?
-                    & (TypeFacts::Truthy | TypeFacts::Falsy);
-                match facts {
-                    TypeFacts::Truthy => self.false_type(),
-                    TypeFacts::Falsy => self.true_type(),
-                    _ => self.boolean_type(),
+                SyntaxKind::ExclamationToken => {
+                    self.check_truthiness_expression(
+                        node.ref_(self).as_prefix_unary_expression().operand,
+                        None,
+                    )?;
+                    let facts = self.get_type_facts(operand_type, None)?
+                        & (TypeFacts::Truthy | TypeFacts::Falsy);
+                    match facts {
+                        TypeFacts::Truthy => self.false_type(),
+                        TypeFacts::Falsy => self.true_type(),
+                        _ => self.boolean_type(),
+                    }
                 }
-            }
-            SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken => {
-                let ok = self.check_arithmetic_operand_type(
-                    node_as_prefix_unary_expression.operand,
-                    self.check_non_null_type(operand_type, node_as_prefix_unary_expression.operand)?,
+                SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken => {
+                    let ok = self.check_arithmetic_operand_type(
+                    node.ref_(self).as_prefix_unary_expression().operand,
+                    self.check_non_null_type(operand_type, node.ref_(self).as_prefix_unary_expression().operand)?,
                     &Diagnostics::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type,
                     None
                 )?;
-                if ok {
-                    self.check_reference_expression(
-                        node_as_prefix_unary_expression.operand,
+                    if ok {
+                        self.check_reference_expression(
+                        node.ref_(self).as_prefix_unary_expression().operand,
                         &Diagnostics::The_operand_of_an_increment_or_decrement_operator_must_be_a_variable_or_a_property_access,
                         &Diagnostics::The_operand_of_an_increment_or_decrement_operator_may_not_be_an_optional_property_access,
                     );
+                    }
+                    self.get_unary_result_type(operand_type)?
                 }
-                self.get_unary_result_type(operand_type)?
-            }
-            _ => self.error_type(),
-        })
+                _ => self.error_type(),
+            },
+        )
     }
 
     pub(super) fn check_postfix_unary_expression(

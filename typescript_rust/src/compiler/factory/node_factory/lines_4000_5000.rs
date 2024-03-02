@@ -1226,11 +1226,9 @@ impl NodeFactory {
         expression: Id<Node /*Expression*/>,
         statements: impl Into<NodeArrayOrVec>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_case_clause = node_ref.as_case_clause();
         let statements = statements.into();
-        if node_as_case_clause.expression != expression
-            || has_node_array_changed(node_as_case_clause.statements, &statements)
+        if node.ref_(self).as_case_clause().expression != expression
+            || has_node_array_changed(node.ref_(self).as_case_clause().statements, &statements)
         {
             self.update(self.create_case_clause(expression, statements), node)
         } else {

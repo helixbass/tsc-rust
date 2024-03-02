@@ -125,7 +125,7 @@ impl TypeChecker {
             }
         }
 
-        if let Some(node_initializer) = node.ref_(self).as_for_statement().initializer {
+        if let Some(node_initializer) = released!(node.ref_(self).as_for_statement().initializer) {
             if node_initializer.ref_(self).kind() == SyntaxKind::VariableDeclarationList {
                 try_for_each(
                     &*released!(
