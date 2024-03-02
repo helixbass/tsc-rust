@@ -844,7 +844,7 @@ impl TransformES2015 {
                     .len()
         {
             let first_statement =
-                &constructor_body.ref_(self).as_block().statements.ref_(self)[statement_offset];
+                constructor_body.ref_(self).as_block().statements.ref_(self)[statement_offset];
             if is_expression_statement(&first_statement.ref_(self))
                 && is_super_call(
                     first_statement

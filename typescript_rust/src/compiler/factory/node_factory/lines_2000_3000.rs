@@ -1938,10 +1938,8 @@ impl NodeFactory {
         asterisk_token: Option<Id<Node /*AsteriskToken*/>>,
         expression: Option<Id<Node /*Expression*/>>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_yield_expression = node_ref.as_yield_expression();
-        if node_as_yield_expression.expression != expression
-            || node_as_yield_expression.asterisk_token != asterisk_token
+        if node.ref_(self).as_yield_expression().expression != expression
+            || node.ref_(self).as_yield_expression().asterisk_token != asterisk_token
         {
             self.update(
                 self.create_yield_expression(asterisk_token, expression),

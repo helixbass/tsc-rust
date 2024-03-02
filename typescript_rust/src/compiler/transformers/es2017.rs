@@ -385,7 +385,7 @@ impl TransformES2017 {
 
     fn async_body_visitor(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/ {
         if is_node_with_possible_hoisted_declaration(&node.ref_(self)) {
-            return Ok(match node.ref_(self).kind() {
+            return Ok(match released!(node.ref_(self).kind()) {
                 SyntaxKind::VariableStatement => self
                     .visit_variable_statement_in_async_body(node)?
                     .map(Into::into),
@@ -480,13 +480,11 @@ impl TransformES2017 {
         &self,
         node: Id<Node>, /*VariableStatement*/
     ) -> io::Result<Option<Id<Node>>> {
-        let node_ref = node.ref_(self);
-        let node_as_variable_statement = node_ref.as_variable_statement();
         if self.is_variable_declaration_list_with_colliding_name(Some(
-            node_as_variable_statement.declaration_list,
+            node.ref_(self).as_variable_statement().declaration_list,
         )) {
             let expression = self.visit_variable_declaration_list_with_colliding_names(
-                node_as_variable_statement.declaration_list,
+                node.ref_(self).as_variable_statement().declaration_list,
                 false,
             )?;
             return Ok(expression.map(|expression| {
@@ -647,7 +645,7 @@ impl TransformES2017 {
                 self.factory.ref_(self).create_yield_expression(
                     None,
                     try_maybe_visit_node(
-                        Some(node.ref_(self).as_await_expression().expression),
+                        released!(Some(node.ref_(self).as_await_expression().expression)),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -1184,7 +1182,7 @@ impl TransformES2017 {
             self.factory.ref_(self).update_block(
                 body,
                 try_visit_nodes(
-                    body.ref_(self).as_block().statements,
+                    released!(body.ref_(self).as_block().statements),
                     Some(|node: Id<Node>| self.async_body_visitor(node)),
                     Some(|node| is_statement(node, self)),
                     start,

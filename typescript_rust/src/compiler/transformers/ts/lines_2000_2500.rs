@@ -532,7 +532,7 @@ impl TransformTypeScript {
         node: Id<Node>, /*AssertionExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
         let expression = try_visit_node(
-            node.ref_(self).as_has_expression().expression(),
+            released!(node.ref_(self).as_has_expression().expression()),
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

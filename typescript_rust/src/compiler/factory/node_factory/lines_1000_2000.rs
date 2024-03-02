@@ -520,15 +520,17 @@ impl NodeFactory {
         parameters: Id<NodeArray /*<ParameterDeclaration>*/>,
         type_: Option<Id<Node>>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_method_signature = node_ref.as_method_signature();
         let modifiers = modifiers.map(Into::into);
         if has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
-            || node_as_method_signature.name() != name
-            || node_as_method_signature.maybe_question_token() != question_token
-            || node_as_method_signature.maybe_type_parameters() != type_parameters
-            || node_as_method_signature.parameters() != parameters
-            || node_as_method_signature.maybe_type() != type_
+            || node.ref_(self).as_method_signature().name() != name
+            || node.ref_(self).as_method_signature().maybe_question_token() != question_token
+            || node
+                .ref_(self)
+                .as_method_signature()
+                .maybe_type_parameters()
+                != type_parameters
+            || node.ref_(self).as_method_signature().parameters() != parameters
+            || node.ref_(self).as_method_signature().maybe_type() != type_
         {
             self.update_base_signature_declaration(
                 self.create_method_signature(

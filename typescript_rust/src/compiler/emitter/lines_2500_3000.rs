@@ -288,7 +288,7 @@ impl Printer {
         );
         self.write_space();
         self.emit_expression(
-            Some(node.ref_(self).as_type_of_expression().expression),
+            released!(Some(node.ref_(self).as_type_of_expression().expression)),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(
                     self.parenthesizer(),

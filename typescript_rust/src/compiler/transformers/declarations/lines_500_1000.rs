@@ -1165,9 +1165,9 @@ impl TransformDeclarations {
                     )?
                 }
                 SyntaxKind::MethodSignature => {
-                    let input_ref = input.ref_(self);
-                    let input_as_method_signature = input_ref.as_method_signature();
-                    if is_private_identifier(&input_as_method_signature.name().ref_(self)) {
+                    if is_private_identifier(
+                        &input.ref_(self).as_method_signature().name().ref_(self),
+                    ) {
                         return self.visit_declaration_subtree_cleanup(
                             input,
                             can_produce_diagnostic,
@@ -1189,21 +1189,29 @@ impl TransformDeclarations {
                             self.factory.ref_(self).update_method_signature(
                                 input,
                                 self.ensure_modifiers(input),
-                                input_as_method_signature.name(),
-                                input_as_method_signature.maybe_question_token(),
+                                released!(input.ref_(self).as_method_signature().name()),
+                                released!(input
+                                    .ref_(self)
+                                    .as_method_signature()
+                                    .maybe_question_token()),
                                 self.ensure_type_params(
                                     input,
-                                    input_as_method_signature.maybe_type_parameters(),
+                                    released!(input
+                                        .ref_(self)
+                                        .as_method_signature()
+                                        .maybe_type_parameters()),
                                 )?,
                                 self.update_params_list(
                                     input,
-                                    Some(input_as_method_signature.parameters()),
+                                    released!(Some(
+                                        input.ref_(self).as_method_signature().parameters()
+                                    )),
                                     None,
                                 )?
                                 .unwrap(),
                                 self.ensure_type(
                                     input,
-                                    input_as_method_signature.maybe_type(),
+                                    released!(input.ref_(self).as_method_signature().maybe_type()),
                                     None,
                                 )?,
                             ),

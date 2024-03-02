@@ -338,8 +338,6 @@ impl TransformModule {
         &self,
         node: Id<Node>, /*SourceFile*/
     ) -> io::Result<Id<Node>> {
-        let node_ref = node.ref_(self);
-        let node_as_source_file = node_ref.as_source_file();
         let define = self.factory.ref_(self).create_identifier("define");
         let module_name = try_get_module_name_from_file(
             &self.factory.ref_(self),
@@ -461,7 +459,10 @@ impl TransformModule {
                         )]),
                         None,
                     )
-                    .set_text_range(Some(&*node_as_source_file.statements().ref_(self)), self),
+                    .set_text_range(
+                        Some(&*node.ref_(self).as_source_file().statements().ref_(self)),
+                        self,
+                    ),
                 None,
                 None,
                 None,
@@ -475,8 +476,6 @@ impl TransformModule {
         &self,
         node: Id<Node>, /*SourceFile*/
     ) -> io::Result<Id<Node>> {
-        let node_ref = node.ref_(self);
-        let node_as_source_file = node_ref.as_source_file();
         let AsynchronousDependencies {
             aliased_module_names,
             unaliased_module_names,
@@ -680,7 +679,10 @@ impl TransformModule {
                         )]),
                         None,
                     )
-                    .set_text_range(Some(&*node_as_source_file.statements().ref_(self)), self),
+                    .set_text_range(
+                        Some(&*node.ref_(self).as_source_file().statements().ref_(self)),
+                        self,
+                    ),
                 None,
                 None,
                 None,

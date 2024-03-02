@@ -289,7 +289,7 @@ impl TransformGenerators {
     ) {
         self.emit_return(
             maybe_visit_node(
-                node.ref_(self).as_return_statement().expression,
+                released!(node.ref_(self).as_return_statement().expression),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

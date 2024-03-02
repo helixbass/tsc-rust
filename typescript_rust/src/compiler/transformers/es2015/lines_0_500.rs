@@ -735,7 +735,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
         &self,
         node: Id<Node>, /*Identifier*/
     ) -> io::Result<Id<Node>> {
-        match node.ref_(self).kind() {
+        match released!(node.ref_(self).kind()) {
             SyntaxKind::Identifier => {
                 return self.substitute_expression_identifier(node);
             }

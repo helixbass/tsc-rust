@@ -544,10 +544,8 @@ impl TransformDeclarations {
                 }
             }
             SyntaxKind::ModuleDeclaration => {
-                let input_ref = input.ref_(self);
-                let input_as_module_declaration = input_ref.as_module_declaration();
                 self.set_needs_declare(false);
-                let inner = input_as_module_declaration.body;
+                let inner = input.ref_(self).as_module_declaration().body;
                 if let Some(inner) =
                     inner.filter(|inner| inner.ref_(self).kind() == SyntaxKind::ModuleBlock)
                 {
@@ -556,7 +554,7 @@ impl TransformDeclarations {
                     self.set_result_has_scope_marker(false);
                     self.set_needs_scope_fix_marker(false);
                     let statements = try_visit_nodes(
-                        inner.ref_(self).as_module_block().statements,
+                        released!(inner.ref_(self).as_module_block().statements),
                         Some(|node: Id<Node>| self.visit_declaration_statements(node)),
                         Option::<fn(Id<Node>) -> bool>::None,
                         None,
@@ -616,11 +614,11 @@ impl TransformDeclarations {
                             if is_external_module_augmentation(input, self) {
                                 self.rewrite_module_specifier(
                                     input,
-                                    input_as_module_declaration.maybe_name(),
+                                    input.ref_(self).as_module_declaration().maybe_name(),
                                 )?
                                 .unwrap()
                             } else {
-                                input_as_module_declaration.name()
+                                input.ref_(self).as_module_declaration().name()
                             },
                             Some(body),
                         )),
@@ -650,7 +648,7 @@ impl TransformDeclarations {
                             input,
                             Option::<Id<NodeArray>>::None,
                             mods,
-                            input_as_module_declaration.name(),
+                            input.ref_(self).as_module_declaration().name(),
                             body.as_ref().map(SingleNodeOrVecNode::as_single_node),
                         )),
                     )
@@ -675,10 +673,10 @@ impl TransformDeclarations {
                     Default::default();
                 if let Some(ref ctor) = ctor {
                     let old_diag = self.get_symbol_accessibility_diagnostic();
-                    let ctor_ref = ctor.ref_(self);
-                    let ctor_as_constructor_declaration = ctor_ref.as_constructor_declaration();
                     parameter_properties = Some(/*compact(*/ try_flat_map(
-                        Some(&*released!(ctor_as_constructor_declaration
+                        Some(&*released!(ctor
+                            .ref_(self)
+                            .as_constructor_declaration()
                             .parameters()
                             .ref_(self)
                             .clone())),
@@ -694,22 +692,33 @@ impl TransformDeclarations {
                             self.set_get_symbol_accessibility_diagnostic(
                                 create_get_symbol_accessibility_diagnostic_for_node(param, self),
                             );
-                            let param_ref = param.ref_(self);
-                            let param_as_parameter_declaration =
-                                param_ref.as_parameter_declaration();
                             Ok(
-                                if param_as_parameter_declaration.name().ref_(self).kind()
+                                if param
+                                    .ref_(self)
+                                    .as_parameter_declaration()
+                                    .name()
+                                    .ref_(self)
+                                    .kind()
                                     == SyntaxKind::Identifier
                                 {
                                     vec![self.preserve_js_doc(
                                         self.factory.ref_(self).create_property_declaration(
                                             Option::<Id<NodeArray>>::None,
                                             self.ensure_modifiers(param),
-                                            param_as_parameter_declaration.name(),
-                                            param_as_parameter_declaration.maybe_question_token(),
+                                            released!(param
+                                                .ref_(self)
+                                                .as_parameter_declaration()
+                                                .name()),
+                                            released!(param
+                                                .ref_(self)
+                                                .as_parameter_declaration()
+                                                .maybe_question_token()),
                                             self.ensure_type(
                                                 param,
-                                                param_as_parameter_declaration.maybe_type(),
+                                                released!(param
+                                                    .ref_(self)
+                                                    .as_parameter_declaration()
+                                                    .maybe_type()),
                                                 None,
                                             )?,
                                             self.ensure_no_initializer(param)?,
@@ -719,7 +728,7 @@ impl TransformDeclarations {
                                 } else {
                                     self.walk_binding_pattern(
                                         param,
-                                        param_as_parameter_declaration.name(),
+                                        param.ref_(self).as_parameter_declaration().name(),
                                     )?
                                     .unwrap_or_default()
                                 },

@@ -415,10 +415,12 @@ impl TransformES2020 {
                         self.factory.ref_(self).create_element_access_expression(
                             right_expression,
                             visit_node(
-                                segment
-                                    .ref_(self)
-                                    .as_element_access_expression()
-                                    .argument_expression,
+                                released!(
+                                    segment
+                                        .ref_(self)
+                                        .as_element_access_expression()
+                                        .argument_expression
+                                ),
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

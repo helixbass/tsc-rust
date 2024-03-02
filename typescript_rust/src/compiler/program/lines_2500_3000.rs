@@ -903,9 +903,10 @@ impl Program {
         &self,
         file: Id<Node>, /*SourceFile*/
     ) -> io::Result<()> {
-        let file_ref = file.ref_(self);
-        let file_as_source_file = file_ref.as_source_file();
-        let file_type_reference_directives = file_as_source_file.maybe_type_reference_directives();
+        let file_type_reference_directives = file
+            .ref_(self)
+            .as_source_file()
+            .maybe_type_reference_directives();
         let type_directives = maybe_map(
             file_type_reference_directives
                 .as_ref()
@@ -936,7 +937,7 @@ impl Program {
                 resolved_type_reference_directive.clone(),
                 self.alloc_file_include_reason(FileIncludeReason::ReferencedFile(ReferencedFile {
                     kind: FileIncludeKind::TypeReferenceDirective,
-                    file: file_as_source_file.path().clone(),
+                    file: file.ref_(self).as_source_file().path().clone(),
                     index,
                 })),
             )?;

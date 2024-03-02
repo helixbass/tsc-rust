@@ -104,9 +104,12 @@ impl TransformModule {
         &self,
         node: Id<Node>, /*ExportDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_ref = node.ref_(self);
-        let node_as_export_declaration = node_ref.as_export_declaration();
-        if node_as_export_declaration.module_specifier.is_none() {
+        if node
+            .ref_(self)
+            .as_export_declaration()
+            .module_specifier
+            .is_none()
+        {
             return Ok(None);
         }
 
@@ -116,7 +119,9 @@ impl TransformModule {
             .get_generated_name_for_node(Some(node), None);
 
         Ok(
-            if let Some(node_export_clause) = node_as_export_declaration
+            if let Some(node_export_clause) = node
+                .ref_(self)
+                .as_export_declaration()
                 .export_clause
                 .filter(|node_export_clause| is_named_exports(&node_export_clause.ref_(self)))
             {
@@ -215,7 +220,9 @@ impl TransformModule {
                 }
 
                 Some(single_or_many_node(statements))
-            } else if let Some(node_export_clause) = node_as_export_declaration.export_clause {
+            } else if let Some(node_export_clause) =
+                node.ref_(self).as_export_declaration().export_clause
+            {
                 let node_export_clause_ref = node_export_clause.ref_(self);
                 let node_export_clause_as_namespace_export =
                     node_export_clause_ref.as_namespace_export();

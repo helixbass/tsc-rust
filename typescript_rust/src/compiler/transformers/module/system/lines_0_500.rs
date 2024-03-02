@@ -250,9 +250,7 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*SourceFile*/
     ) -> io::Result<Id<Node>> {
-        let node_ref = node.ref_(self);
-        let node_as_source_file = node_ref.as_source_file();
-        if node_as_source_file.is_declaration_file()
+        if node.ref_(self).as_source_file().is_declaration_file()
             || !(is_effective_external_module(&node.ref_(self), &self.compiler_options.ref_(self))
                 || node
                     .ref_(self)
@@ -359,7 +357,10 @@ impl TransformSystemModule {
                         )]),
                         None,
                     )
-                    .set_text_range(Some(&*node_as_source_file.statements().ref_(self)), self),
+                    .set_text_range(
+                        Some(&*node.ref_(self).as_source_file().statements().ref_(self)),
+                        self,
+                    ),
                 None,
                 None,
                 None,
