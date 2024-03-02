@@ -12,11 +12,11 @@ use crate::{
     is_method_declaration, is_method_signature, is_module_declaration, is_named_declaration,
     is_parameter, is_property_declaration, is_property_name, is_property_signature,
     is_set_accessor_declaration, is_type_alias_declaration, is_variable_statement,
-    maybe_append_if_unique_eq, per_arena, set_text_range, AllArenas, BaseNode, BaseNodeFactory,
-    BaseNodeFactoryConcrete, BuildInfo, ClassLikeDeclarationInterface, Debug_, EmitFlags, EmitNode,
-    FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface, HasMembersInterface,
-    HasQuestionTokenInterface, HasTypeInterface, HasTypeParametersInterface, InArena, InputFiles,
-    InterfaceOrClassLikeDeclarationInterface, LanguageVariant, ModifierFlags,
+    maybe_append_if_unique_eq, per_arena, released, set_text_range, AllArenas, BaseNode,
+    BaseNodeFactory, BaseNodeFactoryConcrete, BuildInfo, ClassLikeDeclarationInterface, Debug_,
+    EmitFlags, EmitNode, FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface,
+    HasMembersInterface, HasQuestionTokenInterface, HasTypeInterface, HasTypeParametersInterface,
+    InArena, InputFiles, InterfaceOrClassLikeDeclarationInterface, LanguageVariant, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
     NodeInterface, PseudoBigInt, Scanner, ScriptTarget, SignatureDeclarationInterface,
     SourceMapRange, StrOrRcNode, StringOrBool, StringOrNumberOrBoolOrRcNode, StringOrRcNode,
@@ -37,269 +37,336 @@ impl NodeFactory {
             }
         };
         if is_parameter(&node.ref_(self)) {
-            let node_ref = node.ref_(self);
-            let node_as_parameter_declaration = node_ref.as_parameter_declaration();
             self.update_parameter_declaration(
                 node,
-                node.ref_(self).maybe_decorators(),
+                released!(node.ref_(self).maybe_decorators()),
                 Some(modifiers),
-                node_as_parameter_declaration.dot_dot_dot_token.clone(),
-                node_as_parameter_declaration.maybe_name(),
-                node_as_parameter_declaration.maybe_question_token(),
-                node_as_parameter_declaration.maybe_type(),
-                node_as_parameter_declaration.maybe_initializer(),
+                released!(node
+                    .ref_(self)
+                    .as_parameter_declaration()
+                    .dot_dot_dot_token
+                    .clone()),
+                released!(node.ref_(self).as_parameter_declaration().maybe_name()),
+                released!(node
+                    .ref_(self)
+                    .as_parameter_declaration()
+                    .maybe_question_token()),
+                released!(node.ref_(self).as_parameter_declaration().maybe_type()),
+                released!(node
+                    .ref_(self)
+                    .as_parameter_declaration()
+                    .maybe_initializer()),
             )
         } else if is_property_signature(&node.ref_(self)) {
-            let node_ref = node.ref_(self);
-            let node_as_property_signature = node_ref.as_property_signature();
             self.update_property_signature(
                 node,
                 Some(modifiers),
-                node_as_property_signature.name(),
-                node_as_property_signature.maybe_question_token(),
-                node_as_property_signature.maybe_type(),
+                released!(node.ref_(self).as_property_signature().name()),
+                released!(node
+                    .ref_(self)
+                    .as_property_signature()
+                    .maybe_question_token()),
+                released!(node.ref_(self).as_property_signature().maybe_type()),
             )
         } else if is_property_declaration(&node.ref_(self)) {
-            let node_ref = node.ref_(self);
-            let node_as_property_declaration = node_ref.as_property_declaration();
             self.update_property_declaration(
                 node,
-                node.ref_(self).maybe_decorators(),
+                released!(node.ref_(self).maybe_decorators()),
                 Some(modifiers),
-                node_as_property_declaration.name(),
-                node_as_property_declaration
+                released!(node.ref_(self).as_property_declaration().name()),
+                released!(node
+                    .ref_(self)
+                    .as_property_declaration()
                     .maybe_question_token()
-                    .or_else(|| node_as_property_declaration.exclamation_token.clone()),
-                node_as_property_declaration.maybe_type(),
-                node_as_property_declaration.maybe_initializer(),
+                    .or_else(|| node
+                        .ref_(self)
+                        .as_property_declaration()
+                        .exclamation_token
+                        .clone())),
+                released!(node.ref_(self).as_property_declaration().maybe_type()),
+                released!(node
+                    .ref_(self)
+                    .as_property_declaration()
+                    .maybe_initializer()),
             )
         } else if is_method_signature(&node.ref_(self)) {
-            let node_ref = node.ref_(self);
-            let node_as_method_signature = node_ref.as_method_signature();
             self.update_method_signature(
                 node,
                 Some(modifiers),
-                node_as_method_signature.name(),
-                node_as_method_signature.maybe_question_token(),
-                node_as_method_signature.maybe_type_parameters(),
-                node_as_method_signature.parameters(),
-                node_as_method_signature.maybe_type(),
+                released!(node.ref_(self).as_method_signature().name()),
+                released!(node.ref_(self).as_method_signature().maybe_question_token()),
+                released!(node
+                    .ref_(self)
+                    .as_method_signature()
+                    .maybe_type_parameters()),
+                released!(node.ref_(self).as_method_signature().parameters()),
+                released!(node.ref_(self).as_method_signature().maybe_type()),
             )
         } else if is_method_declaration(&node.ref_(self)) {
-            let node_ref = node.ref_(self);
-            let node_as_method_declaration = node_ref.as_method_declaration();
             self.update_method_declaration(
                 node,
-                node.ref_(self).maybe_decorators(),
+                released!(node.ref_(self).maybe_decorators()),
                 Some(modifiers),
-                node_as_method_declaration.maybe_asterisk_token(),
-                node_as_method_declaration.name(),
-                node_as_method_declaration.maybe_question_token(),
-                node_as_method_declaration.maybe_type_parameters(),
-                node_as_method_declaration.parameters(),
-                node_as_method_declaration.maybe_type(),
-                node_as_method_declaration.maybe_body(),
+                released!(node
+                    .ref_(self)
+                    .as_method_declaration()
+                    .maybe_asterisk_token()),
+                released!(node.ref_(self).as_method_declaration().name()),
+                released!(node
+                    .ref_(self)
+                    .as_method_declaration()
+                    .maybe_question_token()),
+                released!(node
+                    .ref_(self)
+                    .as_method_declaration()
+                    .maybe_type_parameters()),
+                released!(node.ref_(self).as_method_declaration().parameters()),
+                released!(node.ref_(self).as_method_declaration().maybe_type()),
+                released!(node.ref_(self).as_method_declaration().maybe_body()),
             )
         } else if is_constructor_declaration(&node.ref_(self)) {
-            let node_ref = node.ref_(self);
-            let node_as_constructor_declaration = node_ref.as_constructor_declaration();
             self.update_constructor_declaration(
                 node,
-                node.ref_(self).maybe_decorators(),
+                released!(node.ref_(self).maybe_decorators()),
                 Some(modifiers),
-                node_as_constructor_declaration.parameters(),
-                node_as_constructor_declaration.maybe_body(),
+                released!(node.ref_(self).as_constructor_declaration().parameters()),
+                released!(node.ref_(self).as_constructor_declaration().maybe_body()),
             )
         } else if is_get_accessor_declaration(&node.ref_(self)) {
-            let node_ref = node.ref_(self);
-            let node_as_get_accessor_declaration = node_ref.as_get_accessor_declaration();
             self.update_get_accessor_declaration(
                 node,
-                node.ref_(self).maybe_decorators(),
+                released!(node.ref_(self).maybe_decorators()),
                 Some(modifiers),
-                node_as_get_accessor_declaration.name(),
-                node_as_get_accessor_declaration.parameters(),
-                node_as_get_accessor_declaration.maybe_type(),
-                node_as_get_accessor_declaration.maybe_body(),
+                released!(node.ref_(self).as_get_accessor_declaration().name()),
+                released!(node.ref_(self).as_get_accessor_declaration().parameters()),
+                released!(node.ref_(self).as_get_accessor_declaration().maybe_type()),
+                released!(node.ref_(self).as_get_accessor_declaration().maybe_body()),
             )
         } else if is_set_accessor_declaration(&node.ref_(self)) {
-            let node_ref = node.ref_(self);
-            let node_as_set_accessor_declaration = node_ref.as_set_accessor_declaration();
             self.update_set_accessor_declaration(
                 node,
-                node.ref_(self).maybe_decorators(),
+                released!(node.ref_(self).maybe_decorators()),
                 Some(modifiers),
-                node_as_set_accessor_declaration.name(),
-                node_as_set_accessor_declaration.parameters(),
-                node_as_set_accessor_declaration.maybe_body(),
+                released!(node.ref_(self).as_set_accessor_declaration().name()),
+                released!(node.ref_(self).as_set_accessor_declaration().parameters()),
+                released!(node.ref_(self).as_set_accessor_declaration().maybe_body()),
             )
         } else if is_index_signature_declaration(&node.ref_(self)) {
-            let node_ref = node.ref_(self);
-            let node_as_index_signature_declaration = node_ref.as_index_signature_declaration();
             self.update_index_signature(
                 node,
-                node.ref_(self).maybe_decorators(),
+                released!(node.ref_(self).maybe_decorators()),
                 Some(modifiers),
-                node_as_index_signature_declaration.parameters(),
-                node_as_index_signature_declaration.maybe_type().unwrap(),
+                released!(node
+                    .ref_(self)
+                    .as_index_signature_declaration()
+                    .parameters()),
+                released!(node
+                    .ref_(self)
+                    .as_index_signature_declaration()
+                    .maybe_type()
+                    .unwrap()),
             )
         } else if is_function_expression(&node.ref_(self)) {
-            let node_ref = node.ref_(self);
-            let node_as_function_expression = node_ref.as_function_expression();
             self.update_function_expression(
                 node,
                 Some(modifiers),
-                node_as_function_expression.maybe_asterisk_token(),
-                node_as_function_expression.maybe_name(),
-                node_as_function_expression.maybe_type_parameters(),
-                node_as_function_expression.parameters(),
-                node_as_function_expression.maybe_type(),
-                node_as_function_expression.maybe_body().unwrap(),
+                released!(node
+                    .ref_(self)
+                    .as_function_expression()
+                    .maybe_asterisk_token()),
+                released!(node.ref_(self).as_function_expression().maybe_name()),
+                released!(node
+                    .ref_(self)
+                    .as_function_expression()
+                    .maybe_type_parameters()),
+                released!(node.ref_(self).as_function_expression().parameters()),
+                released!(node.ref_(self).as_function_expression().maybe_type()),
+                released!(node
+                    .ref_(self)
+                    .as_function_expression()
+                    .maybe_body()
+                    .unwrap()),
             )
         } else if is_arrow_function(&node.ref_(self)) {
-            let node_ref = node.ref_(self);
-            let node_as_arrow_function = node_ref.as_arrow_function();
             self.update_arrow_function(
                 node,
                 Some(modifiers),
-                node_as_arrow_function.maybe_type_parameters(),
-                node_as_arrow_function.parameters(),
-                node_as_arrow_function.maybe_type(),
-                node_as_arrow_function.equals_greater_than_token.clone(),
-                node_as_arrow_function.maybe_body().unwrap(),
+                released!(node.ref_(self).as_arrow_function().maybe_type_parameters()),
+                released!(node.ref_(self).as_arrow_function().parameters()),
+                released!(node.ref_(self).as_arrow_function().maybe_type()),
+                released!(node
+                    .ref_(self)
+                    .as_arrow_function()
+                    .equals_greater_than_token
+                    .clone()),
+                released!(node.ref_(self).as_arrow_function().maybe_body().unwrap()),
             )
         } else if is_class_expression(&node.ref_(self)) {
-            let node_ref = node.ref_(self);
-            let node_as_class_expression = node_ref.as_class_expression();
             self.update_class_expression(
                 node,
-                node.ref_(self).maybe_decorators(),
+                released!(node.ref_(self).maybe_decorators()),
                 Some(modifiers),
-                node_as_class_expression.maybe_name(),
-                node_as_class_expression.maybe_type_parameters(),
-                node_as_class_expression.maybe_heritage_clauses(),
-                node_as_class_expression.members(),
+                released!(node.ref_(self).as_class_expression().maybe_name()),
+                released!(node
+                    .ref_(self)
+                    .as_class_expression()
+                    .maybe_type_parameters()),
+                released!(node
+                    .ref_(self)
+                    .as_class_expression()
+                    .maybe_heritage_clauses()),
+                released!(node.ref_(self).as_class_expression().members()),
             )
         } else if is_variable_statement(&node.ref_(self)) {
             self.update_variable_statement(
                 node,
                 Some(modifiers),
-                node.ref_(self)
-                    .as_variable_statement()
-                    .declaration_list
-                    .clone(),
+                released!(node.ref_(self).as_variable_statement().declaration_list),
             )
         } else if is_function_declaration(&node.ref_(self)) {
-            let node_ref = node.ref_(self);
-            let node_as_function_declaration = node_ref.as_function_declaration();
             self.update_function_declaration(
                 node,
-                node.ref_(self).maybe_decorators(),
+                released!(node.ref_(self).maybe_decorators()),
                 Some(modifiers),
-                node_as_function_declaration.maybe_asterisk_token(),
-                node_as_function_declaration.maybe_name(),
-                node_as_function_declaration.maybe_type_parameters(),
-                node_as_function_declaration.parameters(),
-                node_as_function_declaration.maybe_type(),
-                node_as_function_declaration.maybe_body(),
+                released!(node
+                    .ref_(self)
+                    .as_function_declaration()
+                    .maybe_asterisk_token()),
+                released!(node.ref_(self).as_function_declaration().maybe_name()),
+                released!(node
+                    .ref_(self)
+                    .as_function_declaration()
+                    .maybe_type_parameters()),
+                released!(node.ref_(self).as_function_declaration().parameters()),
+                released!(node.ref_(self).as_function_declaration().maybe_type()),
+                released!(node.ref_(self).as_function_declaration().maybe_body()),
             )
         } else if is_class_declaration(&node.ref_(self)) {
-            let node_ref = node.ref_(self);
-            let node_as_class_declaration = node_ref.as_class_declaration();
             self.update_class_declaration(
                 node,
-                node.ref_(self).maybe_decorators(),
+                released!(node.ref_(self).maybe_decorators()),
                 Some(modifiers),
-                node_as_class_declaration.maybe_name(),
-                node_as_class_declaration.maybe_type_parameters(),
-                node_as_class_declaration.maybe_heritage_clauses(),
-                node_as_class_declaration.members(),
+                released!(node.ref_(self).as_class_declaration().maybe_name()),
+                released!(node
+                    .ref_(self)
+                    .as_class_declaration()
+                    .maybe_type_parameters()),
+                released!(node
+                    .ref_(self)
+                    .as_class_declaration()
+                    .maybe_heritage_clauses()),
+                released!(node.ref_(self).as_class_declaration().members()),
             )
         } else if is_interface_declaration(&node.ref_(self)) {
-            let node_ref = node.ref_(self);
-            let node_as_interface_declaration = node_ref.as_interface_declaration();
             self.update_interface_declaration(
                 node,
-                node.ref_(self).maybe_decorators(),
+                released!(node.ref_(self).maybe_decorators()),
                 Some(modifiers),
-                node_as_interface_declaration.name(),
-                node_as_interface_declaration.maybe_type_parameters(),
-                node_as_interface_declaration.maybe_heritage_clauses(),
-                node_as_interface_declaration.members(),
+                released!(node.ref_(self).as_interface_declaration().name()),
+                released!(node
+                    .ref_(self)
+                    .as_interface_declaration()
+                    .maybe_type_parameters()),
+                released!(node
+                    .ref_(self)
+                    .as_interface_declaration()
+                    .maybe_heritage_clauses()),
+                released!(node.ref_(self).as_interface_declaration().members()),
             )
         } else if is_type_alias_declaration(&node.ref_(self)) {
-            let node_ref = node.ref_(self);
-            let node_as_type_alias_declaration = node_ref.as_type_alias_declaration();
             self.update_type_alias_declaration(
                 node,
-                node.ref_(self).maybe_decorators(),
+                released!(node.ref_(self).maybe_decorators()),
                 Some(modifiers),
-                node_as_type_alias_declaration.name(),
-                node_as_type_alias_declaration.maybe_type_parameters(),
-                node_as_type_alias_declaration.maybe_type().unwrap(),
+                released!(node.ref_(self).as_type_alias_declaration().name()),
+                released!(node
+                    .ref_(self)
+                    .as_type_alias_declaration()
+                    .maybe_type_parameters()),
+                released!(node
+                    .ref_(self)
+                    .as_type_alias_declaration()
+                    .maybe_type()
+                    .unwrap()),
             )
         } else if is_enum_declaration(&node.ref_(self)) {
-            let node_ref = node.ref_(self);
-            let node_as_enum_declaration = node_ref.as_enum_declaration();
             self.update_enum_declaration(
                 node,
-                node.ref_(self).maybe_decorators(),
+                released!(node.ref_(self).maybe_decorators()),
                 Some(modifiers),
-                node_as_enum_declaration.name(),
-                Some(node_as_enum_declaration.members.clone()),
+                released!(node.ref_(self).as_enum_declaration().name()),
+                released!(Some(node.ref_(self).as_enum_declaration().members.clone())),
             )
         } else if is_module_declaration(&node.ref_(self)) {
-            let node_ref = node.ref_(self);
-            let node_as_module_declaration = node_ref.as_module_declaration();
             self.update_module_declaration(
                 node,
-                node.ref_(self).maybe_decorators(),
+                released!(node.ref_(self).maybe_decorators()),
                 Some(modifiers),
-                node_as_module_declaration.name(),
-                node_as_module_declaration.body.clone(),
+                released!(node.ref_(self).as_module_declaration().name()),
+                released!(node.ref_(self).as_module_declaration().body.clone()),
             )
         } else if is_import_equals_declaration(&node.ref_(self)) {
-            let node_ref = node.ref_(self);
-            let node_as_import_equals_declaration = node_ref.as_import_equals_declaration();
             self.update_import_equals_declaration(
                 node,
-                node.ref_(self).maybe_decorators(),
+                released!(node.ref_(self).maybe_decorators()),
                 Some(modifiers),
-                node_as_import_equals_declaration.is_type_only,
-                node_as_import_equals_declaration.name(),
-                node_as_import_equals_declaration.module_reference.clone(),
+                released!(node.ref_(self).as_import_equals_declaration().is_type_only),
+                released!(node.ref_(self).as_import_equals_declaration().name()),
+                released!(node
+                    .ref_(self)
+                    .as_import_equals_declaration()
+                    .module_reference
+                    .clone()),
             )
         } else if is_import_declaration(&node.ref_(self)) {
-            let node_ref = node.ref_(self);
-            let node_as_import_declaration = node_ref.as_import_declaration();
             self.update_import_declaration(
                 node,
-                node.ref_(self).maybe_decorators(),
+                released!(node.ref_(self).maybe_decorators()),
                 Some(modifiers),
-                node_as_import_declaration.import_clause.clone(),
-                node_as_import_declaration.module_specifier.clone(),
-                node_as_import_declaration.assert_clause.clone(),
+                released!(node
+                    .ref_(self)
+                    .as_import_declaration()
+                    .import_clause
+                    .clone()),
+                released!(node
+                    .ref_(self)
+                    .as_import_declaration()
+                    .module_specifier
+                    .clone()),
+                released!(node
+                    .ref_(self)
+                    .as_import_declaration()
+                    .assert_clause
+                    .clone()),
             )
         } else if is_export_assignment(&node.ref_(self)) {
-            let node_ref = node.ref_(self);
-            let node_as_export_assignment = node_ref.as_export_assignment();
             self.update_export_assignment(
                 node,
-                node.ref_(self).maybe_decorators(),
+                released!(node.ref_(self).maybe_decorators()),
                 Some(modifiers),
-                node_as_export_assignment.expression.clone(),
+                released!(node.ref_(self).as_export_assignment().expression.clone()),
             )
         } else if is_export_declaration(&node.ref_(self)) {
-            let node_ref = node.ref_(self);
-            let node_as_export_declaration = node_ref.as_export_declaration();
             self.update_export_declaration(
                 node,
-                node.ref_(self).maybe_decorators(),
+                released!(node.ref_(self).maybe_decorators()),
                 Some(modifiers),
-                node_as_export_declaration.is_type_only,
-                node_as_export_declaration.export_clause.clone(),
-                node_as_export_declaration.module_specifier.clone(),
-                node_as_export_declaration.assert_clause.clone(),
+                released!(node.ref_(self).as_export_declaration().is_type_only),
+                released!(node
+                    .ref_(self)
+                    .as_export_declaration()
+                    .export_clause
+                    .clone()),
+                released!(node
+                    .ref_(self)
+                    .as_export_declaration()
+                    .module_specifier
+                    .clone()),
+                released!(node
+                    .ref_(self)
+                    .as_export_declaration()
+                    .assert_clause
+                    .clone()),
             )
         } else {
             Debug_.assert_never(node, None)

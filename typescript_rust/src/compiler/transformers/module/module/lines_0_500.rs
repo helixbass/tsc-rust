@@ -1110,11 +1110,10 @@ impl TransformModuleOnSubstituteNodeOverrider {
         &self,
         node: Id<Node>, /*CallExpression*/
     ) -> io::Result<Id<Node>> {
-        let node_ref = node.ref_(self);
-        let node_as_call_expression = node_ref.as_call_expression();
-        if is_identifier(&node_as_call_expression.expression.ref_(self)) {
-            let expression =
-                self.substitute_expression_identifier(node_as_call_expression.expression)?;
+        if is_identifier(&node.ref_(self).as_call_expression().expression.ref_(self)) {
+            let expression = self.substitute_expression_identifier(
+                node.ref_(self).as_call_expression().expression,
+            )?;
             self.transform_module()
                 .no_substitution_mut()
                 .insert(get_node_id(&expression.ref_(self)), true);
@@ -1127,7 +1126,7 @@ impl TransformModuleOnSubstituteNodeOverrider {
                         node,
                         expression,
                         Option::<Id<NodeArray>>::None,
-                        node_as_call_expression.arguments.clone(),
+                        node.ref_(self).as_call_expression().arguments.clone(),
                     )
                     .add_emit_flags(EmitFlags::IndirectCall, self));
             }
@@ -1240,12 +1239,11 @@ impl TransformModuleOnSubstituteNodeOverrider {
                         )
                         .set_text_range(Some(&*node.ref_(self)), self));
                 } else if is_import_specifier(&import_declaration.ref_(self)) {
-                    let import_declaration_ref = import_declaration.ref_(self);
-                    let import_declaration_as_import_specifier =
-                        import_declaration_ref.as_import_specifier();
-                    let name = import_declaration_as_import_specifier
+                    let name = import_declaration
+                        .ref_(self)
+                        .as_import_specifier()
                         .property_name
-                        .unwrap_or(import_declaration_as_import_specifier.name);
+                        .unwrap_or(import_declaration.ref_(self).as_import_specifier().name);
                     return Ok(self
                         .transform_module()
                         .factory
@@ -1255,20 +1253,18 @@ impl TransformModuleOnSubstituteNodeOverrider {
                                 .factory
                                 .ref_(self)
                                 .get_generated_name_for_node(
-                                    Some(
-                                        import_declaration
-                                            .ref_(self)
-                                            .maybe_parent()
-                                            .and_then(|import_declaration_parent| {
-                                                import_declaration_parent.ref_(self).maybe_parent()
-                                            })
-                                            .and_then(|import_declaration_parent_parent| {
-                                                import_declaration_parent_parent
-                                                    .ref_(self)
-                                                    .maybe_parent()
-                                            })
-                                            .unwrap_or(import_declaration),
-                                    ),
+                                    Some(released!(import_declaration
+                                        .ref_(self)
+                                        .maybe_parent()
+                                        .and_then(|import_declaration_parent| {
+                                            import_declaration_parent.ref_(self).maybe_parent()
+                                        })
+                                        .and_then(|import_declaration_parent_parent| {
+                                            import_declaration_parent_parent
+                                                .ref_(self)
+                                                .maybe_parent()
+                                        })
+                                        .unwrap_or(import_declaration))),
                                     None,
                                 ),
                             self.transform_module().factory.ref_(self).clone_node(name),

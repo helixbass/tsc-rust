@@ -1064,11 +1064,9 @@ impl NodeFactory {
         parameter_name: Id<Node>,
         type_: Option<Id<Node /*TypeNode*/>>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_type_predicate_node = node_ref.as_type_predicate_node();
-        if node_as_type_predicate_node.asserts_modifier != asserts_modifier
-            || node_as_type_predicate_node.parameter_name != parameter_name
-            || node_as_type_predicate_node.type_ != type_
+        if node.ref_(self).as_type_predicate_node().asserts_modifier != asserts_modifier
+            || node.ref_(self).as_type_predicate_node().parameter_name != parameter_name
+            || node.ref_(self).as_type_predicate_node().type_ != type_
         {
             self.update(
                 self.create_type_predicate_node(asserts_modifier, parameter_name, type_),

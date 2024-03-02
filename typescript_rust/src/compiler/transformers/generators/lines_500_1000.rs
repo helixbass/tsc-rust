@@ -79,7 +79,7 @@ impl TransformGenerators {
         );
 
         self.transform_and_emit_statements(
-            &released!(body.ref_(self).as_block().statements).ref_(self),
+            &released!(body.ref_(self).as_block().statements.ref_(self).clone()),
             Some(statement_offset),
         );
 
