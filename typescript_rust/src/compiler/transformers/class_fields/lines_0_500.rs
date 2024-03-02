@@ -706,7 +706,7 @@ impl TransformClassFields {
     }
 
     pub(super) fn heritage_clause_visitor(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
-        match node.ref_(self).kind() {
+        match released!(node.ref_(self).kind()) {
             SyntaxKind::HeritageClause => {
                 return Some(
                     visit_each_child(

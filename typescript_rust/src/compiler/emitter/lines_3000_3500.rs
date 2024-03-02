@@ -471,10 +471,12 @@ impl Printer {
         &self,
         node: Id<Node>, /*ClassDeclaration | ClassExpression*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_class_like_declaration = node_ref.as_class_like_declaration();
         for_each(
-            &*node_as_class_like_declaration.members().ref_(self),
+            &*node
+                .ref_(self)
+                .as_class_like_declaration()
+                .members()
+                .ref_(self),
             |&member: &Id<Node>, _| -> Option<()> {
                 self.generate_member_names(Some(member));
                 None
@@ -484,7 +486,7 @@ impl Printer {
         self.emit_decorators(node, node.ref_(self).maybe_decorators())?;
         self.emit_modifiers(node, node.ref_(self).maybe_modifiers())?;
         self.write_keyword("class");
-        if let Some(node_name) = node_as_class_like_declaration.maybe_name() {
+        if let Some(node_name) = node.ref_(self).as_class_like_declaration().maybe_name() {
             self.write_space();
             self.emit_identifier_name(Some(node_name))?;
         }
@@ -494,10 +496,17 @@ impl Printer {
             self.increase_indent();
         }
 
-        self.emit_type_parameters(node, node_as_class_like_declaration.maybe_type_parameters())?;
+        self.emit_type_parameters(
+            node,
+            node.ref_(self)
+                .as_class_like_declaration()
+                .maybe_type_parameters(),
+        )?;
         self.emit_list(
             Some(node),
-            node_as_class_like_declaration.maybe_heritage_clauses(),
+            node.ref_(self)
+                .as_class_like_declaration()
+                .maybe_heritage_clauses(),
             ListFormat::ClassHeritageClauses,
             None,
             None,
@@ -508,7 +517,7 @@ impl Printer {
         self.write_punctuation("{");
         self.emit_list(
             Some(node),
-            Some(node_as_class_like_declaration.members()),
+            Some(node.ref_(self).as_class_like_declaration().members()),
             ListFormat::ClassMembers,
             None,
             None,

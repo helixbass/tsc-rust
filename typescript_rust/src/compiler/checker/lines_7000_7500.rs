@@ -1083,7 +1083,7 @@ impl SymbolTableToDeclarationStatements {
             .ref_(self)
             .set_enclosing_declaration(old_enclosing);
         self.add_result(
-            set_text_range_id_node(
+            released!(set_text_range_id_node(
                 get_factory(self).create_class_declaration(
                     Option::<Id<NodeArray>>::None,
                     Option::<Id<NodeArray>>::None,
@@ -1101,7 +1101,7 @@ impl SymbolTableToDeclarationStatements {
                         .into_iter(),
                     ),
                 ),
-                released!(symbol
+                symbol
                     .ref_(self)
                     .maybe_declarations()
                     .as_ref()
@@ -1116,9 +1116,9 @@ impl SymbolTableToDeclarationStatements {
                             .next()
                     })
                     .refed(self)
-                    .as_deref()),
+                    .as_deref(),
                 self,
-            ),
+            )),
             modifier_flags,
         );
 

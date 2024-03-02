@@ -248,7 +248,7 @@ impl TypeChecker {
     ) -> io::Result<Vec<Id<Node /*Expression*/>>> {
         let parent = node.ref_(self).parent();
         let expr = node.ref_(self).as_decorator().expression;
-        Ok(match parent.ref_(self).kind() {
+        Ok(match released!(parent.ref_(self).kind()) {
             SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => {
                 vec![self.create_synthetic_expression(
                     expr,

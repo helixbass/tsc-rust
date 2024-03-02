@@ -173,14 +173,10 @@ impl TransformTypeScript {
         {
             self.enable_substitution_for_class_aliases();
             let class_alias = self.factory.ref_(self).create_unique_name(
-                &node
-                    .ref_(self)
-                    .as_class_declaration()
-                    .maybe_name()
-                    .map_or_else(
-                        || "default".into(),
-                        |node_name| Cow::from(id_text(&node_name.ref_(self)).to_owned()),
-                    ),
+                &released!(node.ref_(self).as_class_declaration().maybe_name()).map_or_else(
+                    || "default".into(),
+                    |node_name| Cow::from(id_text(&node_name.ref_(self)).to_owned()),
+                ),
                 None,
             );
             self.class_aliases_mut()

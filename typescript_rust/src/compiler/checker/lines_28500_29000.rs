@@ -52,17 +52,15 @@ impl TypeChecker {
         prop_name: &str, /*__String*/
         containing_type: Id<Type>,
     ) -> io::Result<bool> {
-        let prop =
-            containing_type
-                .ref_(self)
-                .maybe_symbol()
-                .try_and_then(|containing_type_symbol| {
-                    self.get_property_of_type_(
-                        self.get_type_of_symbol(containing_type_symbol)?,
-                        prop_name,
-                        None,
-                    )
-                })?;
+        let prop = released!(containing_type.ref_(self).maybe_symbol()).try_and_then(
+            |containing_type_symbol| {
+                self.get_property_of_type_(
+                    self.get_type_of_symbol(containing_type_symbol)?,
+                    prop_name,
+                    None,
+                )
+            },
+        )?;
         Ok(matches!(
             prop.and_then(|prop| prop.ref_(self).maybe_value_declaration()),
             Some(prop_value_declaration) if is_static(prop_value_declaration, self)

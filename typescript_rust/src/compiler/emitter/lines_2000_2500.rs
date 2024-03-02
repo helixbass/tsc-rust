@@ -182,11 +182,19 @@ impl Printer {
     ) -> io::Result<()> {
         self.emit_decorators(node, node.ref_(self).maybe_decorators())?;
         self.emit_modifiers(node, node.ref_(self).maybe_modifiers())?;
-        let node_ref = node.ref_(self);
-        let node_as_method_declaration = node_ref.as_method_declaration();
-        self.emit(node_as_method_declaration.maybe_asterisk_token(), None)?;
-        self.emit(node_as_method_declaration.maybe_name(), None)?;
-        self.emit(node_as_method_declaration.maybe_question_token(), None)?;
+        self.emit(
+            node.ref_(self)
+                .as_method_declaration()
+                .maybe_asterisk_token(),
+            None,
+        )?;
+        self.emit(node.ref_(self).as_method_declaration().maybe_name(), None)?;
+        self.emit(
+            node.ref_(self)
+                .as_method_declaration()
+                .maybe_question_token(),
+            None,
+        )?;
         self.emit_signature_and_body(node, |node: Id<Node>| self.emit_signature_head(node))?;
 
         Ok(())

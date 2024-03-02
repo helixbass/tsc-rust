@@ -1226,8 +1226,6 @@ impl TransformClassFields {
         &self,
         node: Id<Node>, /*ExpressionWithTypeArguments*/
     ) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_expression_with_type_arguments = node_ref.as_expression_with_type_arguments();
         let facts = self
             .maybe_current_class_lexical_environment()
             .map_or_default(|current_class_lexical_environment| {
@@ -1251,7 +1249,9 @@ impl TransformClassFields {
                         self.factory.ref_(self).create_assignment(
                             temp,
                             visit_node(
-                                node_as_expression_with_type_arguments.expression,
+                                node.ref_(self)
+                                    .as_expression_with_type_arguments()
+                                    .expression,
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

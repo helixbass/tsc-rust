@@ -213,9 +213,8 @@ impl TypeChecker {
         candidates_out_array: Option<&mut Vec<Id<Signature>>>,
         check_mode: CheckMode,
     ) -> io::Result<Id<Signature>> {
-        let node_ref = node.ref_(self);
-        let node_as_decorator = node_ref.as_decorator();
-        let func_type = self.check_expression(node_as_decorator.expression, None, None)?;
+        let func_type =
+            self.check_expression(node.ref_(self).as_decorator().expression, None, None)?;
         let apparent_type = self.get_apparent_type(func_type)?;
         if self.is_error_type(apparent_type) {
             return self.resolve_error_call(node);
@@ -236,7 +235,8 @@ impl TypeChecker {
 
         if self.is_potentially_uncalled_decorator(node, &call_signatures) {
             let node_str =
-                get_text_of_node(node_as_decorator.expression, Some(false), self).into_owned();
+                get_text_of_node(node.ref_(self).as_decorator().expression, Some(false), self)
+                    .into_owned();
             self.error(
                 Some(node),
                 &Diagnostics::_0_accepts_too_few_arguments_to_be_used_as_a_decorator_here_Did_you_mean_to_call_it_first_and_write_0,
@@ -250,7 +250,7 @@ impl TypeChecker {
         let head_message = self.get_diagnostic_head_message_for_decorator_resolution(node);
         if call_signatures.is_empty() {
             let error_details = self.invocation_error_details(
-                node_as_decorator.expression,
+                node.ref_(self).as_decorator().expression,
                 apparent_type,
                 SignatureKind::Call,
             )?;
@@ -262,7 +262,7 @@ impl TypeChecker {
                 chain_diagnostic_messages(Some(error_details_message_chain), head_message, None);
             let diag: Id<Diagnostic> = self.alloc_diagnostic(
                 create_diagnostic_for_node_from_message_chain(
-                    node_as_decorator.expression,
+                    node.ref_(self).as_decorator().expression,
                     message_chain,
                     None,
                     self,
@@ -274,7 +274,7 @@ impl TypeChecker {
                     &diag.ref_(self),
                     vec![self.alloc_diagnostic_related_information(
                         create_diagnostic_for_node(
-                            node_as_decorator.expression,
+                            node.ref_(self).as_decorator().expression,
                             error_details_related_message,
                             None,
                             self,

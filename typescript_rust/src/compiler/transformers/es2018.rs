@@ -1976,23 +1976,24 @@ impl TransformES2018 {
     }
 
     fn visit_arrow_function(&self, node: Id<Node> /*ArrowFunction*/) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_arrow_function = node_ref.as_arrow_function();
         let saved_enclosing_function_flags = self.maybe_enclosing_function_flags();
         self.set_enclosing_function_flags(Some(FunctionFlags::Normal));
         let updated = self.factory.ref_(self).update_arrow_function(
             node,
-            node.ref_(self).maybe_modifiers(),
+            released!(node.ref_(self).maybe_modifiers()),
             Option::<Id<NodeArray>>::None,
             visit_parameter_list(
-                Some(node_as_arrow_function.parameters()),
+                Some(node.ref_(self).as_arrow_function().parameters()),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
             )
             .unwrap(),
             None,
-            node_as_arrow_function.equals_greater_than_token.clone(),
+            node.ref_(self)
+                .as_arrow_function()
+                .equals_greater_than_token
+                .clone(),
             self.transform_function_body(node),
         );
         self.set_enclosing_function_flags(saved_enclosing_function_flags);

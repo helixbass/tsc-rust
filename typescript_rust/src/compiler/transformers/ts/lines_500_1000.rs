@@ -368,8 +368,6 @@ impl TransformTypeScript {
         node: Id<Node>, /*ClassDeclaration*/
         name: Option<Id<Node /*Identifier*/>>,
     ) -> io::Result<Id<Node>> {
-        let node_ref = node.ref_(self);
-        let node_as_class_declaration = node_ref.as_class_declaration();
         let location = move_range_past_decorators(node, self);
         let class_alias = self.get_class_alias_if_needed(node);
 
@@ -384,7 +382,9 @@ impl TransformTypeScript {
         };
 
         let heritage_clauses = try_maybe_visit_nodes(
-            node_as_class_declaration.maybe_heritage_clauses(),
+            node.ref_(self)
+                .as_class_declaration()
+                .maybe_heritage_clauses(),
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node: Id<Node>| is_heritage_clause(&node.ref_(self))),
             None,

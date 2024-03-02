@@ -665,25 +665,25 @@ impl TransformES2017 {
         &self,
         node: Id<Node>, /*MethodDeclaration*/
     ) -> io::Result<Id<Node>> {
-        let node_ref = node.ref_(self);
-        let node_as_method_declaration = node_ref.as_method_declaration();
         Ok(self.factory.ref_(self).update_method_declaration(
             node,
             Option::<Id<NodeArray>>::None,
             try_maybe_visit_nodes(
-                node.ref_(self).maybe_modifiers(),
+                released!(node.ref_(self).maybe_modifiers()),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                 None,
                 None,
                 self,
             )?,
-            node_as_method_declaration.maybe_asterisk_token(),
-            node_as_method_declaration.name(),
+            node.ref_(self)
+                .as_method_declaration()
+                .maybe_asterisk_token(),
+            node.ref_(self).as_method_declaration().name(),
             None,
             Option::<Id<NodeArray>>::None,
             try_visit_parameter_list(
-                Some(node_as_method_declaration.parameters()),
+                Some(node.ref_(self).as_method_declaration().parameters()),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
@@ -694,7 +694,7 @@ impl TransformES2017 {
                 Some(self.transform_async_function_body(node)?)
             } else {
                 try_visit_function_body(
-                    node_as_method_declaration.maybe_body(),
+                    node.ref_(self).as_method_declaration().maybe_body(),
                     |node: Id<Node>| self.visitor(node),
                     &*self.context.ref_(self),
                     self,
@@ -721,13 +721,14 @@ impl TransformES2017 {
                         None,
                         self,
                     )?,
-                    node.ref_(self)
+                    released!(node
+                        .ref_(self)
                         .as_function_declaration()
-                        .maybe_asterisk_token(),
-                    node.ref_(self).as_function_declaration().maybe_name(),
+                        .maybe_asterisk_token()),
+                    released!(node.ref_(self).as_function_declaration().maybe_name()),
                     Option::<Id<NodeArray>>::None,
                     try_visit_parameter_list(
-                        Some(node.ref_(self).as_function_declaration().parameters()),
+                        released!(Some(node.ref_(self).as_function_declaration().parameters())),
                         |node: Id<Node>| self.visitor(node),
                         &*self.context.ref_(self),
                         self,
@@ -763,13 +764,14 @@ impl TransformES2017 {
                 None,
                 self,
             )?,
-            node.ref_(self)
+            released!(node
+                .ref_(self)
                 .as_function_expression()
-                .maybe_asterisk_token(),
-            node.ref_(self).as_function_expression().maybe_name(),
+                .maybe_asterisk_token()),
+            released!(node.ref_(self).as_function_expression().maybe_name()),
             Option::<Id<NodeArray>>::None,
             try_visit_parameter_list(
-                Some(node.ref_(self).as_function_expression().parameters()),
+                released!(Some(node.ref_(self).as_function_expression().parameters())),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
@@ -1040,10 +1042,11 @@ impl TransformES2017 {
                             has_lexical_arguments,
                             promise_constructor.clone(),
                             self.transform_async_function_body_worker(
-                                node.ref_(self)
+                                released!(node
+                                    .ref_(self)
                                     .as_function_like_declaration()
                                     .maybe_body()
-                                    .unwrap(),
+                                    .unwrap()),
                                 Some(statement_offset),
                             )?,
                         ),

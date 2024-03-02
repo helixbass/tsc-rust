@@ -8,7 +8,7 @@ use crate::{
     get_first_constructor_with_body, get_original_node_id, get_rest_parameter_element_type,
     get_set_accessor_type_annotation_node, is_async_function, is_class_like, is_expression,
     is_function_like, is_identifier, maybe_map, move_range_past_decorators, node_is_present,
-    return_ok_default_if_none, try_flat_map, try_maybe_map, try_visit_node,
+    released, return_ok_default_if_none, try_flat_map, try_maybe_map, try_visit_node,
     AllAccessorDeclarations, Debug_, EmitFlags, FunctionLikeDeclarationInterface,
     GetOrInsertDefault, HasArena, HasTypeInterface, InArena, Matches, NamedDeclarationInterface,
     Node, NodeArray, NodeArrayOrVec, NodeExt, NodeInterface, OptionInArena, OptionTry,
@@ -537,7 +537,7 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>,
     ) -> io::Result<Id<Node /*SerializedTypeNode*/>> {
-        Ok(match node.ref_(self).kind() {
+        Ok(match released!(node.ref_(self).kind()) {
             SyntaxKind::PropertyDeclaration | SyntaxKind::Parameter => {
                 self.serialize_type_node(node.ref_(self).as_has_type().maybe_type())?
             }
