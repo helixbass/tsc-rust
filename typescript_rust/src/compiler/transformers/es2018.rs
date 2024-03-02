@@ -534,8 +534,6 @@ impl TransformES2018 {
     }
 
     fn visit_yield_expression(&self, node: Id<Node> /*YieldExpression*/) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_yield_expression = node_ref.as_yield_expression();
         if self
             .maybe_enclosing_function_flags()
             .matches(|enclosing_function_flags| {
@@ -547,9 +545,14 @@ impl TransformES2018 {
                     enclosing_function_flags.intersects(FunctionFlags::Generator)
                 })
         {
-            if node_as_yield_expression.asterisk_token.is_some() {
+            if node
+                .ref_(self)
+                .as_yield_expression()
+                .asterisk_token
+                .is_some()
+            {
                 let expression = visit_node(
-                    Debug_.check_defined(node_as_yield_expression.expression, None),
+                    Debug_.check_defined(node.ref_(self).as_yield_expression().expression, None),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -565,7 +568,10 @@ impl TransformES2018 {
                                     self.emit_helpers().create_await_helper(
                                         self.factory.ref_(self).update_yield_expression(
                                             node,
-                                            node_as_yield_expression.asterisk_token.clone(),
+                                            node.ref_(self)
+                                                .as_yield_expression()
+                                                .asterisk_token
+                                                .clone(),
                                             Some(set_text_range_id_node(
                                                 self.emit_helpers().create_async_delegator_helper(
                                                     set_text_range_id_node(
@@ -597,19 +603,24 @@ impl TransformES2018 {
                     .ref_(self)
                     .create_yield_expression(
                         None,
-                        Some(self.create_downlevel_await(
-                            node_as_yield_expression.expression.map_or_else(
-                                || self.factory.ref_(self).create_void_zero(),
-                                |node_expression| {
-                                    visit_node(
-                                        node_expression,
-                                        Some(|node: Id<Node>| self.visitor(node)),
-                                        Some(|node| is_expression(node, self)),
-                                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
-                                    )
-                                },
+                        Some(
+                            self.create_downlevel_await(
+                                node.ref_(self)
+                                    .as_yield_expression()
+                                    .expression
+                                    .map_or_else(
+                                        || self.factory.ref_(self).create_void_zero(),
+                                        |node_expression| {
+                                            visit_node(
+                                                node_expression,
+                                                Some(|node: Id<Node>| self.visitor(node)),
+                                                Some(|node| is_expression(node, self)),
+                                                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
+                                            )
+                                        },
+                                    ),
                             ),
-                        )),
+                        ),
                     )
                     .set_text_range(Some(&*node.ref_(self)), self),
                 Some(node),

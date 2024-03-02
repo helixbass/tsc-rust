@@ -676,14 +676,15 @@ impl TransformES2017 {
                 None,
                 self,
             )?,
-            node.ref_(self)
+            released!(node
+                .ref_(self)
                 .as_method_declaration()
-                .maybe_asterisk_token(),
-            node.ref_(self).as_method_declaration().name(),
+                .maybe_asterisk_token()),
+            released!(node.ref_(self).as_method_declaration().name()),
             None,
             Option::<Id<NodeArray>>::None,
             try_visit_parameter_list(
-                Some(node.ref_(self).as_method_declaration().parameters()),
+                released!(Some(node.ref_(self).as_method_declaration().parameters())),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,

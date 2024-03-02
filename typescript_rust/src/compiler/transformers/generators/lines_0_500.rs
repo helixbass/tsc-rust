@@ -787,9 +787,7 @@ impl TransformGenerators {
     }
 
     pub(super) fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_source_file = node_ref.as_source_file();
-        if node_as_source_file.is_declaration_file()
+        if node.ref_(self).as_source_file().is_declaration_file()
             || !node
                 .ref_(self)
                 .transform_flags()
@@ -808,8 +806,7 @@ impl TransformGenerators {
     }
 
     pub(super) fn visitor(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
-        let node_ref = node.ref_(self);
-        let transform_flags = node_ref.transform_flags();
+        let transform_flags = node.ref_(self).transform_flags();
         if self.maybe_in_statement_containing_yield() == Some(true) {
             self.visit_java_script_in_statement_containing_yield(node)
         } else if self.maybe_in_generator_function_body() == Some(true) {
@@ -922,7 +919,7 @@ impl TransformGenerators {
     }
 
     pub(super) fn visit_generator(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
-        match node.ref_(self).kind() {
+        match released!(node.ref_(self).kind()) {
             SyntaxKind::FunctionDeclaration => {
                 self.visit_function_declaration(node).map(Into::into)
             }
@@ -1008,21 +1005,20 @@ impl TransformGenerators {
                 .create_function_expression(
                     Option::<Id<NodeArray>>::None,
                     None,
-                    node.ref_(self).as_function_expression().maybe_name(),
+                    released!(node.ref_(self).as_function_expression().maybe_name()),
                     Option::<Id<NodeArray>>::None,
                     visit_parameter_list(
-                        Some(node.ref_(self).as_function_expression().parameters()),
+                        released!(Some(node.ref_(self).as_function_expression().parameters())),
                         |node: Id<Node>| self.visitor(node),
                         &*self.context.ref_(self),
                         self,
                     ),
                     None,
-                    self.transform_generator_function_body(
-                        node.ref_(self)
-                            .as_function_expression()
-                            .maybe_body()
-                            .unwrap(),
-                    ),
+                    self.transform_generator_function_body(released!(node
+                        .ref_(self)
+                        .as_function_expression()
+                        .maybe_body()
+                        .unwrap())),
                 )
                 .set_text_range(Some(&*node.ref_(self)), self)
                 .set_original_node(Some(node), self);

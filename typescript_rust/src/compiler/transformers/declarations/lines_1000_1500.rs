@@ -945,12 +945,10 @@ impl TransformDeclarations {
                         .into(),
                     )
                 } else {
-                    let heritage_clauses = self.transform_heritage_clauses(
-                        input
-                            .ref_(self)
-                            .as_class_declaration()
-                            .maybe_heritage_clauses(),
-                    )?;
+                    let heritage_clauses = self.transform_heritage_clauses(released!(input
+                        .ref_(self)
+                        .as_class_declaration()
+                        .maybe_heritage_clauses()))?;
                     self.transform_top_level_declaration_cleanup(
                         input,
                         previous_enclosing_declaration,

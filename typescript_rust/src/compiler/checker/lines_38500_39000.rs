@@ -46,7 +46,12 @@ impl TypeChecker {
             })?;
         let base_static_type = self.get_base_constructor_type_of_class(type_)?;
 
-        for &member in &*released!(node.ref_(self).as_class_like_declaration().members()).ref_(self)
+        for &member in &*released!(node
+            .ref_(self)
+            .as_class_like_declaration()
+            .members()
+            .ref_(self)
+            .clone())
         {
             if has_ambient_modifier(member, self) {
                 continue;
@@ -54,10 +59,7 @@ impl TypeChecker {
 
             if is_constructor_declaration(&member.ref_(self)) {
                 try_for_each(
-                    &*member
-                        .ref_(self)
-                        .as_constructor_declaration()
-                        .parameters()
+                    &*released!(member.ref_(self).as_constructor_declaration().parameters())
                         .ref_(self),
                     |&param: &Id<Node>, _| -> io::Result<Option<()>> {
                         if is_parameter_property_declaration(param, member, self) {

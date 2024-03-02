@@ -332,12 +332,13 @@ impl EmitHelperFactory {
             }
             generator_func.ref_(self).maybe_emit_node().unwrap()
         };
-        let mut generator_func_emit_node = generator_func_emit_node.ref_mut(self);
-        generator_func_emit_node.flags = Some(
-            generator_func_emit_node.flags.unwrap_or_default()
-                | EmitFlags::AsyncFunctionBody
-                | EmitFlags::ReuseTempVariableScope,
-        );
+        let flags = generator_func_emit_node
+            .ref_(self)
+            .flags
+            .unwrap_or_default()
+            | EmitFlags::AsyncFunctionBody
+            | EmitFlags::ReuseTempVariableScope;
+        generator_func_emit_node.ref_mut(self).flags = Some(flags);
 
         self.factory.ref_(self).create_call_expression(
             self.get_unscoped_helper_name("__awaiter"),

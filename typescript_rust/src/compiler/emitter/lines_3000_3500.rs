@@ -517,7 +517,7 @@ impl Printer {
         self.write_punctuation("{");
         self.emit_list(
             Some(node),
-            Some(node.ref_(self).as_class_like_declaration().members()),
+            released!(Some(node.ref_(self).as_class_like_declaration().members())),
             ListFormat::ClassMembers,
             None,
             None,

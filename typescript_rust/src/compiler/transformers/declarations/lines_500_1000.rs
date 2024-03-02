@@ -1416,10 +1416,10 @@ impl TransformDeclarations {
                         self.factory.ref_(self).update_function_type_node(
                             input,
                             try_maybe_visit_nodes(
-                                input
+                                released!(input
                                     .ref_(self)
                                     .as_function_type_node()
-                                    .maybe_type_parameters(),
+                                    .maybe_type_parameters()),
                                 Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                                 Option::<fn(Id<Node>) -> bool>::None,
                                 None,
@@ -1428,12 +1428,14 @@ impl TransformDeclarations {
                             )?,
                             self.update_params_list(
                                 input,
-                                Some(input.ref_(self).as_function_type_node().parameters()),
+                                released!(Some(
+                                    input.ref_(self).as_function_type_node().parameters()
+                                )),
                                 None,
                             )?
                             .unwrap(),
                             try_maybe_visit_node(
-                                input.ref_(self).as_function_type_node().maybe_type(),
+                                released!(input.ref_(self).as_function_type_node().maybe_type()),
                                 Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                                 Option::<fn(Id<Node>) -> bool>::None,
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
