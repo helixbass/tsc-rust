@@ -118,13 +118,20 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*StringLiteral*/
     ) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_string_literal = node_ref.as_string_literal();
-        if node_as_string_literal.has_extended_unicode_escape() == Some(true) {
+        if node
+            .ref_(self)
+            .as_string_literal()
+            .has_extended_unicode_escape()
+            == Some(true)
+        {
             return Some(
                 self.factory
                     .ref_(self)
-                    .create_string_literal(node_as_string_literal.text().clone(), None, None)
+                    .create_string_literal(
+                        node.ref_(self).as_string_literal().text().clone(),
+                        None,
+                        None,
+                    )
                     .set_text_range(Some(&*node.ref_(self)), self)
                     .into(),
             );

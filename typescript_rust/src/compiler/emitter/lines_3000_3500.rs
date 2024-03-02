@@ -504,9 +504,10 @@ impl Printer {
         )?;
         self.emit_list(
             Some(node),
-            node.ref_(self)
+            released!(node
+                .ref_(self)
                 .as_class_like_declaration()
-                .maybe_heritage_clauses(),
+                .maybe_heritage_clauses()),
             ListFormat::ClassHeritageClauses,
             None,
             None,

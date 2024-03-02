@@ -629,8 +629,7 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
         force_tuple: Option<bool>,
     ) -> io::Result<Id<Type>> {
-        let node_ref = node.ref_(self);
-        let elements = &node_ref.as_array_literal_expression().elements;
+        let elements = node.ref_(self).as_array_literal_expression().elements;
         let element_count = elements.ref_(self).len();
         let mut element_types: Vec<Id<Type>> = vec![];
         let mut element_flags: Vec<ElementFlags> = vec![];

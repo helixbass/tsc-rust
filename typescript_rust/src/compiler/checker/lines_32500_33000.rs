@@ -28,7 +28,7 @@ impl TypeChecker {
         if self.strict_null_checks && properties.ref_(self).is_empty() {
             return self.check_non_null_type(source_type, node);
         }
-        for i in 0..properties.ref_(self).len() {
+        for i in 0..released!(properties.ref_(self).len()) {
             self.check_object_literal_destructuring_property_assignment(
                 node,
                 source_type,
@@ -167,7 +167,7 @@ impl TypeChecker {
             } else {
                 Some(possibly_out_of_bounds_type.clone())
             };
-        for i in 0..elements.ref_(self).len() {
+        for i in 0..released!(elements.ref_(self).len()) {
             let mut type_ = possibly_out_of_bounds_type.clone();
             if node
                 .ref_(self)

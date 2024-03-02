@@ -124,7 +124,7 @@ impl TypeChecker {
             &element.ref_(self).as_binding_element().name().ref_(self),
         )) {
             return self.get_type_from_binding_pattern(
-                element.ref_(self).as_binding_element().name(),
+                released!(element.ref_(self).as_binding_element().name()),
                 include_pattern_in_type,
                 report_errors,
             );

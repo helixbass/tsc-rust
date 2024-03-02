@@ -485,10 +485,8 @@ impl NodeFactory {
         expression: Id<Node /*Expression*/>,
         statement: Id<Node /*Statement*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_while_statement = node_ref.as_while_statement();
-        if node_as_while_statement.expression != expression
-            || node_as_while_statement.statement != statement
+        if node.ref_(self).as_while_statement().expression != expression
+            || node.ref_(self).as_while_statement().statement != statement
         {
             self.update(self.create_while_statement(expression, statement), node)
         } else {
@@ -1510,10 +1508,8 @@ impl NodeFactory {
         node: Id<Node>,                     /*CaseBlock*/
         clauses: impl Into<NodeArrayOrVec>, /*<CaseOrDefaultClause>*/
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_case_block = node_ref.as_case_block();
         let clauses = clauses.into();
-        if has_node_array_changed(node_as_case_block.clauses, &clauses) {
+        if has_node_array_changed(node.ref_(self).as_case_block().clauses, &clauses) {
             self.update(self.create_case_block(clauses), node)
         } else {
             node

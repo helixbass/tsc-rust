@@ -259,7 +259,7 @@ impl TypeChecker {
                         parent_type,
                         index_type,
                         Some(access_flags),
-                        declaration.ref_(self).as_binding_element().maybe_name(),
+                        released!(declaration.ref_(self).as_binding_element().maybe_name()),
                         Option::<Id<Symbol>>::None,
                         None,
                     )?

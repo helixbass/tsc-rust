@@ -146,7 +146,7 @@ impl TypeChecker {
                 self.check_union_or_intersection_type(node)?;
             }
             SyntaxKind::ParenthesizedType | SyntaxKind::OptionalType | SyntaxKind::RestType => {
-                self.check_source_element(node.ref_(self).as_has_type().maybe_type())?;
+                self.check_source_element(released!(node.ref_(self).as_has_type().maybe_type()))?;
             }
             SyntaxKind::ThisType => {
                 self.check_this_type(node)?;

@@ -693,7 +693,7 @@ impl TypeChecker {
         node: Id<Node>, /*PrefixUnaryExpression*/
     ) -> io::Result<Id<Type>> {
         let operand_type = self.check_expression(
-            node.ref_(self).as_prefix_unary_expression().operand,
+            released!(node.ref_(self).as_prefix_unary_expression().operand),
             None,
             None,
         )?;
@@ -843,22 +843,26 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*PostfixUnaryExpression*/
     ) -> io::Result<Id<Type>> {
-        let node_ref = node.ref_(self);
-        let node_as_postfix_unary_expression = node_ref.as_postfix_unary_expression();
-        let operand_type =
-            self.check_expression(node_as_postfix_unary_expression.operand, None, None)?;
+        let operand_type = self.check_expression(
+            node.ref_(self).as_postfix_unary_expression().operand,
+            None,
+            None,
+        )?;
         if operand_type == self.silent_never_type() {
             return Ok(self.silent_never_type());
         }
         let ok = self.check_arithmetic_operand_type(
-            node_as_postfix_unary_expression.operand,
-            self.check_non_null_type(operand_type, node_as_postfix_unary_expression.operand)?,
+            node.ref_(self).as_postfix_unary_expression().operand,
+            self.check_non_null_type(
+                operand_type,
+                node.ref_(self).as_postfix_unary_expression().operand,
+            )?,
             &Diagnostics::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type,
             None,
         )?;
         if ok {
             self.check_reference_expression(
-                node_as_postfix_unary_expression.operand,
+                node.ref_(self).as_postfix_unary_expression().operand,
                 &Diagnostics::The_operand_of_an_increment_or_decrement_operator_must_be_a_variable_or_a_property_access,
                 &Diagnostics::The_operand_of_an_increment_or_decrement_operator_may_not_be_an_optional_property_access,
             );

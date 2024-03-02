@@ -166,9 +166,7 @@ impl TypeChecker {
         self.check_grammar_for_in_or_for_of_statement(node);
 
         let container = get_containing_function_or_class_static_block(node, self);
-        let node_ref = node.ref_(self);
-        let node_as_for_of_statement = node_ref.as_for_of_statement();
-        if let Some(node_await_modifier) = node_as_for_of_statement.await_modifier {
+        if let Some(node_await_modifier) = node.ref_(self).as_for_of_statement().await_modifier {
             if matches!(
                 container,
                 Some(container) if is_class_static_block_declaration(&container.ref_(self))
@@ -196,12 +194,17 @@ impl TypeChecker {
             self.check_external_emit_helpers(node, ExternalEmitHelpers::ForOfIncludes)?;
         }
 
-        if node_as_for_of_statement.initializer.ref_(self).kind()
+        if node
+            .ref_(self)
+            .as_for_of_statement()
+            .initializer
+            .ref_(self)
+            .kind()
             == SyntaxKind::VariableDeclarationList
         {
             self.check_for_in_or_for_of_variable_declaration(node)?;
         } else {
-            let var_expr = node_as_for_of_statement.initializer;
+            let var_expr = node.ref_(self).as_for_of_statement().initializer;
             let iterated_type = self.check_right_hand_side_of_for_of(node)?;
 
             if matches!(
@@ -227,7 +230,7 @@ impl TypeChecker {
                     iterated_type,
                     left_type,
                     Some(var_expr),
-                    Some(node_as_for_of_statement.expression),
+                    released!(Some(node.ref_(self).as_for_of_statement().expression)),
                     None,
                     None,
                 )?;
@@ -235,7 +238,9 @@ impl TypeChecker {
             }
         }
 
-        self.check_source_element(Some(node_as_for_of_statement.statement))?;
+        self.check_source_element(Some(released!(
+            node.ref_(self).as_for_of_statement().statement
+        )))?;
         if node.ref_(self).maybe_locals().is_some() {
             self.register_for_unused_identifiers_check(node);
         }
@@ -357,11 +362,18 @@ impl TypeChecker {
             .as_has_initializer()
             .maybe_initializer()
             .unwrap();
-        let variable_declaration_list_ref = variable_declaration_list.ref_(self);
-        let variable_declaration_list =
-            variable_declaration_list_ref.as_variable_declaration_list();
-        if !variable_declaration_list.declarations.ref_(self).is_empty() {
-            let decl = variable_declaration_list.declarations.ref_(self)[0];
+        if !variable_declaration_list
+            .ref_(self)
+            .as_variable_declaration_list()
+            .declarations
+            .ref_(self)
+            .is_empty()
+        {
+            let decl = variable_declaration_list
+                .ref_(self)
+                .as_variable_declaration_list()
+                .declarations
+                .ref_(self)[0];
             self.check_variable_declaration(decl)?;
         }
 
@@ -372,18 +384,23 @@ impl TypeChecker {
         &self,
         statement: Id<Node>, /*ForOfStatement*/
     ) -> io::Result<Id<Type>> {
-        let statement_ref = statement.ref_(self);
-        let statement_as_for_of_statement = statement_ref.as_for_of_statement();
-        let use_ = if statement_as_for_of_statement.await_modifier.is_some() {
+        let use_ = if statement
+            .ref_(self)
+            .as_for_of_statement()
+            .await_modifier
+            .is_some()
+        {
             IterationUse::ForAwaitOf
         } else {
             IterationUse::ForOf
         };
         self.check_iterated_type_or_element_type(
             use_,
-            self.check_non_null_expression(statement_as_for_of_statement.expression)?,
+            self.check_non_null_expression(released!(
+                statement.ref_(self).as_for_of_statement().expression
+            ))?,
             self.undefined_type(),
-            Some(statement_as_for_of_statement.expression),
+            released!(Some(statement.ref_(self).as_for_of_statement().expression)),
         )
     }
 
@@ -853,7 +870,7 @@ impl TypeChecker {
         }
 
         let mut all_iteration_types: Option<Vec<Id<IterationTypes>>> = None;
-        for &constituent in type_.ref_(self).as_union_type().types() {
+        for &constituent in &released!(type_.ref_(self).as_union_type().types().to_owned()) {
             let iteration_types =
                 self.get_iteration_types_of_iterable_worker(constituent, use_, error_node)?;
             if iteration_types == self.no_iteration_types() {

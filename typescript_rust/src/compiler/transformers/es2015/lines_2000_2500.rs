@@ -1025,7 +1025,7 @@ impl TransformES2015 {
                 })
             } else {
                 let statement = try_visit_node(
-                    node.ref_(self).as_for_of_statement().statement,
+                    released!(node.ref_(self).as_for_of_statement().statement),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_statement(node, self)),
                     Some(|nodes: &[Id<Node>]| self.factory.ref_(self).lift_to_block(nodes)),

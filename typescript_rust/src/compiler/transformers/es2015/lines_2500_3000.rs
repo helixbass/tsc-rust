@@ -23,10 +23,8 @@ impl TransformES2015 {
         converted_loop_body_statements: Option<&[Id<Node /*Statement*/>]>,
         ancestor_facts: Option<HierarchyFacts>,
     ) -> io::Result<Id<Node /*Statement*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_for_of_statement = node_ref.as_for_of_statement();
         let expression = try_visit_node(
-            node_as_for_of_statement.expression,
+            node.ref_(self).as_for_of_statement().expression,
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -61,7 +59,10 @@ impl TransformES2015 {
         let values = self
             .emit_helpers()
             .create_values_helper(expression)
-            .set_text_range(Some(&*node_as_for_of_statement.expression.ref_(self)), self);
+            .set_text_range(
+                Some(&*node.ref_(self).as_for_of_statement().expression.ref_(self)),
+                self,
+            );
         let next = self.factory.ref_(self).create_call_expression(
             self.factory
                 .ref_(self)
@@ -110,7 +111,13 @@ impl TransformES2015 {
                                         Some(initializer),
                                     )
                                     .set_text_range(
-                                        Some(&*node_as_for_of_statement.expression.ref_(self)),
+                                        Some(
+                                            &*node
+                                                .ref_(self)
+                                                .as_for_of_statement()
+                                                .expression
+                                                .ref_(self),
+                                        ),
                                         self,
                                     ),
                                 self.factory.ref_(self).create_variable_declaration(
@@ -123,7 +130,7 @@ impl TransformES2015 {
                             None,
                         )
                         .set_text_range(
-                            Some(&*node_as_for_of_statement.expression.ref_(self)),
+                            Some(&*node.ref_(self).as_for_of_statement().expression.ref_(self)),
                             self,
                         )
                         .set_emit_flags(EmitFlags::NoHoisting, self),
@@ -328,7 +335,7 @@ impl TransformES2015 {
                         Some(num_initial_properties),
                         self,
                     )?,
-                    node.ref_(self).as_object_literal_expression().multi_line,
+                    released!(node.ref_(self).as_object_literal_expression().multi_line),
                 )
                 .set_emit_flags(
                     if has_computed {

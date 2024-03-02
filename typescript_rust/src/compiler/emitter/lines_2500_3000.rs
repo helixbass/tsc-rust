@@ -89,7 +89,7 @@ impl Printer {
         )?;
         self.emit_expression_list(
             Some(node),
-            node.ref_(self).as_new_expression().arguments,
+            released!(node.ref_(self).as_new_expression().arguments),
             ListFormat::NewExpressionArguments,
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
@@ -366,7 +366,7 @@ impl Printer {
             self.write_space();
         }
         self.emit_expression(
-            Some(node.ref_(self).as_prefix_unary_expression().operand),
+            released!(Some(node.ref_(self).as_prefix_unary_expression().operand)),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(
                     self.parenthesizer(),
@@ -580,10 +580,12 @@ impl Printer {
         &self,
         node: Id<Node>, /*ExpressionWithTypeArguments*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_expression_with_type_arguments = node_ref.as_expression_with_type_arguments();
         self.emit_expression(
-            Some(node_as_expression_with_type_arguments.expression),
+            Some(
+                node.ref_(self)
+                    .as_expression_with_type_arguments()
+                    .expression,
+            ),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(
                     self.parenthesizer(),
@@ -593,7 +595,9 @@ impl Printer {
         )?;
         self.emit_type_arguments(
             node,
-            node_as_expression_with_type_arguments.maybe_type_arguments(),
+            node.ref_(self)
+                .as_expression_with_type_arguments()
+                .maybe_type_arguments(),
         )?;
 
         Ok(())

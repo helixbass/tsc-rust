@@ -397,17 +397,15 @@ impl Printer {
         node: Id<Node>, /*HeritageClause*/
     ) -> io::Result<()> {
         self.write_space();
-        let node_ref = node.ref_(self);
-        let node_as_heritage_clause = node_ref.as_heritage_clause();
         self.write_token_text(
-            node_as_heritage_clause.token,
+            node.ref_(self).as_heritage_clause().token,
             |text: &str| self.write_keyword(text),
             None,
         );
         self.write_space();
         self.emit_list(
             Some(node),
-            Some(node_as_heritage_clause.types),
+            Some(node.ref_(self).as_heritage_clause().types),
             ListFormat::HeritageClauseTypes,
             None,
             None,
@@ -455,7 +453,10 @@ impl Printer {
         &self,
         node: Id<Node>, /*PropertyAssignment*/
     ) -> io::Result<()> {
-        self.emit(node.ref_(self).as_property_assignment().maybe_name(), None)?;
+        self.emit(
+            released!(node.ref_(self).as_property_assignment().maybe_name()),
+            None,
+        )?;
         self.write_punctuation(":");
         self.write_space();
         let initializer = node

@@ -410,7 +410,7 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
         &flatten_context,
         node,
         value,
-        &*location.ref_(arena),
+        &released!(ReadonlyTextRangeConcrete::from(&*location.ref_(arena))),
         Some(is_destructuring_assignment(node, arena)),
         arena,
     )?;
@@ -1188,7 +1188,7 @@ fn flatten_array_binding_or_assignment_pattern(
                 flatten_context,
                 element,
                 Some(rhs_value),
-                &*element.ref_(arena),
+                &released!(ReadonlyTextRangeConcrete::from(&*element.ref_(arena))),
                 None,
                 arena,
             )?;
