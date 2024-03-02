@@ -339,7 +339,7 @@ impl Printer {
         );
         self.emit_case_or_default_clause_rest(
             node,
-            node.ref_(self).as_default_clause().statements,
+            released!(node.ref_(self).as_default_clause().statements),
             pos,
         )?;
 

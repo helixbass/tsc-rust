@@ -1355,10 +1355,8 @@ impl NodeFactory {
         variable_declaration: Option<Id<Node> /*VariableDeclaration*/>,
         block: Id<Node /*Block*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_catch_clause = node_ref.as_catch_clause();
-        if node_as_catch_clause.variable_declaration != variable_declaration
-            || node_as_catch_clause.block != block
+        if node.ref_(self).as_catch_clause().variable_declaration != variable_declaration
+            || node.ref_(self).as_catch_clause().block != block
         {
             self.update(self.create_catch_clause(variable_declaration, block), node)
         } else {

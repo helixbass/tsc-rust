@@ -1007,10 +1007,12 @@ impl TransformDeclarations {
                         Some(
                             self.factory.ref_(self).create_node_array(
                                 Some(try_map_defined(
-                                    Some(
-                                        &*released!(input.ref_(self).as_enum_declaration().members)
-                                            .ref_(self),
-                                    ),
+                                    Some(&*released!(input
+                                        .ref_(self)
+                                        .as_enum_declaration()
+                                        .members
+                                        .ref_(self)
+                                        .clone())),
                                     |&m: &Id<Node>, _| -> io::Result<_> {
                                         if self.should_strip_internal(m) {
                                             return Ok(None);

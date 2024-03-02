@@ -98,7 +98,7 @@ impl TransformES2021 {
         let mut assignment_target = left;
         let right = skip_parentheses(
             visit_node(
-                binary_expression.ref_(self).as_binary_expression().right,
+                released!(binary_expression.ref_(self).as_binary_expression().right),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -130,15 +130,13 @@ impl TransformES2021 {
             };
 
             if is_property_access_expression(&left.ref_(self)) {
-                let left_ref = left.ref_(self);
-                let left_as_property_access_expression = left_ref.as_property_access_expression();
                 assignment_target = self.factory.ref_(self).create_property_access_expression(
                     property_access_target,
-                    left_as_property_access_expression.name.clone(),
+                    released!(left.ref_(self).as_property_access_expression().name.clone()),
                 );
                 left = self.factory.ref_(self).create_property_access_expression(
                     property_access_target_assignment,
-                    left_as_property_access_expression.name.clone(),
+                    released!(left.ref_(self).as_property_access_expression().name.clone()),
                 );
             } else {
                 let element_access_argument_simple_copiable = is_simple_copiable_expression(

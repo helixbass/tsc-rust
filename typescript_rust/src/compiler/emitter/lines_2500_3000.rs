@@ -929,7 +929,7 @@ impl Printer {
             node,
             None,
         );
-        self.emit_for_binding(node.ref_(self).as_for_statement().initializer)?;
+        self.emit_for_binding(released!(node.ref_(self).as_for_statement().initializer))?;
         pos = self.emit_token_with_comment(
             SyntaxKind::SemicolonToken,
             node.ref_(self)

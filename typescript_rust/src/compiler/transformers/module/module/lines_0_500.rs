@@ -810,13 +810,11 @@ impl TransformModule {
         &self,
         node: Id<Node>, /*SourceFile*/
     ) -> io::Result<Id<Node>> {
-        let node_ref = node.ref_(self);
-        let node_as_source_file = node_ref.as_source_file();
         self.context.ref_(self).start_lexical_environment();
 
         let mut statements: Vec<Id<Node /*Statement*/>> = _d();
         let statement_offset = self.factory.ref_(self).try_copy_prologue(
-            &node_as_source_file.statements().ref_(self),
+            &node.ref_(self).as_source_file().statements().ref_(self),
             &mut statements,
             Some(self.compiler_options.ref_(self).no_implicit_use_strict != Some(true)),
             Some(|node: Id<Node>| self.top_level_visitor(node)),
@@ -883,7 +881,7 @@ impl TransformModule {
             &mut statements,
             Some(
                 &try_visit_nodes(
-                    node_as_source_file.statements(),
+                    node.ref_(self).as_source_file().statements(),
                     Some(|node: Id<Node>| self.top_level_visitor(node)),
                     Some(|node| is_statement(node, self)),
                     Some(statement_offset),

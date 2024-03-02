@@ -488,7 +488,7 @@ impl TypeChecker {
             };
             symbol = self.get_merged_symbol(self.resolve_name_(
                 Some(location.unwrap_or(name)),
-                &name.ref_(self).as_identifier().escaped_text,
+                &released!(name.ref_(self).as_identifier().escaped_text.clone()),
                 meaning,
                 if ignore_errors_unwrapped || symbol_from_js_prototype.is_some() {
                     None

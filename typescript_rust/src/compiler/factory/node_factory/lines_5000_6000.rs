@@ -251,9 +251,9 @@ impl NodeFactory {
         name: Id<Node>,
         initializer: Option<Id<Node /*Expression*/>>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_enum_member = node_ref.as_enum_member();
-        if node_as_enum_member.name != name || node_as_enum_member.initializer != initializer {
+        if node.ref_(self).as_enum_member().name != name
+            || node.ref_(self).as_enum_member().initializer != initializer
+        {
             self.update(self.create_enum_member(name, initializer), node)
         } else {
             node

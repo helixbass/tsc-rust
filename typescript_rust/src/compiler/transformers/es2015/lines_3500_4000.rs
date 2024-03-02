@@ -234,17 +234,15 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*ShorthandPropertyAssignment*/
     ) -> io::Result<Id<Node /*ObjectLiteralElementLike*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_shorthand_property_assignment = node_ref.as_shorthand_property_assignment();
         Ok(self
             .factory
             .ref_(self)
             .create_property_assignment(
-                node_as_shorthand_property_assignment.name(),
+                node.ref_(self).as_shorthand_property_assignment().name(),
                 self.visit_identifier(
                     self.factory
                         .ref_(self)
-                        .clone_node(node_as_shorthand_property_assignment.name()),
+                        .clone_node(node.ref_(self).as_shorthand_property_assignment().name()),
                 )?,
             )
             .set_text_range(Some(&*node.ref_(self)), self))

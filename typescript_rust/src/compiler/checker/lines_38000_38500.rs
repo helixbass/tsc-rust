@@ -256,10 +256,10 @@ impl TypeChecker {
         self.check_block(released!(node.ref_(self).as_try_statement().try_block))?;
         let catch_clause = node.ref_(self).as_try_statement().catch_clause;
         if let Some(catch_clause) = catch_clause {
-            let catch_clause_ref = catch_clause.ref_(self);
-            let catch_clause_as_catch_clause = catch_clause_ref.as_catch_clause();
-            if let Some(catch_clause_variable_declaration) =
-                catch_clause_as_catch_clause.variable_declaration
+            if let Some(catch_clause_variable_declaration) = catch_clause
+                .ref_(self)
+                .as_catch_clause()
+                .variable_declaration
             {
                 let declaration = catch_clause_variable_declaration;
                 let type_node = get_effective_type_annotation_node(
@@ -289,7 +289,9 @@ impl TypeChecker {
                         None,
                     );
                 } else {
-                    let block_locals = catch_clause_as_catch_clause
+                    let block_locals = catch_clause
+                        .ref_(self)
+                        .as_catch_clause()
                         .block
                         .ref_(self)
                         .maybe_locals()
@@ -331,7 +333,7 @@ impl TypeChecker {
                 }
             }
 
-            self.check_block(catch_clause_as_catch_clause.block)?;
+            self.check_block(catch_clause.ref_(self).as_catch_clause().block)?;
         }
 
         if let Some(node_finally_block) = node.ref_(self).as_try_statement().finally_block {

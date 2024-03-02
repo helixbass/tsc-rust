@@ -63,9 +63,12 @@ impl TransformES2019 {
     }
 
     fn visit_catch_clause(&self, node: Id<Node> /*CatchClause*/) -> Id<Node /*CatchClause*/> {
-        let node_ref = node.ref_(self);
-        let node_as_catch_clause = node_ref.as_catch_clause();
-        if node_as_catch_clause.variable_declaration.is_none() {
+        if node
+            .ref_(self)
+            .as_catch_clause()
+            .variable_declaration
+            .is_none()
+        {
             return self.factory.ref_(self).update_catch_clause(
                 node,
                 Some(
@@ -81,7 +84,7 @@ impl TransformES2019 {
                     ),
                 ),
                 visit_node(
-                    node_as_catch_clause.block,
+                    released!(node.ref_(self).as_catch_clause().block),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node: Id<Node>| is_block(&node.ref_(self))),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

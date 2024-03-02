@@ -540,7 +540,7 @@ impl TransformES2020 {
         node: Id<Node>, /*BinaryExpression*/
     ) -> VisitResult {
         let mut left = visit_node(
-            node.ref_(self).as_binary_expression().left,
+            released!(node.ref_(self).as_binary_expression().left),
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
