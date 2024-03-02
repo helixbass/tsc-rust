@@ -339,7 +339,7 @@ impl TypeChecker {
         {
             node_links.ref_mut(self).flags |= NodeCheckFlags::EnumValuesComputed;
             let mut auto_value: Option<Number> = Some(Number::new(0.0));
-            for &member in &*node.ref_(self).as_enum_declaration().members.ref_(self) {
+            for &member in &*released!(node.ref_(self).as_enum_declaration().members).ref_(self) {
                 let value = self.compute_member_value(member, auto_value)?;
                 self.get_node_links(member).ref_mut(self).enum_member_value = value.clone();
                 auto_value = if let Some(StringOrNumber::Number(value)) = value.as_ref() {
@@ -358,25 +358,23 @@ impl TypeChecker {
         member: Id<Node>, /*EnumMember*/
         auto_value: Option<Number>,
     ) -> io::Result<Option<StringOrNumber>> {
-        let member_ref = member.ref_(self);
-        let member_as_enum_member = member_ref.as_enum_member();
-        if is_computed_non_literal_name(member_as_enum_member.name, self) {
+        if is_computed_non_literal_name(member.ref_(self).as_enum_member().name, self) {
             self.error(
-                Some(member_as_enum_member.name),
+                Some(member.ref_(self).as_enum_member().name),
                 &Diagnostics::Computed_property_names_are_not_allowed_in_enums,
                 None,
             );
         } else {
-            let text = get_text_of_property_name(member_as_enum_member.name, self);
+            let text = get_text_of_property_name(member.ref_(self).as_enum_member().name, self);
             if self.is_numeric_literal_name(&text) && !is_infinity_or_nan_string(&text) {
                 self.error(
-                    Some(member_as_enum_member.name),
+                    Some(member.ref_(self).as_enum_member().name),
                     &Diagnostics::An_enum_member_cannot_have_a_numeric_name,
                     None,
                 );
             }
         }
-        if member_as_enum_member.initializer.is_some() {
+        if member.ref_(self).as_enum_member().initializer.is_some() {
             return self.compute_constant_value(member);
         }
         if member
@@ -397,7 +395,7 @@ impl TypeChecker {
             return Ok(auto_value.map(Into::into));
         }
         self.error(
-            Some(member_as_enum_member.name),
+            Some(member.ref_(self).as_enum_member().name),
             &Diagnostics::Enum_member_must_have_initializer,
             None,
         );
@@ -413,9 +411,7 @@ impl TypeChecker {
                 .unwrap(),
         )?;
         let is_const_enum = is_enum_const(member.ref_(self).parent(), self);
-        let member_ref = member.ref_(self);
-        let member_as_enum_member = member_ref.as_enum_member();
-        let initializer = member_as_enum_member.initializer.unwrap();
+        let initializer = member.ref_(self).as_enum_member().initializer.unwrap();
         let value = if enum_kind == EnumKind::Literal && !self.is_literal_enum_member(member)? {
             None
         } else {
@@ -733,11 +729,12 @@ impl TypeChecker {
 
         self.check_grammar_decorators_and_modifiers(node);
 
-        let node_ref = node.ref_(self);
-        let node_as_enum_declaration = node_ref.as_enum_declaration();
-        self.check_collisions_for_declaration_name(node, node_as_enum_declaration.maybe_name());
+        self.check_collisions_for_declaration_name(
+            node,
+            node.ref_(self).as_enum_declaration().maybe_name(),
+        );
         self.check_exports_on_merged_declarations(node)?;
-        for &member in &*node_as_enum_declaration.members.ref_(self) {
+        for &member in &*node.ref_(self).as_enum_declaration().members.ref_(self) {
             self.check_enum_member(member);
         }
 

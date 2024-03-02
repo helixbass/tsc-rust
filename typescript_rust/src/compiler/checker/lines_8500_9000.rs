@@ -115,7 +115,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let pattern = declaration.ref_(self).parent();
         let mut parent_type = return_ok_none_if_none!(
-            self.get_type_for_binding_element_parent(pattern.ref_(self).parent())?
+            self.get_type_for_binding_element_parent(released!(pattern.ref_(self).parent()))?
         );
         if self.is_type_any(Some(parent_type)) {
             return Ok(Some(parent_type));
@@ -653,7 +653,7 @@ impl TypeChecker {
                 .as_deref(),
         ) {
             return Ok(Some(self.get_type_from_binding_pattern(
-                declaration.ref_(self).as_named_declaration().name(),
+                released!(declaration.ref_(self).as_named_declaration().name()),
                 Some(false),
                 Some(true),
             )?));

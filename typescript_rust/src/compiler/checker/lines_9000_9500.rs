@@ -94,19 +94,23 @@ impl TypeChecker {
         include_pattern_in_type: Option<bool>,
         report_errors: Option<bool>,
     ) -> io::Result<Id<Type>> {
-        let element_ref = element.ref_(self);
-        let element_as_binding_element = element_ref.as_binding_element();
-        if element_as_binding_element.maybe_initializer().is_some() {
-            let contextual_type =
-                if is_binding_pattern(Some(&element_as_binding_element.name().ref_(self))) {
-                    self.get_type_from_binding_pattern(
-                        element_as_binding_element.name(),
-                        Some(true),
-                        Some(false),
-                    )?
-                } else {
-                    self.unknown_type()
-                };
+        if element
+            .ref_(self)
+            .as_binding_element()
+            .maybe_initializer()
+            .is_some()
+        {
+            let contextual_type = if is_binding_pattern(Some(
+                &element.ref_(self).as_binding_element().name().ref_(self),
+            )) {
+                self.get_type_from_binding_pattern(
+                    element.ref_(self).as_binding_element().name(),
+                    Some(true),
+                    Some(false),
+                )?
+            } else {
+                self.unknown_type()
+            };
             return self.add_optionality(
                 self.widen_type_inferred_from_initializer(
                     element,
@@ -116,9 +120,11 @@ impl TypeChecker {
                 None,
             );
         }
-        if is_binding_pattern(Some(&element_as_binding_element.name().ref_(self))) {
+        if is_binding_pattern(Some(
+            &element.ref_(self).as_binding_element().name().ref_(self),
+        )) {
             return self.get_type_from_binding_pattern(
-                element_as_binding_element.name(),
+                element.ref_(self).as_binding_element().name(),
                 include_pattern_in_type,
                 report_errors,
             );
@@ -146,19 +152,19 @@ impl TypeChecker {
         let mut object_flags =
             ObjectFlags::ObjectLiteral | ObjectFlags::ContainsObjectOrArrayLiteral;
         try_for_each(
-            &*pattern
-                .ref_(self)
-                .as_object_binding_pattern()
-                .elements
-                .ref_(self),
+            &*released!(pattern.ref_(self).as_object_binding_pattern().elements).ref_(self),
             |&e: &Id<Node>, _| -> io::Result<_> {
-                let e_ref = e.ref_(self);
-                let e_as_binding_element = e_ref.as_binding_element();
-                let name = e_as_binding_element
+                let name = e
+                    .ref_(self)
+                    .as_binding_element()
                     .property_name
                     .as_ref()
-                    .map_or_else(|| e_as_binding_element.name(), Clone::clone);
-                if e_as_binding_element.dot_dot_dot_token.is_some() {
+                    .map_or_else(|| e.ref_(self).as_binding_element().name(), Clone::clone);
+                if e.ref_(self)
+                    .as_binding_element()
+                    .dot_dot_dot_token
+                    .is_some()
+                {
                     string_index_info = Some(self.alloc_index_info(self.create_index_info(
                         self.string_type(),
                         self.any_type(),
@@ -175,7 +181,12 @@ impl TypeChecker {
                 }
                 let text = self.get_property_name_from_type(expr_type);
                 let flags = SymbolFlags::Property
-                    | if e_as_binding_element.maybe_initializer().is_some() {
+                    | if e
+                        .ref_(self)
+                        .as_binding_element()
+                        .maybe_initializer()
+                        .is_some()
+                    {
                         SymbolFlags::Optional
                     } else {
                         SymbolFlags::None

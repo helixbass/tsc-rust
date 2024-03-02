@@ -341,7 +341,7 @@ impl Printer {
         );
         self.write_space();
         self.emit_expression(
-            Some(node.ref_(self).as_await_expression().expression),
+            released!(Some(node.ref_(self).as_await_expression().expression)),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(
                     self.parenthesizer(),
@@ -530,11 +530,9 @@ impl Printer {
             node,
             None,
         );
-        let node_ref = node.ref_(self);
-        let node_as_yield_expression = node_ref.as_yield_expression();
-        self.emit(node_as_yield_expression.asterisk_token, None)?;
+        self.emit(node.ref_(self).as_yield_expression().asterisk_token, None)?;
         self.emit_expression_with_leading_space(
-            node_as_yield_expression.expression,
+            released!(node.ref_(self).as_yield_expression().expression),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                     self.parenthesizer(),

@@ -6,10 +6,11 @@ use crate::{
     chain_bundle, get_non_assignment_operator_for_compound_assignment, impl_has_arena,
     is_access_expression, is_expression, is_left_hand_side_expression,
     is_logical_or_coalescing_assignment_expression, is_property_access_expression,
-    is_simple_copiable_expression, maybe_visit_each_child, skip_parentheses, visit_each_child,
-    visit_node, AllArenas, CoreTransformationContext, HasArena, InArena, Node, NodeFactory,
-    NodeInterface, SyntaxKind, TransformFlags, TransformNodesTransformationResult, Transformer,
-    TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
+    is_simple_copiable_expression, maybe_visit_each_child, released, skip_parentheses,
+    visit_each_child, visit_node, AllArenas, CoreTransformationContext, HasArena, InArena, Node,
+    NodeFactory, NodeInterface, SyntaxKind, TransformFlags, TransformNodesTransformationResult,
+    Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
+    VisitResult,
 };
 
 struct TransformES2021 {
@@ -50,7 +51,7 @@ impl TransformES2021 {
         {
             return Some(node.into());
         }
-        match node.ref_(self).kind() {
+        match released!(node.ref_(self).kind()) {
             SyntaxKind::BinaryExpression => {
                 let binary_expression = node;
                 if is_logical_or_coalescing_assignment_expression(binary_expression, self) {
@@ -78,14 +79,15 @@ impl TransformES2021 {
         &self,
         binary_expression: Id<Node>, /*AssignmentExpression<Token<LogicalOrCoalescingAssignmentOperator>>*/
     ) -> VisitResult {
-        let binary_expression_ref = binary_expression.ref_(self);
-        let binary_expression_as_binary_expression = binary_expression_ref.as_binary_expression();
-        let operator = binary_expression_as_binary_expression.operator_token;
+        let operator = binary_expression
+            .ref_(self)
+            .as_binary_expression()
+            .operator_token;
         let non_assignment_operator =
             get_non_assignment_operator_for_compound_assignment(operator.ref_(self).kind());
         let mut left = skip_parentheses(
             visit_node(
-                binary_expression_as_binary_expression.left,
+                binary_expression.ref_(self).as_binary_expression().left,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_left_hand_side_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -96,7 +98,7 @@ impl TransformES2021 {
         let mut assignment_target = left;
         let right = skip_parentheses(
             visit_node(
-                binary_expression_as_binary_expression.right,
+                binary_expression.ref_(self).as_binary_expression().right,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -139,15 +141,16 @@ impl TransformES2021 {
                     left_as_property_access_expression.name.clone(),
                 );
             } else {
-                let left_ref = left.ref_(self);
-                let left_as_element_access_expression = left_ref.as_element_access_expression();
                 let element_access_argument_simple_copiable = is_simple_copiable_expression(
-                    &left_as_element_access_expression
+                    &left
+                        .ref_(self)
+                        .as_element_access_expression()
                         .argument_expression
                         .ref_(self),
                 );
                 let element_access_argument = if element_access_argument_simple_copiable {
-                    left_as_element_access_expression
+                    left.ref_(self)
+                        .as_element_access_expression()
                         .argument_expression
                         .clone()
                 } else {
@@ -166,13 +169,15 @@ impl TransformES2021 {
                 left = self.factory.ref_(self).create_element_access_expression(
                     property_access_target_assignment,
                     if element_access_argument_simple_copiable {
-                        left_as_element_access_expression
+                        left.ref_(self)
+                            .as_element_access_expression()
                             .argument_expression
                             .clone()
                     } else {
                         self.factory.ref_(self).create_assignment(
                             element_access_argument,
-                            left_as_element_access_expression
+                            left.ref_(self)
+                                .as_element_access_expression()
                                 .argument_expression
                                 .clone(),
                         )

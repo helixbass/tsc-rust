@@ -988,28 +988,29 @@ impl TransformDeclarations {
                 previous_needs_declare,
                 self.transform_variable_statement(input)?,
             ),
-            SyntaxKind::EnumDeclaration => {
-                let input_ref = input.ref_(self);
-                let input_as_enum_declaration = input_ref.as_enum_declaration();
-                self.transform_top_level_declaration_cleanup(
-                    input,
-                    previous_enclosing_declaration,
-                    can_prodice_diagnostic,
-                    &old_diag,
-                    previous_needs_declare,
-                    Some(
-                        self.factory.ref_(self).update_enum_declaration(
-                            input,
-                            Option::<Id<NodeArray>>::None,
-                            Some(
-                                self.factory
-                                    .ref_(self)
-                                    .create_node_array(self.ensure_modifiers(input), None),
-                            ),
-                            input_as_enum_declaration.name(),
-                            Some(self.factory.ref_(self).create_node_array(
+            SyntaxKind::EnumDeclaration => self.transform_top_level_declaration_cleanup(
+                input,
+                previous_enclosing_declaration,
+                can_prodice_diagnostic,
+                &old_diag,
+                previous_needs_declare,
+                Some(
+                    self.factory.ref_(self).update_enum_declaration(
+                        input,
+                        Option::<Id<NodeArray>>::None,
+                        Some(
+                            self.factory
+                                .ref_(self)
+                                .create_node_array(self.ensure_modifiers(input), None),
+                        ),
+                        released!(input.ref_(self).as_enum_declaration().name()),
+                        Some(
+                            self.factory.ref_(self).create_node_array(
                                 Some(try_map_defined(
-                                    Some(&*input_as_enum_declaration.members.ref_(self)),
+                                    Some(
+                                        &*released!(input.ref_(self).as_enum_declaration().members)
+                                            .ref_(self),
+                                    ),
                                     |&m: &Id<Node>, _| -> io::Result<_> {
                                         if self.should_strip_internal(m) {
                                             return Ok(None);
@@ -1019,7 +1020,7 @@ impl TransformDeclarations {
                                         Ok(Some(self.preserve_js_doc(
                                             self.factory.ref_(self).update_enum_member(
                                                 m,
-                                                m.ref_(self).as_enum_member().name(),
+                                                released!(m.ref_(self).as_enum_member().name()),
                                                 const_value.map(|const_value| {
                                                     match const_value {
                                                         StringOrNumber::String(const_value) => self
@@ -1045,11 +1046,11 @@ impl TransformDeclarations {
                                     },
                                 )?),
                                 None,
-                            )),
+                            ),
                         ),
                     ),
-                )
-            }
+                ),
+            ),
             _ => Debug_.assert_never(
                 input,
                 Some(&format!(

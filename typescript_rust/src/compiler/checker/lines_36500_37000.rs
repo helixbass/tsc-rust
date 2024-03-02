@@ -424,7 +424,8 @@ impl TypeChecker {
 
         if node_name.ref_(self).kind() == SyntaxKind::ComputedPropertyName {
             self.check_computed_property_name(node_name)?;
-            if let Some(node_initializer) = node.ref_(self).as_has_initializer().maybe_initializer()
+            if let Some(node_initializer) =
+                released!(node.ref_(self).as_has_initializer().maybe_initializer())
             {
                 self.check_expression_cached(node_initializer, None)?;
             }

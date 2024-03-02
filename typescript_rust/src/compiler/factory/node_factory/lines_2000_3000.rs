@@ -1360,9 +1360,7 @@ impl NodeFactory {
         node: Id<Node>, /*DeleteExpression*/
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_delete_expression = node_ref.as_delete_expression();
-        if node_as_delete_expression.expression != expression {
+        if node.ref_(self).as_delete_expression().expression != expression {
             self.update(self.create_delete_expression(expression), node)
         } else {
             node
@@ -1420,9 +1418,7 @@ impl NodeFactory {
         node: Id<Node>, /*VoidExpression*/
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_void_expression = node_ref.as_void_expression();
-        if node_as_void_expression.expression != expression {
+        if node.ref_(self).as_void_expression().expression != expression {
             self.update(self.create_void_expression(expression), node)
         } else {
             node
@@ -1496,12 +1492,10 @@ impl NodeFactory {
         node: Id<Node>, /*PrefixUnaryExpression*/
         operand: Id<Node /*Expression*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_prefix_unary_expression = node_ref.as_prefix_unary_expression();
-        if node_as_prefix_unary_expression.operand != operand {
+        if node.ref_(self).as_prefix_unary_expression().operand != operand {
             self.update(
                 self.create_prefix_unary_expression(
-                    node_as_prefix_unary_expression.operator,
+                    released!(node.ref_(self).as_prefix_unary_expression().operator),
                     operand,
                 ),
                 node,

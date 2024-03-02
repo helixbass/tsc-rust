@@ -823,10 +823,8 @@ impl NodeFactory {
         label: Id<Node /*Identifier*/>,
         statement: Id<Node /*Statement*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_labeled_statement = node_ref.as_labeled_statement();
-        if node_as_labeled_statement.label != label
-            || node_as_labeled_statement.statement != statement
+        if node.ref_(self).as_labeled_statement().label != label
+            || node.ref_(self).as_labeled_statement().statement != statement
         {
             self.update(self.create_labeled_statement(label, statement), node)
         } else {

@@ -399,8 +399,6 @@ impl TransformModule {
         &self,
         node: Id<Node>, /*ClassDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_ref = node.ref_(self);
-        let node_as_class_declaration = node_ref.as_class_declaration();
         let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
         if has_syntactic_modifier(node, ModifierFlags::Export, self) {
             statements.get_or_insert_default_().push(
@@ -409,7 +407,7 @@ impl TransformModule {
                     .create_class_declaration(
                         Option::<Id<NodeArray>>::None,
                         maybe_visit_nodes(
-                            node.ref_(self).maybe_modifiers(),
+                            released!(node.ref_(self).maybe_modifiers()),
                             Some(|node: Id<Node>| self.modifier_visitor(node)),
                             Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                             None,
@@ -423,7 +421,9 @@ impl TransformModule {
                         )),
                         Option::<Id<NodeArray>>::None,
                         try_maybe_visit_nodes(
-                            node_as_class_declaration.maybe_heritage_clauses(),
+                            node.ref_(self)
+                                .as_class_declaration()
+                                .maybe_heritage_clauses(),
                             Some(|node: Id<Node>| self.visitor(node)),
                             Option::<fn(Id<Node>) -> bool>::None,
                             None,
@@ -431,7 +431,7 @@ impl TransformModule {
                             self,
                         )?,
                         try_visit_nodes(
-                            node_as_class_declaration.members(),
+                            node.ref_(self).as_class_declaration().members(),
                             Some(|node: Id<Node>| self.visitor(node)),
                             Option::<fn(Id<Node>) -> bool>::None,
                             None,

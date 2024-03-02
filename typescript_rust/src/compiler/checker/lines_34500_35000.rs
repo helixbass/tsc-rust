@@ -308,7 +308,10 @@ impl TypeChecker {
                 )?;
             }
         }
-        self.check_source_element(node.ref_(self).as_function_like_declaration().maybe_body())?;
+        self.check_source_element(released!(node
+            .ref_(self)
+            .as_function_like_declaration()
+            .maybe_body()))?;
         self.set_node_links_for_private_identifier_scope(node);
 
         Ok(())

@@ -1165,11 +1165,11 @@ impl Printer {
             None,
         );
         self.emit_expression(
-            Some(
+            Some(released!(
                 node.ref_(self)
                     .as_element_access_expression()
-                    .argument_expression,
-            ),
+                    .argument_expression
+            )),
             None,
         )?;
         self.emit_token_with_comment(
