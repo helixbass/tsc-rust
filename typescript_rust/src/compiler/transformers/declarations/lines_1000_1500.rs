@@ -678,7 +678,10 @@ impl TransformDeclarations {
                     let ctor_ref = ctor.ref_(self);
                     let ctor_as_constructor_declaration = ctor_ref.as_constructor_declaration();
                     parameter_properties = Some(/*compact(*/ try_flat_map(
-                        Some(&*ctor_as_constructor_declaration.parameters().ref_(self)),
+                        Some(&*released!(ctor_as_constructor_declaration
+                            .parameters()
+                            .ref_(self)
+                            .clone())),
                         |&param: &Id<Node>, _| -> io::Result<_> {
                             if !has_syntactic_modifier(
                                 param,

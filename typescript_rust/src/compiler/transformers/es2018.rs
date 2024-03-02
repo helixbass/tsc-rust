@@ -605,9 +605,7 @@ impl TransformES2018 {
                         None,
                         Some(
                             self.create_downlevel_await(
-                                node.ref_(self)
-                                    .as_yield_expression()
-                                    .expression
+                                released!(node.ref_(self).as_yield_expression().expression)
                                     .map_or_else(
                                         || self.factory.ref_(self).create_void_zero(),
                                         |node_expression| {
@@ -1839,8 +1837,6 @@ impl TransformES2018 {
     }
 
     fn visit_method_declaration(&self, node: Id<Node> /*MethodDeclaration*/) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_method_declaration = node_ref.as_method_declaration();
         let saved_enclosing_function_flags = self.maybe_enclosing_function_flags();
         self.set_enclosing_function_flags(Some(FunctionFlags::Normal));
         let updated = self.factory.ref_(self).update_method_declaration(
@@ -1871,10 +1867,12 @@ impl TransformES2018 {
             {
                 None
             } else {
-                node_as_method_declaration.maybe_asterisk_token()
+                node.ref_(self)
+                    .as_method_declaration()
+                    .maybe_asterisk_token()
             },
             visit_node(
-                node_as_method_declaration.name(),
+                released!(node.ref_(self).as_method_declaration().name()),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node: Id<Node>| is_property_name(&node.ref_(self))),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -1887,7 +1885,7 @@ impl TransformES2018 {
             ),
             Option::<Id<NodeArray>>::None,
             visit_parameter_list(
-                Some(node_as_method_declaration.parameters()),
+                released!(Some(node.ref_(self).as_method_declaration().parameters())),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,

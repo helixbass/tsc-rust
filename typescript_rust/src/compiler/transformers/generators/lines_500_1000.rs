@@ -6,7 +6,7 @@ use crate::{
     get_expression_associativity, get_initialized_variables,
     get_non_assignment_operator_for_compound_assignment, insert_statements_after_standard_prologue,
     is_binary_expression, is_compound_assignment, is_expression, is_left_hand_side_expression,
-    is_logical_operator, map, maybe_visit_node, reduce_left, visit_node, visit_nodes,
+    is_logical_operator, map, maybe_visit_node, reduce_left, released, visit_node, visit_nodes,
     Associativity, CoreTransformationContext, EmitFlags, HasArena, InArena, IntoA,
     NamedDeclarationInterface, NodeArray, NodeArrayOrVec, ReadonlyTextRange, SyntaxKind,
     TransformFlags, VecExt,
@@ -36,8 +36,6 @@ impl TransformGenerators {
         &self,
         body: Id<Node>, /*Block*/
     ) -> Id<Node> {
-        let body_ref = body.ref_(self);
-        let body_as_block = body_ref.as_block();
         let mut statements: Vec<Id<Node /*Statement*/>> = _d();
         let saved_in_generator_function_body = self.maybe_in_generator_function_body();
         let saved_in_statement_containing_yield = self.maybe_in_statement_containing_yield();
@@ -74,14 +72,14 @@ impl TransformGenerators {
         self.context.ref_(self).resume_lexical_environment();
 
         let statement_offset = self.factory.ref_(self).copy_prologue(
-            &body_as_block.statements.ref_(self),
+            &body.ref_(self).as_block().statements.ref_(self),
             &mut statements,
             Some(false),
             Some(|node: Id<Node>| self.visitor(node)),
         );
 
         self.transform_and_emit_statements(
-            &body_as_block.statements.ref_(self),
+            &released!(body.ref_(self).as_block().statements).ref_(self),
             Some(statement_offset),
         );
 
@@ -113,7 +111,7 @@ impl TransformGenerators {
 
         self.factory
             .ref_(self)
-            .create_block(statements, body_as_block.multi_line)
+            .create_block(statements, body.ref_(self).as_block().multi_line)
             .set_text_range(Some(&*body.ref_(self)), self)
     }
 

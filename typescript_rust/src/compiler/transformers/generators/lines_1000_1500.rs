@@ -6,7 +6,7 @@ use crate::{
     for_each_bool, get_initialized_variables, is_block, is_expression, is_import_call,
     is_left_hand_side_expression, is_object_literal_element_like, is_statement,
     is_variable_declaration_list, map, maybe_for_each_bool, maybe_visit_node, reduce_left,
-    start_on_new_line, visit_each_child, visit_iteration_body, visit_node, visit_nodes,
+    released, start_on_new_line, visit_each_child, visit_iteration_body, visit_node, visit_nodes,
     CallBinding, CoreTransformationContext, HasArena, HasInitializerInterface, InArena,
     NamedDeclarationInterface, NodeArray, NodeExt, NodeInterface, OptionInArena, SyntaxKind,
 };
@@ -344,7 +344,7 @@ impl TransformGenerators {
     }
 
     pub(super) fn transform_and_emit_statement_worker(&self, node: Id<Node>) {
-        match node.ref_(self).kind() {
+        match released!(node.ref_(self).kind()) {
             SyntaxKind::Block => self.transform_and_emit_block(node),
             SyntaxKind::ExpressionStatement => self.transform_and_emit_expression_statement(node),
             SyntaxKind::IfStatement => self.transform_and_emit_if_statement(node),

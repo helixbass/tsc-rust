@@ -431,27 +431,32 @@ impl TypeChecker {
         }
 
         if is_binding_element(&node.ref_(self)) {
-            let node_ref = node.ref_(self);
-            let node_as_binding_element = node_ref.as_binding_element();
             if is_object_binding_pattern(&node.ref_(self).parent().ref_(self))
-                && node_as_binding_element.dot_dot_dot_token.is_some()
+                && node
+                    .ref_(self)
+                    .as_binding_element()
+                    .dot_dot_dot_token
+                    .is_some()
                 && self.language_version <= ScriptTarget::ES2018
             {
                 self.check_external_emit_helpers(node, ExternalEmitHelpers::Rest)?;
             }
-            if let Some(node_property_name) =
-                node_as_binding_element
-                    .property_name
-                    .filter(|node_property_name| {
-                        node_property_name.ref_(self).kind() == SyntaxKind::ComputedPropertyName
-                    })
+            if let Some(node_property_name) = node
+                .ref_(self)
+                .as_binding_element()
+                .property_name
+                .filter(|node_property_name| {
+                    node_property_name.ref_(self).kind() == SyntaxKind::ComputedPropertyName
+                })
             {
                 self.check_computed_property_name(node_property_name)?;
             }
 
             let parent = node.ref_(self).parent().ref_(self).parent();
             let parent_type = self.get_type_for_binding_element_parent(parent)?;
-            let name = node_as_binding_element
+            let name = node
+                .ref_(self)
+                .as_binding_element()
                 .property_name
                 .clone()
                 .unwrap_or_else(|| node_name.clone());

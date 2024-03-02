@@ -451,12 +451,13 @@ impl TransformTypeScript {
             .create_class_expression(
                 Option::<Id<NodeArray>>::None,
                 Option::<Id<NodeArray>>::None,
-                node.ref_(self).as_class_expression().maybe_name(),
+                released!(node.ref_(self).as_class_expression().maybe_name()),
                 Option::<Id<NodeArray>>::None,
                 try_maybe_visit_nodes(
-                    node.ref_(self)
+                    released!(node
+                        .ref_(self)
                         .as_class_expression()
-                        .maybe_heritage_clauses(),
+                        .maybe_heritage_clauses()),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node: Id<Node>| is_heritage_clause(&node.ref_(self))),
                     None,

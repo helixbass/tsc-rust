@@ -274,9 +274,7 @@ impl TransformModule {
         &self,
         node: Id<Node>, /*ExportAssignment*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_ref = node.ref_(self);
-        let node_as_export_assignment = node_ref.as_export_assignment();
-        if node_as_export_assignment.is_export_equals == Some(true) {
+        if node.ref_(self).as_export_assignment().is_export_equals == Some(true) {
             return Ok(None);
         }
 
@@ -288,7 +286,7 @@ impl TransformModule {
                 self.deferred_exports_mut().entry(id).or_default(),
                 self.factory.ref_(self).create_identifier("default"),
                 try_visit_node(
-                    node_as_export_assignment.expression,
+                    node.ref_(self).as_export_assignment().expression,
                     Some(|node: Id<Node>| self.visitor(node)),
                     Option::<fn(Id<Node>) -> bool>::None,
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -302,7 +300,7 @@ impl TransformModule {
                 &mut statements,
                 self.factory.ref_(self).create_identifier("default"),
                 try_visit_node(
-                    node_as_export_assignment.expression,
+                    node.ref_(self).as_export_assignment().expression,
                     Some(|node: Id<Node>| self.visitor(node)),
                     Option::<fn(Id<Node>) -> bool>::None,
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

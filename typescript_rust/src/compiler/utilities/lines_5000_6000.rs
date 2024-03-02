@@ -995,14 +995,14 @@ pub fn attach_file_to_diagnostic(
                             related.ref_(arena).start() + related.ref_(arena).length(),
                             length,
                         );
-                        arena.alloc_diagnostic_related_information(
+                        arena.alloc_diagnostic_related_information(released!(
                             attach_file_to_diagnostic(
                                 related.ref_(arena).as_diagnostic_with_detached_location(),
                                 file,
                                 arena,
                             )
-                            .into(),
-                        )
+                            .into()
+                        ))
                     } else {
                         related
                     }

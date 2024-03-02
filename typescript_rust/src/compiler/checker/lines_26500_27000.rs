@@ -834,9 +834,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*ComputedPropertyName*/
     ) -> io::Result<Id<Type>> {
-        let node_ref = node.ref_(self);
-        let node_as_computed_property_name = node_ref.as_computed_property_name();
-        let links = self.get_node_links(node_as_computed_property_name.expression);
+        let links = self.get_node_links(node.ref_(self).as_computed_property_name().expression);
         if links.ref_(self).resolved_type.is_none() {
             if (is_type_literal_node(&node.ref_(self).parent().ref_(self).parent().ref_(self))
                 || maybe_is_class_like(
@@ -850,8 +848,16 @@ impl TypeChecker {
                 || is_interface_declaration(
                     &node.ref_(self).parent().ref_(self).parent().ref_(self),
                 ))
-                && is_binary_expression(&node_as_computed_property_name.expression.ref_(self))
-                && node_as_computed_property_name
+                && is_binary_expression(
+                    &node
+                        .ref_(self)
+                        .as_computed_property_name()
+                        .expression
+                        .ref_(self),
+                )
+                && node
+                    .ref_(self)
+                    .as_computed_property_name()
                     .expression
                     .ref_(self)
                     .as_binary_expression()
@@ -864,8 +870,11 @@ impl TypeChecker {
                 links.ref_mut(self).resolved_type = Some(ret.clone());
                 return Ok(ret);
             }
-            let links_resolved_type =
-                self.check_expression(node_as_computed_property_name.expression, None, None)?;
+            let links_resolved_type = self.check_expression(
+                node.ref_(self).as_computed_property_name().expression,
+                None,
+                None,
+            )?;
             links.ref_mut(self).resolved_type = Some(links_resolved_type.clone());
             if is_property_declaration(&node.ref_(self).parent().ref_(self))
                 && !has_static_modifier(node.ref_(self).parent(), self)

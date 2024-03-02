@@ -277,14 +277,22 @@ pub fn create_expression_from_entity_name(
     node: Id<Node>, /*EntityName | Expression*/
 ) -> Id<Node /*Expression*/> {
     if is_qualified_name(&node.ref_(factory)) {
-        let node_ref = node.ref_(factory);
-        let node_as_qualified_name = node_ref.as_qualified_name();
-        let left = create_expression_from_entity_name(factory, node_as_qualified_name.left);
+        let left = create_expression_from_entity_name(
+            factory,
+            node.ref_(factory).as_qualified_name().left,
+        );
         let right = factory
-            .clone_node(node_as_qualified_name.right)
-            .set_text_range(Some(&*node_as_qualified_name.right.ref_(factory)), factory)
+            .clone_node(node.ref_(factory).as_qualified_name().right)
+            .set_text_range(
+                Some(&*node.ref_(factory).as_qualified_name().right.ref_(factory)),
+                factory,
+            )
             .and_set_parent(
-                node_as_qualified_name.right.ref_(factory).maybe_parent(),
+                node.ref_(factory)
+                    .as_qualified_name()
+                    .right
+                    .ref_(factory)
+                    .maybe_parent(),
                 factory,
             );
         factory

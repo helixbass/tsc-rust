@@ -231,13 +231,21 @@ impl Printer {
         &self,
         node: Id<Node>, /*ArrowFunction*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_arrow_function = node_ref.as_arrow_function();
-        self.emit_type_parameters(node, node_as_arrow_function.maybe_type_parameters())?;
-        self.emit_parameters_for_arrow(node, node_as_arrow_function.parameters())?;
-        self.emit_type_annotation(node_as_arrow_function.maybe_type())?;
+        self.emit_type_parameters(
+            node,
+            node.ref_(self).as_arrow_function().maybe_type_parameters(),
+        )?;
+        self.emit_parameters_for_arrow(node, node.ref_(self).as_arrow_function().parameters())?;
+        self.emit_type_annotation(node.ref_(self).as_arrow_function().maybe_type())?;
         self.write_space();
-        self.emit(Some(node_as_arrow_function.equals_greater_than_token), None)?;
+        self.emit(
+            Some(
+                node.ref_(self)
+                    .as_arrow_function()
+                    .equals_greater_than_token,
+            ),
+            None,
+        )?;
 
         Ok(())
     }

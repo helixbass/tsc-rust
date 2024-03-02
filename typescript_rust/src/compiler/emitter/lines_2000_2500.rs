@@ -47,32 +47,44 @@ impl Printer {
         &self,
         node: Id<Node>, /*ParameterDeclaration*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_parameter_declaration = node_ref.as_parameter_declaration();
         self.emit_decorators(node, node.ref_(self).maybe_decorators())?;
         self.emit_modifiers(node, node.ref_(self).maybe_modifiers())?;
-        self.emit(node_as_parameter_declaration.dot_dot_dot_token, None)?;
+        self.emit(
+            node.ref_(self).as_parameter_declaration().dot_dot_dot_token,
+            None,
+        )?;
         self.emit_node_with_writer(
-            node_as_parameter_declaration.maybe_name(),
+            node.ref_(self).as_parameter_declaration().maybe_name(),
             Printer::write_parameter,
         )?;
-        self.emit(node_as_parameter_declaration.question_token, None)?;
+        self.emit(
+            node.ref_(self).as_parameter_declaration().question_token,
+            None,
+        )?;
         if matches!(
             node.ref_(self).maybe_parent(),
             Some(node_parent) if node_parent.ref_(self).kind() == SyntaxKind::JSDocFunctionType &&
-                node_as_parameter_declaration.maybe_name().is_none()
+                node.ref_(self).as_parameter_declaration().maybe_name().is_none()
         ) {
-            self.emit(node_as_parameter_declaration.maybe_type(), None)?;
+            self.emit(
+                node.ref_(self).as_parameter_declaration().maybe_type(),
+                None,
+            )?;
         } else {
-            self.emit_type_annotation(node_as_parameter_declaration.maybe_type())?;
+            self.emit_type_annotation(node.ref_(self).as_parameter_declaration().maybe_type())?;
         }
         self.emit_initializer(
-            node_as_parameter_declaration.maybe_initializer(),
-            if let Some(node_type) = node_as_parameter_declaration.maybe_type() {
+            node.ref_(self)
+                .as_parameter_declaration()
+                .maybe_initializer(),
+            if let Some(node_type) = node.ref_(self).as_parameter_declaration().maybe_type() {
                 node_type.ref_(self).end()
-            } else if let Some(node_question_token) = node_as_parameter_declaration.question_token {
+            } else if let Some(node_question_token) =
+                node.ref_(self).as_parameter_declaration().question_token
+            {
                 node_question_token.ref_(self).end()
-            } else if let Some(node_name) = node_as_parameter_declaration.maybe_name() {
+            } else if let Some(node_name) = node.ref_(self).as_parameter_declaration().maybe_name()
+            {
                 node_name.ref_(self).end()
             } else if let Some(node_modifiers) = node.ref_(self).maybe_modifiers().as_ref() {
                 node_modifiers.ref_(self).end()
@@ -842,7 +854,7 @@ impl Printer {
         self.write_punctuation("{");
         self.emit_list(
             Some(node),
-            Some(node.ref_(self).as_object_binding_pattern().elements),
+            released!(Some(node.ref_(self).as_object_binding_pattern().elements)),
             ListFormat::ObjectBindingPatternElements,
             None,
             None,
@@ -875,18 +887,16 @@ impl Printer {
         &self,
         node: Id<Node>, /*BindingElement*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_binding_element = node_ref.as_binding_element();
-        self.emit(node_as_binding_element.dot_dot_dot_token, None)?;
-        if let Some(node_property_name) = node_as_binding_element.property_name {
+        self.emit(node.ref_(self).as_binding_element().dot_dot_dot_token, None)?;
+        if let Some(node_property_name) = node.ref_(self).as_binding_element().property_name {
             self.emit(Some(node_property_name), None)?;
             self.write_punctuation(":");
             self.write_space();
         }
-        self.emit(node_as_binding_element.maybe_name(), None)?;
+        self.emit(node.ref_(self).as_binding_element().maybe_name(), None)?;
         self.emit_initializer(
-            node_as_binding_element.maybe_initializer(),
-            node_as_binding_element.name().ref_(self).end(),
+            node.ref_(self).as_binding_element().maybe_initializer(),
+            node.ref_(self).as_binding_element().name().ref_(self).end(),
             node,
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(

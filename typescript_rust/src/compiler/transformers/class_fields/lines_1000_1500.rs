@@ -125,8 +125,6 @@ impl TransformClassFields {
         &self,
         node: Id<Node>, /*ClassExpression*/
     ) -> Id<Node /*Expression*/> {
-        let node_ref = node.ref_(self);
-        let node_as_class_expression = node_ref.as_class_expression();
         let facts = self.get_class_facts(node);
         if facts != ClassFacts::None {
             self.get_class_lexical_environment().ref_mut(self).facts = facts;
@@ -173,18 +171,20 @@ impl TransformClassFields {
         let class_expression = self.factory.ref_(self).update_class_expression(
             node,
             maybe_visit_nodes(
-                node.ref_(self).maybe_decorators(),
+                released!(node.ref_(self).maybe_decorators()),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node: Id<Node>| is_decorator(&node.ref_(self))),
                 None,
                 None,
                 self,
             ),
-            node.ref_(self).maybe_modifiers(),
-            node_as_class_expression.maybe_name(),
+            released!(node.ref_(self).maybe_modifiers()),
+            node.ref_(self).as_class_expression().maybe_name(),
             Option::<Id<NodeArray>>::None,
             maybe_visit_nodes(
-                node_as_class_expression.maybe_heritage_clauses(),
+                node.ref_(self)
+                    .as_class_expression()
+                    .maybe_heritage_clauses(),
                 Some(|node: Id<Node>| self.heritage_clause_visitor(node)),
                 Some(|node: Id<Node>| is_heritage_clause(&node.ref_(self))),
                 None,
@@ -918,10 +918,10 @@ impl TransformClassFields {
                         .expression
                 } else if is_identifier(&property_name.ref_(self)) {
                     self.factory.ref_(self).create_string_literal(
-                        unescape_leading_underscores(
+                        released!(unescape_leading_underscores(
                             &property_name.ref_(self).as_identifier().escaped_text,
                         )
-                        .to_owned(),
+                        .to_owned()),
                         None,
                         None,
                     )

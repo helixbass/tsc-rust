@@ -15,9 +15,9 @@ use crate::{
     TransformerFactoryInterface, TransformerInterface, _d, chain_bundle, downcast_transformer_ref,
     get_emit_script_target, get_original_node, get_original_node_id, id_text, impl_has_arena,
     is_function_like_declaration, is_generated_identifier, is_identifier, ref_mut_unwrapped,
-    ref_unwrapped, visit_each_child, visit_parameter_list, AllArenas, CoreTransformationContext,
-    Debug_, FunctionLikeDeclarationInterface, HasArena, InArena, Matches,
-    NamedDeclarationInterface, NodeArray, NodeExt, NodeInterface, ScriptTarget,
+    ref_unwrapped, released, visit_each_child, visit_parameter_list, AllArenas,
+    CoreTransformationContext, Debug_, FunctionLikeDeclarationInterface, HasArena, InArena,
+    Matches, NamedDeclarationInterface, NodeArray, NodeExt, NodeInterface, ScriptTarget,
     SignatureDeclarationInterface, SyntaxKind, TransformFlags, TransformNodesTransformationResult,
     VisitResult,
 };
@@ -851,7 +851,7 @@ impl TransformGenerators {
         &self,
         node: Id<Node>,
     ) -> VisitResult /*<Node>*/ {
-        match node.ref_(self).kind() {
+        match released!(node.ref_(self).kind()) {
             SyntaxKind::FunctionDeclaration => {
                 self.visit_function_declaration(node).map(Into::into)
             }
@@ -943,26 +943,23 @@ impl TransformGenerators {
                 .ref_(self)
                 .create_function_declaration(
                     Option::<Id<NodeArray>>::None,
-                    node.ref_(self).maybe_modifiers(),
+                    released!(node.ref_(self).maybe_modifiers()),
                     None,
-                    node.ref_(self).as_function_declaration().maybe_name(),
+                    released!(node.ref_(self).as_function_declaration().maybe_name()),
                     Option::<Id<NodeArray>>::None,
                     visit_parameter_list(
-                        Some(node.ref_(self).as_function_declaration().parameters()),
+                        released!(Some(node.ref_(self).as_function_declaration().parameters())),
                         |node: Id<Node>| self.visitor(node),
                         &*self.context.ref_(self),
                         self,
                     )
                     .unwrap(),
                     None,
-                    Some(
-                        self.transform_generator_function_body(
-                            node.ref_(self)
-                                .as_function_declaration()
-                                .maybe_body()
-                                .unwrap(),
-                        ),
-                    ),
+                    Some(self.transform_generator_function_body(released!(node
+                            .ref_(self)
+                            .as_function_declaration()
+                            .maybe_body()
+                            .unwrap()))),
                 )
                 .set_text_range(Some(&*node.ref_(self)), self)
                 .set_original_node(Some(node), self);

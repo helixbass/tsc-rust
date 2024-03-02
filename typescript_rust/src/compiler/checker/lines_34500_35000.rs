@@ -185,13 +185,13 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*AccessorDeclaration*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_function_like_declaration = node_ref.as_function_like_declaration();
         if self.produce_diagnostics {
             if !self.check_grammar_function_like_declaration(node)?
                 && !self.check_grammar_accessor(node)
             {
-                self.check_grammar_computed_property_name(node_as_function_like_declaration.name());
+                self.check_grammar_computed_property_name(
+                    node.ref_(self).as_function_like_declaration().name(),
+                );
             }
 
             self.check_decorators(node)?;
@@ -199,7 +199,8 @@ impl TypeChecker {
             if node.ref_(self).kind() == SyntaxKind::GetAccessor {
                 if !node.ref_(self).flags().intersects(NodeFlags::Ambient)
                     && node_is_present(
-                        node_as_function_like_declaration
+                        node.ref_(self)
+                            .as_function_like_declaration()
                             .maybe_body()
                             .refed(self)
                             .as_deref(),
@@ -215,17 +216,24 @@ impl TypeChecker {
                         .intersects(NodeFlags::HasExplicitReturn)
                     {
                         self.error(
-                            node_as_function_like_declaration.maybe_name(),
+                            node.ref_(self).as_function_like_declaration().maybe_name(),
                             &Diagnostics::A_get_accessor_must_return_a_value,
                             None,
                         );
                     }
                 }
             }
-            if node_as_function_like_declaration.name().ref_(self).kind()
+            if node
+                .ref_(self)
+                .as_function_like_declaration()
+                .name()
+                .ref_(self)
+                .kind()
                 == SyntaxKind::ComputedPropertyName
             {
-                self.check_computed_property_name(node_as_function_like_declaration.name())?;
+                self.check_computed_property_name(
+                    node.ref_(self).as_function_like_declaration().name(),
+                )?;
             }
 
             if self.has_bindable_name(node)? {
@@ -300,7 +308,7 @@ impl TypeChecker {
                 )?;
             }
         }
-        self.check_source_element(node_as_function_like_declaration.maybe_body())?;
+        self.check_source_element(node.ref_(self).as_function_like_declaration().maybe_body())?;
         self.set_node_links_for_private_identifier_scope(node);
 
         Ok(())
