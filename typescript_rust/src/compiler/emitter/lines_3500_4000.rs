@@ -511,8 +511,6 @@ impl Printer {
         &self,
         node: Id<Node>, /*SpreadAssignment*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_spread_assignment = node_ref.as_spread_assignment();
         // if (node.expression) {
         self.emit_token_with_comment(
             SyntaxKind::DotDotDotToken,
@@ -522,7 +520,7 @@ impl Printer {
             None,
         );
         self.emit_expression(
-            Some(node_as_spread_assignment.expression),
+            released!(Some(node.ref_(self).as_spread_assignment().expression)),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                     self.parenthesizer(),

@@ -33,7 +33,7 @@ impl TransformClassFields {
             self.factory.ref_(self).update_property_access_expression(
                 node,
                 self.factory.ref_(self).create_void_zero(),
-                node.ref_(self).as_property_access_expression().name(),
+                released!(node.ref_(self).as_property_access_expression().name()),
             )
         } else {
             self.factory.ref_(self).update_element_access_expression(

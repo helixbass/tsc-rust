@@ -56,9 +56,11 @@ impl TransformClassFields {
                                 .create_reflect_get_call(
                                     super_class_reference.clone(),
                                     visit_node(
-                                        node.ref_(self)
-                                            .as_element_access_expression()
-                                            .argument_expression,
+                                        released!(
+                                            node.ref_(self)
+                                                .as_element_access_expression()
+                                                .argument_expression
+                                        ),
                                         Some(|node: Id<Node>| self.visitor(node)),
                                         Some(|node| is_expression(node, self)),
                                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -546,7 +548,7 @@ impl TransformClassFields {
                             ),
                             current_class_lexical_environment_class_constructor.clone(),
                             visit_nodes(
-                                node.ref_(self).as_call_expression().arguments,
+                                released!(node.ref_(self).as_call_expression().arguments),
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 None,
@@ -787,23 +789,28 @@ impl TransformClassFields {
                     self,
                 )
             {
-                let node_left_ref = node.ref_(self).as_binary_expression().left.ref_(self);
-                let node_left_as_property_access_expression =
-                    node_left_ref.as_property_access_expression();
-                let info =
-                    self.access_private_identifier(node_left_as_property_access_expression.name);
+                let node_left = node.ref_(self).as_binary_expression().left;
+                let info = self.access_private_identifier(
+                    node_left.ref_(self).as_property_access_expression().name,
+                );
                 if let Some(info) = info {
                     let info = info.ref_(self);
                     return Some(
                         self.create_private_identifier_assignment(
                             &info,
-                            node_left_as_property_access_expression.expression,
-                            node.ref_(self).as_binary_expression().right,
-                            node.ref_(self)
+                            released!(
+                                node_left
+                                    .ref_(self)
+                                    .as_property_access_expression()
+                                    .expression
+                            ),
+                            released!(node.ref_(self).as_binary_expression().right),
+                            released!(node
+                                .ref_(self)
                                 .as_binary_expression()
                                 .operator_token
                                 .ref_(self)
-                                .kind(),
+                                .kind()),
                         )
                         .set_original_node(Some(node), self)
                         .set_text_range(Some(&*node.ref_(self)), self)

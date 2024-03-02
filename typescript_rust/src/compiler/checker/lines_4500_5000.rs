@@ -1386,7 +1386,7 @@ impl NodeBuilder {
                     .intersects(TypeFlags::TypeParameter)
                 && !self.type_checker.ref_(self).is_type_symbol_accessible(
                     type_.ref_(self).symbol(),
-                    context.ref_(self).maybe_enclosing_declaration(),
+                    released!(context.ref_(self).maybe_enclosing_declaration()),
                 )?
             {
                 let name = self.type_parameter_to_name(type_, context)?;

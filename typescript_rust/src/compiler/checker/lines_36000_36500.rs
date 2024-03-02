@@ -271,7 +271,7 @@ impl TypeChecker {
         mut add_diagnostic: impl FnMut(Id<Node>, UnusedKind, Id<Diagnostic>), /*AddUnusedDiagnostic*/
     ) -> io::Result<()> {
         for &node in potentially_unused_identifiers {
-            match node.ref_(self).kind() {
+            match released!(node.ref_(self).kind()) {
                 SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => {
                     self.check_unused_class_members(node, &mut add_diagnostic)?;
                     self.check_unused_type_parameters(node, &mut add_diagnostic)?;
@@ -324,13 +324,11 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn error_unused_local<
-        TAddDiagnostic: FnMut(Id<Node>, UnusedKind, Id<Diagnostic>),
-    >(
+    pub(super) fn error_unused_local(
         &self,
         declaration: Id<Node>, /*Declaration*/
         name: &str,
-        add_diagnostic: &mut TAddDiagnostic,
+        add_diagnostic: &mut impl FnMut(Id<Node>, UnusedKind, Id<Diagnostic>),
     ) {
         let node = get_name_of_declaration(Some(declaration), self).unwrap_or(declaration);
         let message = if self.is_type_declaration(declaration) {
@@ -357,13 +355,9 @@ impl TypeChecker {
         node: Id<Node>, /*ClassDeclaration | ClassExpression*/
         add_diagnostic: &mut impl FnMut(Id<Node>, UnusedKind, Id<Diagnostic>),
     ) -> io::Result<()> {
-        for &member in &*node
-            .ref_(self)
-            .as_class_like_declaration()
-            .members()
-            .ref_(self)
+        for &member in &*released!(node.ref_(self).as_class_like_declaration().members()).ref_(self)
         {
-            match member.ref_(self).kind() {
+            match released!(member.ref_(self).kind()) {
                 SyntaxKind::MethodDeclaration
                 | SyntaxKind::PropertyDeclaration
                 | SyntaxKind::GetAccessor
@@ -392,7 +386,7 @@ impl TypeChecker {
                                 UnusedKind::Local,
                                 self.alloc_diagnostic(
                                     create_diagnostic_for_node(
-                                        member.ref_(self).as_named_declaration().name(),
+                                        released!(member.ref_(self).as_named_declaration().name()),
                                         &Diagnostics::_0_is_declared_but_its_value_is_never_read,
                                         Some(vec![self.symbol_to_string_(
                                             symbol,

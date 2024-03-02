@@ -282,10 +282,10 @@ impl TransformES2015 {
                     .expression
             } else if is_identifier(&property_name.ref_(self)) {
                 self.factory.ref_(self).create_string_literal(
-                    unescape_leading_underscores(
+                    released!(unescape_leading_underscores(
                         &property_name.ref_(self).as_identifier().escaped_text,
                     )
-                    .to_owned(),
+                    .to_owned()),
                     None,
                     None,
                 )
