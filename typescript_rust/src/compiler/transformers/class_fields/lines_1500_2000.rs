@@ -293,18 +293,19 @@ impl TransformClassFields {
             );
             let weak_set_name = weak_set_name.as_ref().unwrap();
 
-            private_env.ref_mut(self).identifiers.insert(
-                private_name.clone(),
-                self.alloc_private_identifier_info(
-                    PrivateIdentifierMethodInfo::new(
-                        weak_set_name.clone(),
-                        false,
-                        is_valid,
-                        self.create_hoisted_variable_for_private_name(&text, node),
-                    )
-                    .into(),
-                ),
+            let identifier = self.alloc_private_identifier_info(
+                PrivateIdentifierMethodInfo::new(
+                    weak_set_name.clone(),
+                    false,
+                    is_valid,
+                    self.create_hoisted_variable_for_private_name(&text, node),
+                )
+                .into(),
             );
+            private_env
+                .ref_mut(self)
+                .identifiers
+                .insert(private_name.clone(), identifier);
         } else if is_accessor(&node.ref_(self)) {
             Debug_.assert(
                 weak_set_name.is_some(),

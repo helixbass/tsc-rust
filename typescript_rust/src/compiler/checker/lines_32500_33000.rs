@@ -24,8 +24,7 @@ impl TypeChecker {
         source_type: Id<Type>,
         right_is_this: Option<bool>,
     ) -> io::Result<Id<Type>> {
-        let node_ref = node.ref_(self);
-        let properties = node_ref.as_object_literal_expression().properties;
+        let properties = node.ref_(self).as_object_literal_expression().properties;
         if self.strict_null_checks && properties.ref_(self).is_empty() {
             return self.check_non_null_type(source_type, node);
         }
@@ -50,10 +49,9 @@ impl TypeChecker {
         right_is_this: Option<bool>,
     ) -> io::Result<Option<Id<Type>>> {
         let right_is_this = right_is_this.unwrap_or(false);
-        let node_ref = node.ref_(self);
-        let properties = node_ref.as_object_literal_expression().properties;
+        let properties = node.ref_(self).as_object_literal_expression().properties;
         let property = properties.ref_(self)[property_index];
-        Ok(match property.ref_(self).kind() {
+        Ok(match released!(property.ref_(self).kind()) {
             SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment => {
                 let name = property.ref_(self).as_named_declaration().name();
                 let expr_type = self.get_literal_type_from_property_name(name)?;
