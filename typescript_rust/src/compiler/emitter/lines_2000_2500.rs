@@ -145,7 +145,10 @@ impl Printer {
     ) -> io::Result<()> {
         self.emit_decorators(node, node.ref_(self).maybe_decorators())?;
         self.emit_modifiers(node, node.ref_(self).maybe_modifiers())?;
-        self.emit(node.ref_(self).as_property_declaration().maybe_name(), None)?;
+        self.emit(
+            released!(node.ref_(self).as_property_declaration().maybe_name()),
+            None,
+        )?;
         self.emit(
             node.ref_(self).as_property_declaration().question_token,
             None,
@@ -237,7 +240,9 @@ impl Printer {
         self.emit_decorators(node, node.ref_(self).maybe_decorators())?;
         self.emit_modifiers(node, node.ref_(self).maybe_modifiers())?;
         self.write_keyword("static");
-        self.emit_block_function_body(node.ref_(self).as_class_static_block_declaration().body)?;
+        self.emit_block_function_body(released!(
+            node.ref_(self).as_class_static_block_declaration().body
+        ))?;
 
         Ok(())
     }

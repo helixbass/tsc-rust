@@ -1356,12 +1356,17 @@ impl TransformDeclarations {
                     )?
                 }
                 SyntaxKind::TypeParameter => {
-                    let input_ref = input.ref_(self);
-                    let input_as_type_parameter_declaration =
-                        input_ref.as_type_parameter_declaration();
                     if self.is_private_method_type_parameter(input)
-                        && (input_as_type_parameter_declaration.default.is_some()
-                            || input_as_type_parameter_declaration.constraint.is_some())
+                        && (input
+                            .ref_(self)
+                            .as_type_parameter_declaration()
+                            .default
+                            .is_some()
+                            || input
+                                .ref_(self)
+                                .as_type_parameter_declaration()
+                                .constraint
+                                .is_some())
                     {
                         return self.visit_declaration_subtree_cleanup(
                             input,
@@ -1372,7 +1377,7 @@ impl TransformDeclarations {
                             old_within_object_literal_type,
                             Some(self.factory.ref_(self).update_type_parameter_declaration(
                                 input,
-                                input_as_type_parameter_declaration.name(),
+                                input.ref_(self).as_type_parameter_declaration().name(),
                                 None,
                                 None,
                             )),
@@ -1479,44 +1484,45 @@ impl TransformDeclarations {
                         ),
                     ),
                 )?,
-                SyntaxKind::ConstructorType => {
-                    let input_ref = input.ref_(self);
-                    let input_as_constructor_type_node = input_ref.as_constructor_type_node();
-                    self.visit_declaration_subtree_cleanup(
-                        input,
-                        can_produce_diagnostic,
-                        previous_enclosing_declaration,
-                        &old_diag,
-                        should_enter_suppress_new_diagnostics_context_context,
-                        old_within_object_literal_type,
-                        Some(
-                            self.factory.ref_(self).update_constructor_type_node(
+                SyntaxKind::ConstructorType => self.visit_declaration_subtree_cleanup(
+                    input,
+                    can_produce_diagnostic,
+                    previous_enclosing_declaration,
+                    &old_diag,
+                    should_enter_suppress_new_diagnostics_context_context,
+                    old_within_object_literal_type,
+                    Some(
+                        self.factory.ref_(self).update_constructor_type_node(
+                            input,
+                            self.ensure_modifiers(input),
+                            try_maybe_visit_nodes(
+                                released!(input
+                                    .ref_(self)
+                                    .as_constructor_type_node()
+                                    .maybe_type_parameters()),
+                                Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
+                                Option::<fn(Id<Node>) -> bool>::None,
+                                None,
+                                None,
+                                self,
+                            )?,
+                            self.update_params_list(
                                 input,
-                                self.ensure_modifiers(input),
-                                try_maybe_visit_nodes(
-                                    input_as_constructor_type_node.maybe_type_parameters(),
-                                    Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
-                                    Option::<fn(Id<Node>) -> bool>::None,
-                                    None,
-                                    None,
-                                    self,
-                                )?,
-                                self.update_params_list(
-                                    input,
-                                    Some(input_as_constructor_type_node.parameters()),
-                                    None,
-                                )?
-                                .unwrap(),
-                                try_maybe_visit_node(
-                                    input_as_constructor_type_node.maybe_type(),
-                                    Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
-                                    Option::<fn(Id<Node>) -> bool>::None,
-                                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
-                                )?,
-                            ),
+                                released!(Some(
+                                    input.ref_(self).as_constructor_type_node().parameters()
+                                )),
+                                None,
+                            )?
+                            .unwrap(),
+                            try_maybe_visit_node(
+                                input.ref_(self).as_constructor_type_node().maybe_type(),
+                                Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
+                                Option::<fn(Id<Node>) -> bool>::None,
+                                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
+                            )?,
                         ),
-                    )?
-                }
+                    ),
+                )?,
                 SyntaxKind::ImportType => {
                     let input_ref = input.ref_(self);
                     let input_as_import_type_node = input_ref.as_import_type_node();

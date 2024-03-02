@@ -693,7 +693,7 @@ impl TransformES2017 {
                 Some(self.transform_async_function_body(node)?)
             } else {
                 try_visit_function_body(
-                    node.ref_(self).as_method_declaration().maybe_body(),
+                    released!(node.ref_(self).as_method_declaration().maybe_body()),
                     |node: Id<Node>| self.visitor(node),
                     &*self.context.ref_(self),
                     self,
@@ -792,12 +792,10 @@ impl TransformES2017 {
     }
 
     fn visit_arrow_function(&self, node: Id<Node> /*ArrowFunction*/) -> io::Result<Id<Node>> {
-        let node_ref = node.ref_(self);
-        let node_as_arrow_function = node_ref.as_arrow_function();
         Ok(self.factory.ref_(self).update_arrow_function(
             node,
             try_maybe_visit_nodes(
-                node.ref_(self).maybe_modifiers(),
+                released!(node.ref_(self).maybe_modifiers()),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                 None,
@@ -806,19 +804,23 @@ impl TransformES2017 {
             )?,
             Option::<Id<NodeArray>>::None,
             try_visit_parameter_list(
-                Some(node_as_arrow_function.parameters()),
+                released!(Some(node.ref_(self).as_arrow_function().parameters())),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
             )?
             .unwrap(),
             None,
-            node_as_arrow_function.equals_greater_than_token.clone(),
+            released!(node
+                .ref_(self)
+                .as_arrow_function()
+                .equals_greater_than_token
+                .clone()),
             if get_function_flags(Some(node), self).intersects(FunctionFlags::Async) {
                 self.transform_async_function_body(node)?
             } else {
                 try_visit_function_body(
-                    node_as_arrow_function.maybe_body(),
+                    released!(node.ref_(self).as_arrow_function().maybe_body()),
                     |node: Id<Node>| self.visitor(node),
                     &*self.context.ref_(self),
                     self,
@@ -1127,10 +1129,11 @@ impl TransformES2017 {
                     has_lexical_arguments,
                     promise_constructor,
                     self.transform_async_function_body_worker(
-                        node.ref_(self)
+                        released!(node
+                            .ref_(self)
                             .as_function_like_declaration()
                             .maybe_body()
-                            .unwrap(),
+                            .unwrap()),
                         None,
                     )?,
                 );

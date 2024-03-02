@@ -8,7 +8,7 @@ use super::{
 };
 use crate::{
     VisitResult, _d, get_combined_node_flags, is_expression, is_for_initializer, is_for_statement,
-    is_identifier, is_object_literal_element_like, is_omitted_expression, is_statement,
+    is_identifier, is_object_literal_element_like, is_omitted_expression, is_statement, released,
     start_on_new_line, try_maybe_visit_node, try_maybe_visit_nodes, try_visit_each_child,
     try_visit_node, BoolExt, CoreTransformationContext, Debug_, EmitFlags, GetOrInsertDefault,
     HasArena, InArena, Matches, NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags,
@@ -651,7 +651,7 @@ impl TransformES2015 {
         >,
         converted_loop_body: Id<Node>, /*Statement*/
     ) -> io::Result<Id<Node>> {
-        Ok(match node.ref_(self).kind() {
+        Ok(match released!(node.ref_(self).kind()) {
             SyntaxKind::ForStatement => {
                 self.convert_for_statement(node, initializer_function, converted_loop_body)?
             }
@@ -677,13 +677,17 @@ impl TransformES2015 {
         >,
         converted_loop_body: Id<Node>, /*Statement*/
     ) -> io::Result<Id<Node>> {
-        let node_ref = node.ref_(self);
-        let node_as_for_statement = node_ref.as_for_statement();
-        let should_convert_condition = node_as_for_statement.condition.matches(|node_condition| {
-            self.should_convert_part_of_iteration_statement(node_condition)
-        });
+        let should_convert_condition =
+            node.ref_(self)
+                .as_for_statement()
+                .condition
+                .matches(|node_condition| {
+                    self.should_convert_part_of_iteration_statement(node_condition)
+                });
         let should_convert_incrementor = should_convert_condition
-            || node_as_for_statement
+            || node
+                .ref_(self)
+                .as_for_statement()
                 .incrementor
                 .matches(|node_incrementor| {
                     self.should_convert_part_of_iteration_statement(node_incrementor)
@@ -694,7 +698,7 @@ impl TransformES2015 {
                 if let Some(initializer_function) = initializer_function.as_ref() {
                     Some(initializer_function.part.clone())
                 } else {
-                    node_as_for_statement.initializer.clone()
+                    node.ref_(self).as_for_statement().initializer.clone()
                 },
                 Some(|node: Id<Node>| self.visitor_with_unused_expression_result(node)),
                 Some(|node| is_for_initializer(node, self)),
@@ -704,7 +708,7 @@ impl TransformES2015 {
                 if should_convert_condition {
                     None
                 } else {
-                    node_as_for_statement.condition
+                    node.ref_(self).as_for_statement().condition
                 },
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
@@ -714,7 +718,7 @@ impl TransformES2015 {
                 if should_convert_incrementor {
                     None
                 } else {
-                    node_as_for_statement.incrementor
+                    node.ref_(self).as_for_statement().incrementor
                 },
                 Some(|node: Id<Node>| self.visitor_with_unused_expression_result(node)),
                 Some(|node| is_expression(node, self)),
@@ -837,11 +841,13 @@ impl TransformES2015 {
         }) {
             let has_captured_bindings_in_for_initializer =
                 self.should_convert_initializer_of_for_statement(node);
-            for &decl in &*loop_initializer
-                .ref_(self)
-                .as_variable_declaration_list()
-                .declarations
-                .ref_(self)
+            for &decl in &*released!(
+                loop_initializer
+                    .ref_(self)
+                    .as_variable_declaration_list()
+                    .declarations
+            )
+            .ref_(self)
             {
                 self.process_loop_variable_declaration(
                     node,

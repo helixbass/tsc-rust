@@ -942,10 +942,10 @@ impl TransformES2018 {
         node: Id<Node>, /*BinaryExpression*/
         expression_result_is_unused: bool,
     ) -> Id<Node /*Expression*/> {
-        let node_ref = node.ref_(self);
-        let node_as_binary_expression = node_ref.as_binary_expression();
         if is_destructuring_assignment(node, self)
-            && node_as_binary_expression
+            && node
+                .ref_(self)
+                .as_binary_expression()
                 .left
                 .ref_(self)
                 .transform_flags()
@@ -961,18 +961,28 @@ impl TransformES2018 {
                 self,
             );
         }
-        if node_as_binary_expression.operator_token.ref_(self).kind() == SyntaxKind::CommaToken {
+        if node
+            .ref_(self)
+            .as_binary_expression()
+            .operator_token
+            .ref_(self)
+            .kind()
+            == SyntaxKind::CommaToken
+        {
             return self.factory.ref_(self).update_binary_expression(
                 node,
                 visit_node(
-                    node_as_binary_expression.left,
+                    node.ref_(self).as_binary_expression().left,
                     Some(|node: Id<Node>| self.visitor_with_unused_expression_result(node)),
                     Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
-                node_as_binary_expression.operator_token.clone(),
+                node.ref_(self)
+                    .as_binary_expression()
+                    .operator_token
+                    .clone(),
                 visit_node(
-                    node_as_binary_expression.right,
+                    node.ref_(self).as_binary_expression().right,
                     Some(|node: Id<Node>| {
                         if expression_result_is_unused {
                             self.visitor_with_unused_expression_result(node)

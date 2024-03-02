@@ -27,8 +27,6 @@ impl TransformClassFields {
         &self,
         node: Id<Node>, /*ElementAccessExpression*/
     ) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_element_access_expression = node_ref.as_element_access_expression();
         if self.should_transform_super_in_static_initializers
             && is_super_property(node, self)
             && self
@@ -58,7 +56,9 @@ impl TransformClassFields {
                                 .create_reflect_get_call(
                                     super_class_reference.clone(),
                                     visit_node(
-                                        node_as_element_access_expression.argument_expression,
+                                        node.ref_(self)
+                                            .as_element_access_expression()
+                                            .argument_expression,
                                         Some(|node: Id<Node>| self.visitor(node)),
                                         Some(|node| is_expression(node, self)),
                                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -66,11 +66,17 @@ impl TransformClassFields {
                                     Some(class_constructor.clone()),
                                 )
                                 .set_original_node(
-                                    Some(node_as_element_access_expression.expression),
+                                    Some(node.ref_(self).as_element_access_expression().expression),
                                     self,
                                 )
                                 .set_text_range(
-                                    Some(&*node_as_element_access_expression.expression.ref_(self)),
+                                    Some(
+                                        &*node
+                                            .ref_(self)
+                                            .as_element_access_expression()
+                                            .expression
+                                            .ref_(self),
+                                    ),
                                     self,
                                 )
                                 .into(),
@@ -533,7 +539,7 @@ impl TransformClassFields {
                         .ref_(self)
                         .create_function_call_call(
                             visit_node(
-                                node.ref_(self).as_call_expression().expression,
+                                released!(node.ref_(self).as_call_expression().expression),
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -684,8 +690,6 @@ impl TransformClassFields {
         &self,
         node: Id<Node>, /*ClassStaticBlockDeclaration*/
     ) -> Option<Id<Node>> {
-        let node_ref = node.ref_(self);
-        let node_as_class_static_block_declaration = node_ref.as_class_static_block_declaration();
         if self.should_transform_private_elements_or_class_static_blocks {
             if let Some(current_class_lexical_environment) =
                 self.maybe_current_class_lexical_environment()
@@ -701,11 +705,14 @@ impl TransformClassFields {
                 self.maybe_current_static_property_declaration_or_static_block();
             self.set_current_static_property_declaration_or_static_block(Some(node));
             let mut statements = visit_nodes(
-                node_as_class_static_block_declaration
-                    .body
-                    .ref_(self)
-                    .as_block()
-                    .statements,
+                released!(
+                    node.ref_(self)
+                        .as_class_static_block_declaration()
+                        .body
+                        .ref_(self)
+                        .as_block()
+                        .statements
+                ),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_statement(node, self)),
                 None,

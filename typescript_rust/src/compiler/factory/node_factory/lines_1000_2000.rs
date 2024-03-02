@@ -150,9 +150,7 @@ impl NodeFactory {
         node: Id<Node>, /*ComputedPropertyName*/
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_computed_property_name = node_ref.as_computed_property_name();
-        if node_as_computed_property_name.expression != expression {
+        if node.ref_(self).as_computed_property_name().expression != expression {
             self.update(self.create_computed_property_name(expression), node)
         } else {
             node

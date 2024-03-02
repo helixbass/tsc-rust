@@ -625,7 +625,7 @@ impl TypeChecker {
                 );
                 let type_ = if !static_blocks.is_empty() {
                     self.get_flow_type_in_static_blocks(
-                        declaration.ref_(self).symbol(),
+                        released!(declaration.ref_(self).symbol()),
                         &static_blocks,
                     )?
                 } else if get_effective_modifier_flags(declaration, self)

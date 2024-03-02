@@ -119,15 +119,13 @@ impl TransformGenerators {
         &self,
         node: Id<Node>, /*VariableStatement*/
     ) -> Option<Id<Node /*Statement*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_variable_statement = node_ref.as_variable_statement();
         if node
             .ref_(self)
             .transform_flags()
             .intersects(TransformFlags::ContainsYield)
         {
             self.transform_and_emit_variable_declaration_list(
-                node_as_variable_statement.declaration_list,
+                node.ref_(self).as_variable_statement().declaration_list,
             );
             None
         } else {
@@ -135,7 +133,9 @@ impl TransformGenerators {
                 return Some(node);
             }
 
-            for &variable in &*node_as_variable_statement
+            for &variable in &*node
+                .ref_(self)
+                .as_variable_statement()
                 .declaration_list
                 .ref_(self)
                 .as_variable_declaration_list()
@@ -147,8 +147,10 @@ impl TransformGenerators {
                 );
             }
 
-            let variables =
-                get_initialized_variables(node_as_variable_statement.declaration_list, self);
+            let variables = get_initialized_variables(
+                node.ref_(self).as_variable_statement().declaration_list,
+                self,
+            );
             if variables.is_empty() {
                 return None;
             }

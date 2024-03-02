@@ -1180,7 +1180,7 @@ impl TypeChecker {
         index_symbol: Id<Symbol>,
     ) -> io::Result<Vec<Id<IndexInfo>>> {
         if let Some(index_symbol_declarations) =
-            index_symbol.ref_(self).maybe_declarations().as_ref()
+            released!(index_symbol.ref_(self).maybe_declarations().clone()).as_ref()
         {
             let mut index_infos: Vec<Id<IndexInfo>> = vec![];
             for &declaration in index_symbol_declarations {

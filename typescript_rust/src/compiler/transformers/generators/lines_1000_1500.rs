@@ -400,16 +400,24 @@ impl TransformGenerators {
         &self,
         node: Id<Node>, /*VariableDeclarationList*/
     ) -> Option<Id<Node /*VariableDeclarationList*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_variable_declaration_list = node_ref.as_variable_declaration_list();
-        for variable in &*node_as_variable_declaration_list.declarations.ref_(self) {
-            let variable_ref = variable.ref_(self);
-            let variable_as_variable_declaration = variable_ref.as_variable_declaration();
+        for variable in
+            &*released!(node.ref_(self).as_variable_declaration_list().declarations).ref_(self)
+        {
             let name = self
                 .factory
                 .ref_(self)
-                .clone_node(variable_as_variable_declaration.name())
-                .set_comment_range(&*variable_as_variable_declaration.name().ref_(self), self);
+                .clone_node(released!(variable
+                    .ref_(self)
+                    .as_variable_declaration()
+                    .name()))
+                .set_comment_range(
+                    &*variable
+                        .ref_(self)
+                        .as_variable_declaration()
+                        .name()
+                        .ref_(self),
+                    self,
+                );
             self.context.ref_(self).hoist_variable_declaration(name);
         }
 

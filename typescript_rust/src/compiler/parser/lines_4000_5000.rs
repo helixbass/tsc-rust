@@ -6,7 +6,7 @@ use super::{ParserType, SignatureFlags, Tristate};
 use crate::{
     get_binary_operator_precedence, is_assignment_operator, is_async_modifier,
     is_jsdoc_function_type, is_left_hand_side_expression, is_modifier_kind, node_is_present,
-    skip_trivia, some, token_to_string, AsDoubleDeref, AsExpression, AwaitExpression,
+    released, skip_trivia, some, token_to_string, AsDoubleDeref, AsExpression, AwaitExpression,
     BinaryExpression, Debug_, DeleteExpression, Diagnostics, HasArena, InArena, LanguageVariant,
     Node, NodeArray, NodeFlags, NodeInterface, OperatorPrecedence, OptionInArena,
     PrefixUnaryExpression, ReadonlyTextRange, SyntaxKind, TypeOfExpression, VoidExpression,
@@ -598,10 +598,10 @@ impl ParserType {
             last_token,
             SyntaxKind::EqualsGreaterThanToken | SyntaxKind::OpenBraceToken
         ) {
-            self.parse_arrow_function_expression_body(some(
+            self.parse_arrow_function_expression_body(released!(some(
                 modifiers.refed(self).as_double_deref(),
                 Some(|modifier: &Id<Node>| is_async_modifier(&modifier.ref_(self))),
-            ))
+            )))
         } else {
             self.parse_identifier(None, None).alloc(self.arena())
         };

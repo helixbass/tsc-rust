@@ -11,8 +11,8 @@ use crate::{
     EmitFlags, Node, NodeArray, NodeExt, NodeInterface, SyntaxKind, TransformFlags, _d, add_range,
     create_member_access_for_property_name, get_all_accessor_declarations, id_text,
     insert_statements_after_standard_prologue, is_binding_pattern, is_block, is_expression,
-    is_for_statement, is_omitted_expression, is_property_name, is_statement, map, return_if_none,
-    set_emit_flags, set_original_node, start_on_new_line, try_visit_node,
+    is_for_statement, is_omitted_expression, is_property_name, is_statement, map, released,
+    return_if_none, set_emit_flags, set_original_node, start_on_new_line, try_visit_node,
     CoreTransformationContext, Debug_, GetOrInsertDefault, HasInitializerInterface, InArena,
     Matches, NamedDeclarationInterface, NodeCheckFlags,
 };
@@ -138,7 +138,7 @@ impl TransformES2015 {
         let function_name = self.factory.ref_(self).create_unique_name("_loop", None);
         self.context.ref_(self).start_lexical_environment();
         let statement = try_visit_node(
-            node.ref_(self).as_has_statement().statement(),
+            released!(node.ref_(self).as_has_statement().statement()),
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_statement(node, self)),
             Some(&|nodes: &[Id<Node>]| self.factory.ref_(self).lift_to_block(nodes)),

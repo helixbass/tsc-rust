@@ -838,7 +838,7 @@ impl TransformGenerators {
         &self,
         node: Id<Node>,
     ) -> VisitResult /*<Node>*/ {
-        match node.ref_(self).kind() {
+        match released!(node.ref_(self).kind()) {
             SyntaxKind::DoStatement => self.visit_do_statement(node),
             SyntaxKind::WhileStatement => self.visit_while_statement(node),
             SyntaxKind::SwitchStatement => self.visit_switch_statement(node),

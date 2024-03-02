@@ -221,9 +221,9 @@ impl TypeChecker {
                 &self.get_index_infos_of_type(type_)?,
                 |info: &Id<IndexInfo>, _| -> io::Result<_> {
                     Ok(self.alloc_index_info(self.create_index_info(
-                        info.ref_(self).key_type.clone(),
-                        self.get_widened_type(info.ref_(self).type_)?,
-                        info.ref_(self).is_readonly,
+                        released!(info.ref_(self).key_type),
+                        self.get_widened_type(released!(info.ref_(self).type_))?,
+                        released!(info.ref_(self).is_readonly),
                         None,
                     )))
                 },

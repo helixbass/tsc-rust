@@ -1194,9 +1194,9 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
                         self.type_checker
                             .ref_(self)
                             .check_destructuring_assignment(
-                                node.ref_(self).as_binary_expression().left,
+                                released!(node.ref_(self).as_binary_expression().left),
                                 self.type_checker.ref_(self).check_expression(
-                                    node.ref_(self).as_binary_expression().right,
+                                    released!(node.ref_(self).as_binary_expression().right),
                                     check_mode,
                                     None,
                                 )?,

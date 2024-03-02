@@ -348,8 +348,12 @@ impl TransformClassFields {
         is_derived_class: bool,
     ) -> Id<NodeArray> {
         if self.should_transform_private_elements_or_class_static_blocks {
-            for &member in
-                &*released!(node.ref_(self).as_class_like_declaration().members()).ref_(self)
+            for &member in &*released!(node
+                .ref_(self)
+                .as_class_like_declaration()
+                .members()
+                .ref_(self)
+                .clone())
             {
                 if is_private_identifier_class_element_declaration(member, self) {
                     self.add_private_identifier_to_environment(member);
@@ -373,7 +377,7 @@ impl TransformClassFields {
             &mut members,
             Some(
                 &visit_nodes(
-                    node.ref_(self).as_class_like_declaration().members(),
+                    released!(node.ref_(self).as_class_like_declaration().members()),
                     Some(|node: Id<Node>| self.class_element_visitor(node)),
                     Some(|node: Id<Node>| is_class_element(&node.ref_(self))),
                     None,

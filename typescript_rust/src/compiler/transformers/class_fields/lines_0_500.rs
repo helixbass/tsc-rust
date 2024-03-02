@@ -808,7 +808,7 @@ impl TransformClassFields {
     }
 
     pub(super) fn class_element_visitor(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
-        match node.ref_(self).kind() {
+        match released!(node.ref_(self).kind()) {
             SyntaxKind::Constructor => None,
             SyntaxKind::GetAccessor | SyntaxKind::SetAccessor | SyntaxKind::MethodDeclaration => {
                 self.visit_method_or_accessor_declaration(node)
@@ -990,8 +990,6 @@ impl TransformClassFields {
         &self,
         node: Id<Node>, /*PropertyDeclaration*/
     ) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_property_declaration = node_ref.as_property_declaration();
         Debug_.assert(
             !node
                 .ref_(self)
@@ -1002,7 +1000,7 @@ impl TransformClassFields {
             None,
         );
 
-        if is_private_identifier(&node_as_property_declaration.name().ref_(self)) {
+        if is_private_identifier(&node.ref_(self).as_property_declaration().name().ref_(self)) {
             if !self.should_transform_private_elements_or_class_static_blocks {
                 return Some(
                     self.factory
@@ -1018,7 +1016,7 @@ impl TransformClassFields {
                                 None,
                                 self,
                             ),
-                            node_as_property_declaration.name(),
+                            node.ref_(self).as_property_declaration().name(),
                             None,
                             None,
                             None,
@@ -1027,7 +1025,8 @@ impl TransformClassFields {
                 );
             }
 
-            let info = self.access_private_identifier(node_as_property_declaration.name());
+            let info =
+                self.access_private_identifier(node.ref_(self).as_property_declaration().name());
             Debug_.assert(
                 info.is_some(),
                 Some("Undeclared private name for property declaration."),
@@ -1038,9 +1037,14 @@ impl TransformClassFields {
             }
         }
         let expr = self.get_property_name_expression_if_needed(
-            node_as_property_declaration.name(),
-            node_as_property_declaration.maybe_initializer().is_some()
-                || self.use_define_for_class_fields,
+            released!(node.ref_(self).as_property_declaration().name()),
+            released!(
+                node.ref_(self)
+                    .as_property_declaration()
+                    .maybe_initializer()
+                    .is_some()
+                    || self.use_define_for_class_fields
+            ),
         );
         if let Some(expr) = expr.filter(|expr| !is_simple_inlineable_expression(&expr.ref_(self))) {
             self.get_pending_expressions().push(expr);

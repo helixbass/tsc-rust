@@ -529,12 +529,10 @@ impl NodeFactory {
         incrementor: Option<Id<Node /*Expression*/>>,
         statement: Id<Node /*Statement*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_for_statement = node_ref.as_for_statement();
-        if node_as_for_statement.initializer != initializer
-            || node_as_for_statement.condition != condition
-            || node_as_for_statement.incrementor != incrementor
-            || node_as_for_statement.statement != statement
+        if node.ref_(self).as_for_statement().initializer != initializer
+            || node.ref_(self).as_for_statement().condition != condition
+            || node.ref_(self).as_for_statement().incrementor != incrementor
+            || node.ref_(self).as_for_statement().statement != statement
         {
             self.update(
                 self.create_for_statement(initializer, condition, incrementor, statement),
