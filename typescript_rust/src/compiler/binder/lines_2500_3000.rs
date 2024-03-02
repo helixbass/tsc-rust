@@ -484,7 +484,7 @@ impl Binder {
             self.bind_source_file_as_external_module();
             let original_symbol = file.ref_(self).symbol();
             self.declare_symbol(
-                file.ref_(self).symbol().ref_(self).exports(),
+                released!(file.ref_(self).symbol().ref_(self).exports()),
                 Some(file.ref_(self).symbol()),
                 file,
                 SymbolFlags::Property,

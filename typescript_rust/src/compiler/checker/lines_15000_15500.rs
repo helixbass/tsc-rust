@@ -303,14 +303,14 @@ impl TypeChecker {
                     }
                 }
                 if let Some(access_expression) = access_expression {
-                    let access_expression_ref = access_expression.ref_(self);
-                    let access_expression_as_element_access_expression =
-                        access_expression_ref.as_element_access_expression();
                     self.mark_property_as_referenced(
                         prop,
                         Some(access_expression),
                         self.is_self_type_access(
-                            access_expression_as_element_access_expression.expression,
+                            access_expression
+                                .ref_(self)
+                                .as_element_access_expression()
+                                .expression,
                             object_type.ref_(self).maybe_symbol(),
                         )?,
                     );
@@ -321,7 +321,10 @@ impl TypeChecker {
                     )? {
                         self.error(
                             Some(
-                                access_expression_as_element_access_expression.argument_expression,
+                                access_expression
+                                    .ref_(self)
+                                    .as_element_access_expression()
+                                    .argument_expression,
                             ),
                             &Diagnostics::Cannot_assign_to_0_because_it_is_a_read_only_property,
                             Some(vec![self.symbol_to_string_(

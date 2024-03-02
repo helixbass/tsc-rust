@@ -392,8 +392,12 @@ impl TypeChecker {
                     CheckMode::Normal,
                 )?,
                 result,
-                Some(node.ref_(self).as_jsx_opening_like_element().tag_name()),
-                Some(node.ref_(self).as_jsx_opening_like_element().attributes()),
+                released!(Some(
+                    node.ref_(self).as_jsx_opening_like_element().tag_name()
+                )),
+                released!(Some(
+                    node.ref_(self).as_jsx_opening_like_element().attributes()
+                )),
                 None,
                 None,
             )?;

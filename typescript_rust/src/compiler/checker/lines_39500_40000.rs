@@ -533,11 +533,11 @@ impl TypeChecker {
             .is_none()
             || self.check_external_import_or_export_declaration(node)
         {
-            if let Some(node_export_clause) = node
+            if let Some(node_export_clause) = released!(node
                 .ref_(self)
                 .as_export_declaration()
                 .export_clause
-                .filter(|node_export_clause| !is_namespace_export(&node_export_clause.ref_(self)))
+                .filter(|node_export_clause| !is_namespace_export(&node_export_clause.ref_(self))))
             {
                 try_for_each(
                     &*released!(node_export_clause.ref_(self).as_named_exports().elements)

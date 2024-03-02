@@ -259,19 +259,20 @@ impl TypeChecker {
                         .symbol_links()
                         .ref_mut(self)
                         .type_ = Some(default_containing_object.clone());
-                    synth_type.ref_(self).set_synthetic_type(Some(
-                        if self.is_valid_spread_type(type_)? {
-                            self.get_spread_type(
-                                type_,
-                                default_containing_object,
-                                Some(anonymous_symbol),
-                                ObjectFlags::None,
-                                false,
-                            )?
-                        } else {
-                            default_containing_object
-                        },
-                    ));
+                    let synthetic_type = if self.is_valid_spread_type(type_)? {
+                        self.get_spread_type(
+                            type_,
+                            default_containing_object,
+                            Some(anonymous_symbol),
+                            ObjectFlags::None,
+                            false,
+                        )?
+                    } else {
+                        default_containing_object
+                    };
+                    synth_type
+                        .ref_(self)
+                        .set_synthetic_type(Some(synthetic_type));
                 } else {
                     synth_type.ref_(self).set_synthetic_type(Some(type_));
                 }

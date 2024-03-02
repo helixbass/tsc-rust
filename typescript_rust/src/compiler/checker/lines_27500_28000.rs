@@ -570,7 +570,8 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         self.check_grammar_jsx_expression(node);
         Ok(
-            if let Some(node_expression) = node.ref_(self).as_jsx_expression().expression {
+            if let Some(node_expression) = released!(node.ref_(self).as_jsx_expression().expression)
+            {
                 let type_ = self.check_expression(node_expression, check_mode, None)?;
                 if node
                     .ref_(self)

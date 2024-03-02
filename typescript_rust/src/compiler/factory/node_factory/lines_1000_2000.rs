@@ -977,15 +977,19 @@ impl NodeFactory {
         parameters: impl Into<NodeArrayOrVec>,
         type_: Id<Node /*TypeNode*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_index_signature_declaration = node_ref.as_index_signature_declaration();
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
         let parameters = parameters.into();
         if !has_node_array_changed(
-            node_as_index_signature_declaration.parameters(),
+            node.ref_(self)
+                .as_index_signature_declaration()
+                .parameters(),
             &parameters,
-        ) || node_as_index_signature_declaration.maybe_type() != Some(type_)
+        ) || node
+            .ref_(self)
+            .as_index_signature_declaration()
+            .maybe_type()
+            != Some(type_)
             || !has_option_node_array_changed(
                 node.ref_(self).maybe_decorators(),
                 decorators.as_ref(),

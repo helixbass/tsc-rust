@@ -20,7 +20,7 @@ use crate::{
     is_property_signature, is_qualified_name, is_require_variable_declaration,
     is_shorthand_ambient_module_symbol, is_source_file, is_source_file_js, is_static,
     is_string_literal_like, is_type_literal_node, is_type_query_node,
-    is_valid_type_only_alias_use_site, is_variable_declaration, map, maybe_is_class_like,
+    is_valid_type_only_alias_use_site, is_variable_declaration, map, maybe_is_class_like, released,
     return_ok_default_if_none, should_preserve_const_enums, some, try_find, try_find_last,
     unescape_leading_underscores, AssignmentDeclarationKind, Debug_, Diagnostic, Diagnostics,
     Extension, FindAncestorCallbackReturn, HasArena, HasInitializerInterface, HasTypeInterface,
@@ -1084,11 +1084,12 @@ impl TypeChecker {
         dont_resolve_alias: bool,
     ) -> io::Result<Option<Id<Symbol>>> {
         let node_parent = node.ref_(self).parent();
-        let node_parent_ref = node_parent.ref_(self);
-        let node_parent_as_import_declaration = node_parent_ref.as_import_declaration();
         let module_symbol = return_ok_default_if_none!(self.resolve_external_module_name_(
             node,
-            node_parent_as_import_declaration.module_specifier,
+            node_parent
+                .ref_(self)
+                .as_import_declaration()
+                .module_specifier,
             None,
         )?);
         let export_default_symbol: Option<Id<Symbol>>;
@@ -1113,13 +1114,20 @@ impl TypeChecker {
                     .find(|node| is_source_file(&node.ref_(self)))
                     .copied()
             });
-        let has_default_only =
-            self.is_only_imported_as_default(node_parent_as_import_declaration.module_specifier);
+        let has_default_only = self.is_only_imported_as_default(
+            node_parent
+                .ref_(self)
+                .as_import_declaration()
+                .module_specifier,
+        );
         let has_synthetic_default = self.can_have_synthetic_default(
             file,
             module_symbol,
             dont_resolve_alias,
-            node_parent_as_import_declaration.module_specifier,
+            node_parent
+                .ref_(self)
+                .as_import_declaration()
+                .module_specifier,
         )?;
         if export_default_symbol.is_none() && !has_synthetic_default && !has_default_only {
             if self.has_export_assignment_symbol(module_symbol) {
@@ -1197,14 +1205,12 @@ impl TypeChecker {
         module_symbol: Id<Symbol>,
         node: Id<Node>, /*ImportClause*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_import_clause = node_ref.as_import_clause();
         if matches!(
             module_symbol.ref_(self).maybe_exports().as_ref(),
             Some(exports) if exports.ref_(self).contains_key(node.ref_(self).symbol().ref_(self).escaped_name())
         ) {
             self.error(
-                node_as_import_clause.name,
+                node.ref_(self).as_import_clause().name,
                 &Diagnostics::Module_0_has_no_default_export_Did_you_mean_to_use_import_1_from_0_instead,
                 Some(vec![
                     self.symbol_to_string_(module_symbol, Option::<Id<Node>>::None, None, None, None)?,
@@ -1213,7 +1219,7 @@ impl TypeChecker {
             );
         } else {
             let diagnostic = self.error(
-                node_as_import_clause.name,
+                node.ref_(self).as_import_clause().name,
                 &Diagnostics::Module_0_has_no_default_export,
                 Some(vec![self.symbol_to_string_(
                     module_symbol,
@@ -1897,7 +1903,7 @@ impl TypeChecker {
             .is_some()
         {
             self.get_external_module_member(
-                node.ref_(self).parent().ref_(self).parent(),
+                released!(node.ref_(self).parent().ref_(self).parent()),
                 node,
                 dont_resolve_alias,
             )?

@@ -40,7 +40,9 @@ impl Printer {
         node: Id<Node>, /*JsxSelfClosingElement*/
     ) -> io::Result<()> {
         self.write_punctuation("<");
-        self.emit_jsx_tag_name(node.ref_(self).as_jsx_self_closing_element().tag_name)?;
+        self.emit_jsx_tag_name(released!(
+            node.ref_(self).as_jsx_self_closing_element().tag_name
+        ))?;
         self.emit_type_arguments(
             node,
             node.ref_(self)

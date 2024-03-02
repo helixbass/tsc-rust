@@ -829,7 +829,7 @@ impl TypeChecker {
             )?;
         } else if is_jsx_opening_like_element(&node.ref_(self)) {
             self.check_expression(
-                node.ref_(self).as_jsx_opening_like_element().attributes(),
+                released!(node.ref_(self).as_jsx_opening_like_element().attributes()),
                 None,
                 None,
             )?;

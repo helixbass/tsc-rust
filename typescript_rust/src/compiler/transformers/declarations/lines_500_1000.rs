@@ -1301,10 +1301,10 @@ impl TransformDeclarations {
                             )?
                             .unwrap(),
                             try_maybe_visit_node(
-                                input
+                                released!(input
                                     .ref_(self)
                                     .as_index_signature_declaration()
-                                    .maybe_type(),
+                                    .maybe_type()),
                                 Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                                 Option::<fn(Id<Node>) -> bool>::None,
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

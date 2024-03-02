@@ -980,7 +980,7 @@ impl TypeChecker {
                 )? {
                     result = true;
                     let diag = self.error(
-                        Some(containing_element.ref_(self).as_jsx_element().opening_element.ref_(self).as_jsx_opening_element().tag_name),
+                        released!(Some(containing_element.ref_(self).as_jsx_element().opening_element.ref_(self).as_jsx_opening_element().tag_name)),
                         &Diagnostics::This_JSX_tag_s_0_prop_expects_a_single_child_of_type_1_but_multiple_children_were_provided,
                         Some(vec![
                             children_prop_name,

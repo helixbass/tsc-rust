@@ -656,14 +656,14 @@ impl TransformTypeScript {
                 .update_jsx_self_closing_element(
                     node,
                     try_visit_node(
-                        node.ref_(self).as_jsx_self_closing_element().tag_name,
+                        released!(node.ref_(self).as_jsx_self_closing_element().tag_name),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node: Id<Node>| is_jsx_tag_name_expression(&node.ref_(self))),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     Option::<Id<NodeArray>>::None,
                     try_visit_node(
-                        node.ref_(self).as_jsx_self_closing_element().attributes,
+                        released!(node.ref_(self).as_jsx_self_closing_element().attributes),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node: Id<Node>| is_jsx_attributes(&node.ref_(self))),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

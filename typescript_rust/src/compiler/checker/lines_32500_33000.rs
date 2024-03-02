@@ -318,9 +318,11 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let mut target: Id<Node>;
         if expr_or_assignment.ref_(self).kind() == SyntaxKind::ShorthandPropertyAssignment {
-            let expr_or_assignment_ref = expr_or_assignment.ref_(self);
-            let prop = expr_or_assignment_ref.as_shorthand_property_assignment();
-            if let Some(prop_object_assignment_initializer) = prop.object_assignment_initializer {
+            if let Some(prop_object_assignment_initializer) = expr_or_assignment
+                .ref_(self)
+                .as_shorthand_property_assignment()
+                .object_assignment_initializer
+            {
                 if self.strict_null_checks
                     && !self
                         .get_falsy_flags(self.check_expression(
@@ -333,8 +335,15 @@ impl TypeChecker {
                     source_type = self.get_type_with_facts(source_type, TypeFacts::NEUndefined)?;
                 }
                 self.check_binary_like_expression(
-                    prop.name(),
-                    prop.equals_token.unwrap(),
+                    expr_or_assignment
+                        .ref_(self)
+                        .as_shorthand_property_assignment()
+                        .name(),
+                    expr_or_assignment
+                        .ref_(self)
+                        .as_shorthand_property_assignment()
+                        .equals_token
+                        .unwrap(),
                     prop_object_assignment_initializer,
                     check_mode,
                     Option::<Id<Node>>::None,
