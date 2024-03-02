@@ -293,5 +293,10 @@ impl TransformerFactoryInterface for TransformNodeModuleFactory {
 }
 
 pub fn transform_node_module(arena: &impl HasArena) -> TransformerFactory {
+    // make sure these are not going to be created while running TransformNodeModule::new()
+    // (which would result in borrow errors)
+    transform_ecmascript_module(arena);
+    transform_module(arena);
+
     arena.alloc_transformer_factory(Box::new(TransformNodeModuleFactory::new(arena)))
 }

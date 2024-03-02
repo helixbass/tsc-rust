@@ -21,7 +21,7 @@ use crate::{
     is_declaration_name_of_enum_or_namespace, is_effective_external_module, is_export_declaration,
     is_export_name, is_external_module, is_generated_identifier, is_identifier, is_import_clause,
     is_import_equals_declaration, is_import_specifier, is_json_source_file, is_local_name,
-    is_shorthand_property_assignment, is_statement, out_file, reduce_left, released,
+    is_shorthand_property_assignment, is_statement, out_file, per_arena, reduce_left, released,
     set_emit_flags, try_get_module_name_from_file, try_map_defined, try_maybe_visit_node,
     try_visit_node, try_visit_nodes, AllArenas, CoreTransformationContext, EmitFlags,
     EmitHelperFactory, EmitHint, EmitHost, GeneratedIdentifierFlags, HasArena,
@@ -1360,5 +1360,10 @@ impl TransformerFactoryInterface for TransformModuleFactory {
 impl_has_arena!(TransformModuleFactory);
 
 pub fn transform_module(arena: &impl HasArena) -> TransformerFactory {
-    arena.alloc_transformer_factory(Box::new(TransformModuleFactory::new(arena)))
+    // "static"-ifying this to bypass arena borrow errors
+    per_arena!(
+        Box<dyn TransformerFactoryInterface>,
+        arena,
+        arena.alloc_transformer_factory(Box::new(TransformModuleFactory::new(arena))),
+    )
 }

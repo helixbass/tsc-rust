@@ -15,7 +15,7 @@ use crate::{
     get_external_module_name_literal, has_syntactic_modifier, id_text, impl_has_arena,
     insert_statements_after_custom_prologue, is_export_namespace_as_default_declaration,
     is_external_module, is_external_module_import_equals_declaration, is_external_module_indicator,
-    is_identifier, is_namespace_export, is_source_file, is_statement, ref_mut_unwrapped,
+    is_identifier, is_namespace_export, is_source_file, is_statement, per_arena, ref_mut_unwrapped,
     ref_unwrapped, released, single_or_many_node, try_visit_each_child, try_visit_nodes, AllArenas,
     BoolExt, CoreTransformationContext, Debug_, EmitFlags, EmitHelperFactory, EmitHint, EmitHost,
     GeneratedIdentifierFlags, GetOrInsertDefault, HasArena, HasStatementsInterface, InArena,
@@ -758,5 +758,10 @@ impl TransformerFactoryInterface for TransformEcmascriptModuleFactory {
 impl_has_arena!(TransformEcmascriptModuleFactory);
 
 pub fn transform_ecmascript_module(arena: &impl HasArena) -> TransformerFactory {
-    arena.alloc_transformer_factory(Box::new(TransformEcmascriptModuleFactory::new(arena)))
+    // "static"-ifying this to bypass arena borrow errors
+    per_arena!(
+        Box<dyn TransformerFactoryInterface>,
+        arena,
+        arena.alloc_transformer_factory(Box::new(TransformEcmascriptModuleFactory::new(arena))),
+    )
 }
