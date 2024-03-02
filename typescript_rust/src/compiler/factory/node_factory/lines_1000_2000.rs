@@ -688,13 +688,11 @@ impl NodeFactory {
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         body: Id<Node /*Block*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_class_static_block_declaration = node_ref.as_class_static_block_declaration();
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
         if has_option_node_array_changed(node.ref_(self).maybe_decorators(), decorators.as_ref())
             || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
-            || node_as_class_static_block_declaration.body != body
+            || node.ref_(self).as_class_static_block_declaration().body != body
         {
             self.update(
                 self.create_class_static_block_declaration(decorators, modifiers, body),

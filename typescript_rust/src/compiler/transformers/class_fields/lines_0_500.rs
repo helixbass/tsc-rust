@@ -1178,7 +1178,10 @@ impl TransformClassFields {
                                 .create_reflect_get_call(
                                     super_class_reference.clone(),
                                     self.factory.ref_(self).create_string_literal_from_node(
-                                        node.ref_(self).as_property_access_expression().name(),
+                                        released!(node
+                                            .ref_(self)
+                                            .as_property_access_expression()
+                                            .name()),
                                     ),
                                     Some(class_constructor.clone()),
                                 )
@@ -1260,7 +1263,7 @@ impl TransformationContextOnEmitNodeOverrider for TransformClassFieldsOnEmitNode
         emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
         let original = get_original_node(node, self);
-        if let Some(original_id) = original.ref_(self).maybe_id() {
+        if let Some(original_id) = released!(original.ref_(self).maybe_id()) {
             let class_lexical_environment = self
                 .transform_class_fields()
                 .class_lexical_environment_map()
@@ -1417,7 +1420,7 @@ impl TransformClassFieldsOnSubstituteNodeOverrider {
         &self,
         node: Id<Node>, /*Expression*/
     ) -> io::Result<Id<Node>> {
-        Ok(match node.ref_(self).kind() {
+        Ok(match released!(node.ref_(self).kind()) {
             SyntaxKind::Identifier => self.substitute_expression_identifier(node)?,
             SyntaxKind::ThisKeyword => self.substitute_this_expression(node),
             _ => node,

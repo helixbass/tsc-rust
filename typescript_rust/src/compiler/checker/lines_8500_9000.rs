@@ -599,7 +599,10 @@ impl TypeChecker {
                 let constructor =
                     self.find_constructor_declaration(declaration.ref_(self).parent());
                 let type_ = if let Some(constructor) = constructor {
-                    self.get_flow_type_in_constructor(declaration.ref_(self).symbol(), constructor)?
+                    self.get_flow_type_in_constructor(
+                        released!(declaration.ref_(self).symbol()),
+                        constructor,
+                    )?
                 } else if get_effective_modifier_flags(declaration, self)
                     .intersects(ModifierFlags::Ambient)
                 {

@@ -156,10 +156,13 @@ impl Printer {
         )?;
         self.emit_type_annotation(node.ref_(self).as_property_declaration().maybe_type())?;
         self.emit_initializer(
-            node.ref_(self)
+            released!(node
+                .ref_(self)
                 .as_property_declaration()
-                .maybe_initializer(),
-            if let Some(node_type) = node.ref_(self).as_property_declaration().maybe_type() {
+                .maybe_initializer()),
+            released!(if let Some(node_type) =
+                node.ref_(self).as_property_declaration().maybe_type()
+            {
                 node_type.ref_(self).end()
             } else if let Some(node_question_token) =
                 node.ref_(self).as_property_declaration().question_token
@@ -171,7 +174,7 @@ impl Printer {
                     .name()
                     .ref_(self)
                     .pos()
-            },
+            }),
             node,
             None,
         )?;
@@ -212,7 +215,10 @@ impl Printer {
                 .maybe_asterisk_token(),
             None,
         )?;
-        self.emit(node.ref_(self).as_method_declaration().maybe_name(), None)?;
+        self.emit(
+            released!(node.ref_(self).as_method_declaration().maybe_name()),
+            None,
+        )?;
         self.emit(
             node.ref_(self)
                 .as_method_declaration()

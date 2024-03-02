@@ -348,11 +348,8 @@ impl TransformClassFields {
         is_derived_class: bool,
     ) -> Id<NodeArray> {
         if self.should_transform_private_elements_or_class_static_blocks {
-            for &member in &*node
-                .ref_(self)
-                .as_class_like_declaration()
-                .members()
-                .ref_(self)
+            for &member in
+                &*released!(node.ref_(self).as_class_like_declaration().members()).ref_(self)
             {
                 if is_private_identifier_class_element_declaration(member, self) {
                     self.add_private_identifier_to_environment(member);
@@ -878,10 +875,10 @@ impl TransformClassFields {
             || emit_assignment
         {
             maybe_visit_node(
-                property
+                released!(property
                     .ref_(self)
                     .as_property_declaration()
-                    .maybe_initializer(),
+                    .maybe_initializer()),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

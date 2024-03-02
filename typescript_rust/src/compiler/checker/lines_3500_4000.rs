@@ -161,7 +161,7 @@ impl TypeChecker {
                 }
                 merged.ref_(self).exports()
             };
-        for (name, &s) in &*module_symbol.ref_(self).exports().ref_(self) {
+        for (name, &s) in &released!(module_symbol.ref_(self).exports().ref_(self).clone()) {
             if name == InternalSymbolName::ExportEquals {
                 continue;
             }

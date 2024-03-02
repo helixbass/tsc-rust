@@ -217,18 +217,20 @@ impl TransformEcmascriptModule {
                     .ref_(self)
                     .create_node_array(
                         Some(
-                            result
+                            released!(result
                                 .ref_(self)
                                 .as_source_file()
                                 .statements()
                                 .ref_(self)
-                                .to_vec()
-                                .and_push(create_empty_exports(&self.factory.ref_(self))),
+                                .to_vec())
+                            .and_push(create_empty_exports(&self.factory.ref_(self))),
                         ),
                         None,
                     )
                     .set_text_range(
-                        Some(&*result.ref_(self).as_source_file().statements().ref_(self)),
+                        Some(
+                            &*released!(result.ref_(self).as_source_file().statements()).ref_(self),
+                        ),
                         self,
                     ),
                 None,

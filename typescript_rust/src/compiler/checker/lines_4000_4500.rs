@@ -250,7 +250,34 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn set_structured_type_members(
+    pub(super) fn set_structured_type_members<
+        'a,
+        TType: ResolvableTypeInterface + ResolvedTypeInterface + 'a,
+    >(
+        &self,
+        mut get_type: impl FnMut() -> debug_cell::Ref<'a, TType>,
+        members: Id<SymbolTable>,
+        call_signatures: Vec<Id<Signature>>,
+        construct_signatures: Vec<Id<Signature>>,
+        index_infos: Vec<Id<IndexInfo>>,
+    ) -> io::Result<()> /*-> BaseObjectType*/ {
+        get_type().resolve(
+            members.clone(),
+            self.alloc_vec_symbol(vec![]),
+            call_signatures,
+            construct_signatures,
+            index_infos,
+        );
+        if members != self.empty_symbols() {
+            let properties = self.alloc_vec_symbol(self.get_named_members(members)?);
+            get_type().set_properties(properties);
+        }
+        // type_
+
+        Ok(())
+    }
+
+    pub(super) fn set_structured_type_members_non_arena_type(
         &self,
         type_: &(impl ResolvableTypeInterface + ResolvedTypeInterface),
         members: Id<SymbolTable>,
@@ -266,7 +293,8 @@ impl TypeChecker {
             index_infos,
         );
         if members != self.empty_symbols() {
-            type_.set_properties(self.alloc_vec_symbol(self.get_named_members(members)?));
+            let properties = self.alloc_vec_symbol(self.get_named_members(members)?);
+            type_.set_properties(properties);
         }
         // type_
 
@@ -286,7 +314,7 @@ impl TypeChecker {
         index_infos: Vec<Id<IndexInfo>>,
     ) -> io::Result<BaseObjectType> {
         let type_ = self.create_object_type(ObjectFlags::Anonymous, symbol);
-        self.set_structured_type_members(
+        self.set_structured_type_members_non_arena_type(
             &type_,
             members,
             call_signatures,

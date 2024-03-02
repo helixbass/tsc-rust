@@ -885,12 +885,12 @@ impl TypeChecker {
                 && !self.is_constructor_type(base_constructor_type)?
             {
                 let err = self.error(
-                    Some(
+                    Some(released!(
                         base_type_node
                             .ref_(self)
                             .as_expression_with_type_arguments()
-                            .expression,
-                    ),
+                            .expression
+                    )),
                     &Diagnostics::Type_0_is_not_a_constructor_function_type,
                     Some(vec![self.type_to_string_(
                         base_constructor_type,

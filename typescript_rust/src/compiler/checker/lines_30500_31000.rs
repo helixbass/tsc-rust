@@ -213,8 +213,11 @@ impl TypeChecker {
         candidates_out_array: Option<&mut Vec<Id<Signature>>>,
         check_mode: CheckMode,
     ) -> io::Result<Id<Signature>> {
-        let func_type =
-            self.check_expression(node.ref_(self).as_decorator().expression, None, None)?;
+        let func_type = self.check_expression(
+            released!(node.ref_(self).as_decorator().expression),
+            None,
+            None,
+        )?;
         let apparent_type = self.get_apparent_type(func_type)?;
         if self.is_error_type(apparent_type) {
             return self.resolve_error_call(node);
@@ -250,7 +253,7 @@ impl TypeChecker {
         let head_message = self.get_diagnostic_head_message_for_decorator_resolution(node);
         if call_signatures.is_empty() {
             let error_details = self.invocation_error_details(
-                node.ref_(self).as_decorator().expression,
+                released!(node.ref_(self).as_decorator().expression),
                 apparent_type,
                 SignatureKind::Call,
             )?;

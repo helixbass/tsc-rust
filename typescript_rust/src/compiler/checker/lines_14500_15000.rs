@@ -7,7 +7,7 @@ use crate::{
     contains, every, filter, find_index, get_declaration_modifier_flags_from_symbol,
     get_name_of_declaration, get_object_flags, index_of_eq, is_computed_property_name,
     is_identifier, is_known_symbol, is_private_identifier, map, ordered_remove_item_at,
-    reduce_left, replace_element, some, symbol_name, try_find_index, try_map,
+    reduce_left, released, replace_element, some, symbol_name, try_find_index, try_map,
     unescape_leading_underscores, walk_up_parenthesized_types, BaseUnionOrIntersectionType, Debug_,
     Diagnostics, HasArena, InArena, IndexType, InternalSymbolName, IntersectionType, ModifierFlags,
     Node, NodeInterface, ObjectFlags, ObjectTypeInterface, Symbol, SymbolInterface, SyntaxKind,
@@ -833,7 +833,7 @@ impl TypeChecker {
         Ok(if type_.ref_(self).flags().intersects(TypeFlags::Union) {
             self.get_intersection_type(
                 &try_map(
-                    type_.ref_(self).as_union_type().types(),
+                    &released!(type_.ref_(self).as_union_type().types().to_owned()),
                     |&t: &Id<Type>, _| {
                         self.get_index_type(t, Some(strings_only), no_index_signatures)
                     },

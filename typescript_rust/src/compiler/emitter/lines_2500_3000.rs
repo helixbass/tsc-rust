@@ -404,10 +404,8 @@ impl Printer {
         &self,
         node: Id<Node>, /*PostfixUnaryExpression*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_postfix_unary_expression = node_ref.as_postfix_unary_expression();
         self.emit_expression(
-            Some(node_as_postfix_unary_expression.operand),
+            Some(node.ref_(self).as_postfix_unary_expression().operand),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeOperandOfPostfixUnaryCurrentParenthesizerRule::new(
                     self.parenthesizer(),
@@ -416,7 +414,7 @@ impl Printer {
             ))),
         )?;
         self.write_token_text(
-            node_as_postfix_unary_expression.operator,
+            node.ref_(self).as_postfix_unary_expression().operator,
             |text: &str| self.write_operator(text),
             None,
         );

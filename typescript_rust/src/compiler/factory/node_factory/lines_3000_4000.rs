@@ -1639,15 +1639,13 @@ impl NodeFactory {
         module_specifier: Id<Node /*Expression*/>,
         assert_clause: Option<Id<Node /*AssertClause*/>>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_import_declaration = node_ref.as_import_declaration();
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
         if has_option_node_array_changed(node.ref_(self).maybe_decorators(), decorators.as_ref())
             || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
-            || node_as_import_declaration.import_clause != import_clause
-            || node_as_import_declaration.module_specifier != module_specifier
-            || node_as_import_declaration.assert_clause != assert_clause
+            || node.ref_(self).as_import_declaration().import_clause != import_clause
+            || node.ref_(self).as_import_declaration().module_specifier != module_specifier
+            || node.ref_(self).as_import_declaration().assert_clause != assert_clause
         {
             self.update(
                 self.create_import_declaration(
@@ -1693,11 +1691,9 @@ impl NodeFactory {
         name: Option<Id<Node /*Identifier*/>>,
         named_bindings: Option<Id<Node /*NamedImportBindings*/>>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_import_clause = node_ref.as_import_clause();
-        if node_as_import_clause.is_type_only != is_type_only
-            || node_as_import_clause.name != name
-            || node_as_import_clause.named_bindings != named_bindings
+        if node.ref_(self).as_import_clause().is_type_only != is_type_only
+            || node.ref_(self).as_import_clause().name != name
+            || node.ref_(self).as_import_clause().named_bindings != named_bindings
         {
             self.update(
                 self.create_import_clause(is_type_only, name, named_bindings),

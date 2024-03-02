@@ -253,10 +253,8 @@ impl TypeChecker {
     ) -> io::Result<()> {
         self.check_grammar_statement_in_ambient_context(node);
 
-        let node_ref = node.ref_(self);
-        let node_as_try_statement = node_ref.as_try_statement();
-        self.check_block(node_as_try_statement.try_block)?;
-        let catch_clause = node_as_try_statement.catch_clause;
+        self.check_block(released!(node.ref_(self).as_try_statement().try_block))?;
+        let catch_clause = node.ref_(self).as_try_statement().catch_clause;
         if let Some(catch_clause) = catch_clause {
             let catch_clause_ref = catch_clause.ref_(self);
             let catch_clause_as_catch_clause = catch_clause_ref.as_catch_clause();
@@ -336,7 +334,7 @@ impl TypeChecker {
             self.check_block(catch_clause_as_catch_clause.block)?;
         }
 
-        if let Some(node_finally_block) = node_as_try_statement.finally_block {
+        if let Some(node_finally_block) = node.ref_(self).as_try_statement().finally_block {
             self.check_block(node_finally_block)?;
         }
 
@@ -925,7 +923,12 @@ impl TypeChecker {
         }
         self.check_class_like_declaration(node)?;
         try_for_each(
-            &*released!(node.ref_(self).as_class_declaration().members()).ref_(self),
+            &*released!(node
+                .ref_(self)
+                .as_class_declaration()
+                .members()
+                .ref_(self)
+                .clone()),
             |&member: &Id<Node>, _| -> io::Result<Option<()>> {
                 self.check_source_element(Some(member))?;
                 Ok(None)
@@ -1077,7 +1080,7 @@ impl TypeChecker {
                     self.check_type_assignable_to(
                         static_type,
                         self.get_type_without_signatures(static_base_type)?,
-                        Some(node.ref_(self).as_class_like_declaration().maybe_name().unwrap_or(node)),
+                        released!(Some(node.ref_(self).as_class_like_declaration().maybe_name().unwrap_or(node))),
                         Some(&Diagnostics::Class_static_side_0_incorrectly_extends_base_class_static_side_1),
                         None, None,
                     )?;

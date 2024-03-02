@@ -17,7 +17,7 @@ use crate::{
     is_property_declaration, is_qualified_name, is_set_accessor, is_string_literal,
     is_type_only_import_or_export_declaration, is_var_const, is_variable_declaration,
     is_variable_like_or_accessor, maybe_get_source_file_of_node, maybe_is_class_like,
-    modifier_to_flag, node_can_be_decorated, node_is_present, parse_isolated_entity_name,
+    modifier_to_flag, node_can_be_decorated, node_is_present, parse_isolated_entity_name, released,
     return_ok_default_if_none, should_preserve_const_enums, token_to_string, try_cast,
     try_for_each_child_bool, try_some, Debug_, Diagnostic, Diagnostics, EmitResolver,
     ExternalEmitHelpers, FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface,
@@ -729,9 +729,12 @@ impl TypeChecker {
 
         let mut augmentations: Option<Vec<Vec<Id<Node /*StringLiteral | Identifier*/>>>> = None;
         for file in &*self.host.ref_(self).get_source_files() {
-            let file_ref = file.ref_(self);
-            let file_as_source_file = file_ref.as_source_file();
-            if file_as_source_file.maybe_redirect_info().is_some() {
+            if file
+                .ref_(self)
+                .as_source_file()
+                .maybe_redirect_info()
+                .is_some()
+            {
                 continue;
             }
             if !is_external_or_common_js_module(&file.ref_(self)) {
@@ -764,14 +767,22 @@ impl TypeChecker {
                         );
                     }
                 }
-                self.merge_symbol_table(self.globals_id(), file.ref_(self).locals(), None)?;
+                self.merge_symbol_table(
+                    self.globals_id(),
+                    released!(file.ref_(self).locals()),
+                    None,
+                )?;
             }
-            if let Some(file_js_global_augmentations) =
-                file_as_source_file.maybe_js_global_augmentations()
+            if let Some(file_js_global_augmentations) = file
+                .ref_(self)
+                .as_source_file()
+                .maybe_js_global_augmentations()
             {
                 self.merge_symbol_table(self.globals_id(), file_js_global_augmentations, None)?;
             }
-            if let Some(file_pattern_ambient_modules) = file_as_source_file
+            if let Some(file_pattern_ambient_modules) = file
+                .ref_(self)
+                .as_source_file()
                 .maybe_pattern_ambient_modules()
                 .as_ref()
                 .filter(|file_pattern_ambient_modules| !file_pattern_ambient_modules.is_empty())
@@ -782,12 +793,14 @@ impl TypeChecker {
                     file_pattern_ambient_modules.clone(),
                 ));
             }
-            let file_module_augmentations = file_as_source_file.maybe_module_augmentations();
             // TODO: this should end up being .unwrap()'able
             // let file_module_augmentations = file_module_augmentations.as_ref().unwrap();
-            let file_module_augmentations =
-                file_module_augmentations.clone().unwrap_or_else(|| vec![]);
-            let file_module_augmentations = &file_module_augmentations;
+            let file_module_augmentations = &file
+                .ref_(self)
+                .as_source_file()
+                .maybe_module_augmentations()
+                .clone()
+                .unwrap_or_else(|| vec![]);
             if !file_module_augmentations.is_empty() {
                 if augmentations.is_none() {
                     augmentations = Some(vec![]);

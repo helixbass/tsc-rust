@@ -655,7 +655,9 @@ impl TransformDeclarations {
                     )),
                     self.rewrite_module_specifier(
                         decl,
-                        Some(decl.ref_(self).as_import_declaration().module_specifier),
+                        released!(Some(
+                            decl.ref_(self).as_import_declaration().module_specifier
+                        )),
                     )?
                     .unwrap(),
                     None,

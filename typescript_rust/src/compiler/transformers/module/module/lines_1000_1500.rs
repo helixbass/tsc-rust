@@ -16,7 +16,7 @@ use crate::{
     try_visit_nodes, ClassLikeDeclarationInterface, EmitFlags, FlattenLevel,
     FunctionLikeDeclarationInterface, GetOrInsertDefault, HasInitializerInterface,
     HasTypeInterface, InArena, InterfaceOrClassLikeDeclarationInterface, Matches, OptionInArena,
-    SignatureDeclarationInterface, SyntaxKind,
+    ReadonlyTextRangeConcrete, SignatureDeclarationInterface, SyntaxKind,
 };
 
 impl TransformModule {
@@ -293,12 +293,14 @@ impl TransformModule {
                 self.deferred_exports_mut().entry(id).or_default(),
                 self.factory.ref_(self).create_identifier("default"),
                 try_visit_node(
-                    node.ref_(self).as_export_assignment().expression,
+                    released!(node.ref_(self).as_export_assignment().expression),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Option::<fn(Id<Node>) -> bool>::None,
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?,
-                Some(&*node.ref_(self)),
+                Some(&released!(ReadonlyTextRangeConcrete::from(
+                    &*node.ref_(self)
+                ))),
                 Some(true),
                 None,
             );

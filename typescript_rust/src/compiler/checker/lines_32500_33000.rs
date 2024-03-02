@@ -120,7 +120,7 @@ impl TypeChecker {
                     let type_ = self.get_rest_type(
                         object_literal_type,
                         &non_rest_names,
-                        object_literal_type.ref_(self).maybe_symbol(),
+                        released!(object_literal_type.ref_(self).maybe_symbol()),
                     )?;
                     self.check_grammar_for_disallowed_trailing_comma(
                         all_properties,
@@ -151,9 +151,7 @@ impl TypeChecker {
         source_type: Id<Type>,
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
-        let node_ref = node.ref_(self);
-        let node_as_array_literal_expression = node_ref.as_array_literal_expression();
-        let elements = &node_as_array_literal_expression.elements;
+        let elements = node.ref_(self).as_array_literal_expression().elements;
         if self.language_version < ScriptTarget::ES2015
             && self.compiler_options.ref_(self).downlevel_iteration == Some(true)
         {
@@ -173,7 +171,11 @@ impl TypeChecker {
             };
         for i in 0..elements.ref_(self).len() {
             let mut type_ = possibly_out_of_bounds_type.clone();
-            if node_as_array_literal_expression.elements.ref_(self)[i]
+            if node
+                .ref_(self)
+                .as_array_literal_expression()
+                .elements
+                .ref_(self)[i]
                 .ref_(self)
                 .kind()
                 == SyntaxKind::SpreadElement
@@ -207,9 +209,7 @@ impl TypeChecker {
         element_type: Id<Type>,
         check_mode: Option<CheckMode>,
     ) -> io::Result<Option<Id<Type>>> {
-        let node_ref = node.ref_(self);
-        let node_as_array_literal_expression = node_ref.as_array_literal_expression();
-        let elements = node_as_array_literal_expression.elements;
+        let elements = node.ref_(self).as_array_literal_expression().elements;
         let element = elements.ref_(self)[element_index];
         if element.ref_(self).kind() != SyntaxKind::OmittedExpression {
             if element.ref_(self).kind() != SyntaxKind::SpreadElement {
@@ -282,7 +282,7 @@ impl TypeChecker {
                     );
                 } else {
                     self.check_grammar_for_disallowed_trailing_comma(
-                        Some(node_as_array_literal_expression.elements),
+                        Some(node.ref_(self).as_array_literal_expression().elements),
                         Some(&Diagnostics::A_rest_parameter_or_binding_pattern_may_not_have_a_trailing_comma)
                     );
                     let type_ = if self
@@ -1147,8 +1147,6 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
         }
         let state = state.unwrap();
 
-        let node_ref = node.ref_(self);
-        let node_as_binary_expression = node_ref.as_binary_expression();
         if is_in_js_file(Some(&node.ref_(self)))
             && get_assigned_expando_initializer(Some(node), self).is_some()
         {
@@ -1158,7 +1156,7 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
                 self.set_last_result(
                     &mut state,
                     Some(self.type_checker.ref_(self).check_expression(
-                        node_as_binary_expression.right,
+                        node.ref_(self).as_binary_expression().right,
                         check_mode,
                         None,
                     )?),
@@ -1171,10 +1169,19 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
             .ref_(self)
             .check_grammar_nullish_coalesce_with_logical_expression(node);
 
-        let operator = node_as_binary_expression.operator_token.ref_(self).kind();
+        let operator = node
+            .ref_(self)
+            .as_binary_expression()
+            .operator_token
+            .ref_(self)
+            .kind();
         if operator == SyntaxKind::EqualsToken
             && matches!(
-                node_as_binary_expression.left.ref_(self).kind(),
+                node.ref_(self)
+                    .as_binary_expression()
+                    .left
+                    .ref_(self)
+                    .kind(),
                 SyntaxKind::ObjectLiteralExpression | SyntaxKind::ArrayLiteralExpression
             )
         {
@@ -1187,15 +1194,20 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
                         self.type_checker
                             .ref_(self)
                             .check_destructuring_assignment(
-                                node_as_binary_expression.left,
+                                node.ref_(self).as_binary_expression().left,
                                 self.type_checker.ref_(self).check_expression(
-                                    node_as_binary_expression.right,
+                                    node.ref_(self).as_binary_expression().right,
                                     check_mode,
                                     None,
                                 )?,
                                 check_mode,
                                 Some(
-                                    node_as_binary_expression.right.ref_(self).kind()
+                                    released!(node
+                                        .ref_(self)
+                                        .as_binary_expression()
+                                        .right
+                                        .ref_(self)
+                                        .kind())
                                         == SyntaxKind::ThisKeyword,
                                 ),
                             )?,

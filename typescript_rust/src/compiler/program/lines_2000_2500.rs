@@ -986,9 +986,7 @@ impl Program {
     }
 
     pub fn collect_external_module_references(&self, file: Id<Node> /*SourceFile*/) {
-        let file_ref = file.ref_(self);
-        let file_as_source_file = file_ref.as_source_file();
-        if file_as_source_file.maybe_imports().is_some() {
+        if file.ref_(self).as_source_file().maybe_imports().is_some() {
             return;
         }
 
@@ -1000,7 +998,7 @@ impl Program {
         let mut ambient_modules: Option<Vec<String>> = None;
 
         if (self.options.ref_(self).isolated_modules == Some(true) || is_external_module_file)
-            && !file_as_source_file.is_declaration_file()
+            && !file.ref_(self).as_source_file().is_declaration_file()
         {
             if self.options.ref_(self).import_helpers == Some(true) {
                 imports =
@@ -1024,7 +1022,7 @@ impl Program {
             }
         }
 
-        for &node in &*file_as_source_file.statements().ref_(self) {
+        for &node in &*file.ref_(self).as_source_file().statements().ref_(self) {
             self.collect_module_references(
                 &mut imports,
                 file,
@@ -1044,11 +1042,16 @@ impl Program {
             self.collect_dynamic_import_or_require_calls(is_java_script_file, &mut imports, file);
         }
 
-        *file_as_source_file.maybe_imports_mut() = Some(imports.unwrap_or_else(|| vec![]));
-        *file_as_source_file.maybe_module_augmentations_mut() =
-            Some(module_augmentations.unwrap_or_default());
-        *file_as_source_file.maybe_ambient_module_names() =
-            Some(ambient_modules.unwrap_or_default());
+        *file.ref_(self).as_source_file().maybe_imports_mut() =
+            Some(imports.unwrap_or_else(|| vec![]));
+        *file
+            .ref_(self)
+            .as_source_file()
+            .maybe_module_augmentations_mut() = Some(module_augmentations.unwrap_or_default());
+        *file
+            .ref_(self)
+            .as_source_file()
+            .maybe_ambient_module_names() = Some(ambient_modules.unwrap_or_default());
     }
 
     pub(super) fn collect_module_references(

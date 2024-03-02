@@ -19,7 +19,7 @@ use crate::{
     impl_has_arena, insert_statements_after_standard_prologue, is_assignment_operator,
     is_declaration_name_of_enum_or_namespace, is_effective_external_module, is_external_module,
     is_generated_identifier, is_identifier, is_import_clause, is_import_meta, is_import_specifier,
-    is_local_name, is_named_exports, is_statement, map, move_emit_helpers, out_file,
+    is_local_name, is_named_exports, is_statement, map, move_emit_helpers, out_file, released,
     try_get_module_name_from_file, try_maybe_visit_node, try_visit_nodes, AllArenas,
     CoreTransformationContext, Debug_, EmitFlags, EmitHelper, HasArena, InArena, Matches,
     ModifierFlags, NamedDeclarationInterface, NodeArray, TransformFlags,
@@ -435,8 +435,6 @@ impl TransformSystemModule {
         node: Id<Node>, /*SourceFile*/
         dependency_groups: &[DependencyGroup],
     ) -> io::Result<Id<Node>> {
-        let node_ref = node.ref_(self);
-        let node_as_source_file = node_ref.as_source_file();
         let mut statements: Vec<Id<Node /*Statement*/>> = _d();
 
         self.context.ref_(self).start_lexical_environment();
@@ -446,7 +444,7 @@ impl TransformSystemModule {
                 || self.compiler_options.ref_(self).no_implicit_use_strict != Some(true)
                     && is_external_module(&self.current_source_file().ref_(self));
         let statement_offset = self.factory.ref_(self).try_copy_prologue(
-            &node_as_source_file.statements().ref_(self),
+            &released!(node.ref_(self).as_source_file().statements()).ref_(self),
             &mut statements,
             Some(ensure_use_strict),
             Some(|node: Id<Node>| self.top_level_visitor(node)),
@@ -482,7 +480,7 @@ impl TransformSystemModule {
         )?;
 
         let execute_statements = try_visit_nodes(
-            node_as_source_file.statements(),
+            node.ref_(self).as_source_file().statements(),
             Some(|node: Id<Node>| self.top_level_visitor(node)),
             Some(|node| is_statement(node, self)),
             Some(statement_offset),

@@ -327,33 +327,31 @@ impl TransformClassFields {
     }
 
     pub(super) fn visit_for_statement(&self, node: Id<Node> /*ForStatement*/) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_for_statement = node_ref.as_for_statement();
         Some(
             self.factory
                 .ref_(self)
                 .update_for_statement(
                     node,
                     maybe_visit_node(
-                        node_as_for_statement.initializer,
+                        released!(node.ref_(self).as_for_statement().initializer),
                         Some(|node: Id<Node>| self.discarded_value_visitor(node)),
                         Some(|node| is_for_initializer(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     ),
                     maybe_visit_node(
-                        node_as_for_statement.condition,
+                        released!(node.ref_(self).as_for_statement().condition),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     ),
                     maybe_visit_node(
-                        node_as_for_statement.incrementor,
+                        released!(node.ref_(self).as_for_statement().incrementor),
                         Some(|node: Id<Node>| self.discarded_value_visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     ),
                     visit_iteration_body(
-                        node_as_for_statement.statement,
+                        released!(node.ref_(self).as_for_statement().statement),
                         |node: Id<Node>| self.visitor(node),
                         &*self.context.ref_(self),
                         self,
@@ -1140,15 +1138,13 @@ impl TransformClassFields {
             if !private_instance_methods_and_accessors.is_empty() {
                 self.get_private_identifier_environment()
                     .ref_mut(self)
-                    .weak_set_name = Some(
-                    self.create_hoisted_variable_for_class(
-                        "instances",
-                        private_instance_methods_and_accessors[0]
+                    .weak_set_name = Some(self.create_hoisted_variable_for_class(
+                    "instances",
+                    released!(private_instance_methods_and_accessors[0]
                             .ref_(self)
                             .as_named_declaration()
-                            .name(),
-                    ),
-                );
+                            .name()),
+                ));
             }
         }
 
@@ -1272,9 +1268,11 @@ impl TransformClassFields {
                         self.factory.ref_(self).create_assignment(
                             temp,
                             visit_node(
-                                node.ref_(self)
-                                    .as_expression_with_type_arguments()
-                                    .expression,
+                                released!(
+                                    node.ref_(self)
+                                        .as_expression_with_type_arguments()
+                                        .expression
+                                ),
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

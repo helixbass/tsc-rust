@@ -472,7 +472,7 @@ impl TransformDeclarations {
                     let namespace_decl = self.factory.ref_(self).create_module_declaration(
                         Option::<Id<NodeArray>>::None,
                         self.ensure_modifiers(input),
-                        input.ref_(self).as_function_declaration().name(),
+                        released!(input.ref_(self).as_function_declaration().name()),
                         Some(
                             self.factory
                                 .ref_(self)
@@ -497,25 +497,26 @@ impl TransformDeclarations {
                         Option::<Id<NodeArray>>::None,
                         Some(modifiers.clone()),
                         None,
-                        clean.ref_(self).as_function_declaration().maybe_name(),
-                        clean
+                        released!(clean.ref_(self).as_function_declaration().maybe_name()),
+                        released!(clean
                             .ref_(self)
                             .as_function_declaration()
-                            .maybe_type_parameters(),
-                        clean.ref_(self).as_function_declaration().parameters(),
-                        clean.ref_(self).as_function_declaration().maybe_type(),
+                            .maybe_type_parameters()),
+                        released!(clean.ref_(self).as_function_declaration().parameters()),
+                        released!(clean.ref_(self).as_function_declaration().maybe_type()),
                         None,
                     );
 
-                    let namespace_decl_ref = namespace_decl.ref_(self);
-                    let namespace_decl_as_module_declaration =
-                        namespace_decl_ref.as_module_declaration();
                     let namespace_declaration = self.factory.ref_(self).update_module_declaration(
                         namespace_decl,
                         Option::<Id<NodeArray>>::None,
                         Some(modifiers),
-                        namespace_decl_as_module_declaration.name(),
-                        namespace_decl_as_module_declaration.body.clone(),
+                        released!(namespace_decl.ref_(self).as_module_declaration().name()),
+                        released!(namespace_decl
+                            .ref_(self)
+                            .as_module_declaration()
+                            .body
+                            .clone()),
                     );
 
                     let export_default_declaration =
@@ -523,7 +524,7 @@ impl TransformDeclarations {
                             Option::<Id<NodeArray>>::None,
                             Option::<Id<NodeArray>>::None,
                             Some(false),
-                            namespace_decl_as_module_declaration.name(),
+                            released!(namespace_decl.ref_(self).as_module_declaration().name()),
                         );
 
                     if is_source_file(&input.ref_(self).parent().ref_(self)) {

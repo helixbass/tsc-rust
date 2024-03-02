@@ -279,10 +279,10 @@ pub fn create_expression_from_entity_name(
     if is_qualified_name(&node.ref_(factory)) {
         let left = create_expression_from_entity_name(
             factory,
-            node.ref_(factory).as_qualified_name().left,
+            released!(node.ref_(factory).as_qualified_name().left),
         );
         let right = factory
-            .clone_node(node.ref_(factory).as_qualified_name().right)
+            .clone_node(released!(node.ref_(factory).as_qualified_name().right))
             .set_text_range(
                 Some(&*node.ref_(factory).as_qualified_name().right.ref_(factory)),
                 factory,

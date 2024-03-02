@@ -581,7 +581,7 @@ impl TypeChecker {
                 ));
             }
             self.set_structured_type_members(
-                type_.ref_(self).as_object_type(),
+                || debug_cell::Ref::map(type_.ref_(self), |type_| type_.as_object_type()),
                 members.clone(),
                 call_signatures.clone(),
                 construct_signatures.clone(),
@@ -629,7 +629,7 @@ impl TypeChecker {
             }
         }
         self.set_structured_type_members(
-            type_.ref_(self).as_object_type(),
+            || debug_cell::Ref::map(type_.ref_(self), |type_| type_.as_object_type()),
             members,
             call_signatures,
             construct_signatures,

@@ -486,7 +486,7 @@ impl TypeChecker {
                 }
                 if let Some(file_symbol_exports) = file_symbol.ref_(self).maybe_exports().as_ref() {
                     result.ref_(self).set_exports(Some(
-                        self.alloc_symbol_table(file_symbol_exports.ref_(self).clone()),
+                        self.alloc_symbol_table(released!(file_symbol_exports.ref_(self).clone())),
                     ));
                 }
                 let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None, self);

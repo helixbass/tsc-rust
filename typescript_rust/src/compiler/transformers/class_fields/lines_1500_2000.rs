@@ -19,7 +19,7 @@ use crate::{
     is_property_assignment, is_property_declaration, is_property_name, is_set_accessor_declaration,
     is_shorthand_property_assignment, is_simple_copiable_expression,
     is_simple_inlineable_expression, is_spread_assignment, is_spread_element, is_super_property,
-    is_this_property, skip_partially_emitted_expressions, visit_each_child, visit_node,
+    is_this_property, released, skip_partially_emitted_expressions, visit_each_child, visit_node,
     CoreTransformationContext, Debug_, GeneratedIdentifierFlags, GetOrInsertDefault, HasArena,
     InArena, NodeArray, NodeCheckFlags, PrivateIdentifierKind, SyntaxKind, VisitResult,
 };
@@ -148,11 +148,7 @@ impl TransformClassFields {
         &self,
         node: Id<Node>, /*PrivateClassElementDeclaration*/
     ) {
-        let node_ref = node.ref_(self);
-        let node_as_named_declaration = node_ref.as_named_declaration();
-        let node_name = node_as_named_declaration.name();
-        let node_name_ref = node_name.ref_(self);
-        let node_name_as_private_identifier = node_name_ref.as_private_identifier();
+        let node_name = node.ref_(self).as_named_declaration().name();
         let text = get_text_of_property_name(node_name, self);
         let lex = self.get_class_lexical_environment();
         let class_constructor = lex.ref_(self).class_constructor;
@@ -162,7 +158,11 @@ impl TransformClassFields {
 
         let mut assignment_expressions: Vec<Id<Node /*Expression*/>> = _d();
 
-        let private_name = &node_name_as_private_identifier.escaped_text;
+        let private_name = &node_name
+            .ref_(self)
+            .as_private_identifier()
+            .escaped_text
+            .clone();
         let previous_info = private_env
             .ref_(self)
             .identifiers
@@ -426,7 +426,7 @@ impl TransformClassFields {
     ) -> Id<Node /*Identifier*/> {
         self.create_hoisted_variable_for_class(
             &private_name[1..],
-            node.ref_(self).as_named_declaration().name(),
+            released!(node.ref_(self).as_named_declaration().name()),
         )
     }
 

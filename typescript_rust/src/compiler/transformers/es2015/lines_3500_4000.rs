@@ -485,9 +485,9 @@ impl TransformES2015 {
 
             statements.push(self.factory.ref_(self).create_expression_statement(
                 self.factory.ref_(self).create_assignment(
-                    alias_assignment.ref_(self).as_binary_expression().left,
+                    released!(alias_assignment.ref_(self).as_binary_expression().left),
                     cast_present(
-                        variable.ref_(self).as_variable_declaration().name(),
+                        released!(variable.ref_(self).as_variable_declaration().name()),
                         |node: &Id<Node>| is_identifier(&node.ref_(self)),
                     ),
                 ),

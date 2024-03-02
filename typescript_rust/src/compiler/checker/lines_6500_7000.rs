@@ -22,7 +22,7 @@ use crate::{
     is_module_block, is_module_declaration, is_named_exports, is_property_access_expression,
     is_source_file, is_string_a_non_contextual_keyword, is_string_literal, is_variable_declaration,
     is_variable_declaration_list, is_variable_statement, length, map, map_defined,
-    needs_scope_marker, node_has_name, ordered_remove_item_at, set_text_range_id_node,
+    needs_scope_marker, node_has_name, ordered_remove_item_at, released, set_text_range_id_node,
     unescape_leading_underscores, AllArenas, HasArena,
     IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory, InArena, InternalSymbolName,
     LiteralLikeNodeInterface, ModifierFlags, Node, NodeArray, NodeArrayOrVec, NodeBuilder,
@@ -699,8 +699,7 @@ impl SymbolTableToDeclarationStatements {
         if suppress_new_private_context != Some(true) {
             self.deferred_privates_stack_mut().push(Default::default());
         }
-        symbol_table
-            .ref_(self)
+        released!(symbol_table.ref_(self).clone())
             .values()
             .try_for_each(|&symbol| -> io::Result<_> {
                 self.serialize_symbol(symbol, false, property_as_alias == Some(true))?;

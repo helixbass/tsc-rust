@@ -343,7 +343,10 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Symbol>>> {
         self.get_property_of_type_(
             left_type,
-            lexically_scoped_identifier.ref_(self).escaped_name(),
+            &released!(lexically_scoped_identifier
+                .ref_(self)
+                .escaped_name()
+                .to_owned()),
             None,
         )
     }

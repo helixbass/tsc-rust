@@ -305,7 +305,7 @@ impl TypeChecker {
         )?)?;
         let index_infos = self.get_union_index_infos(type_.ref_(self).as_union_type().types())?;
         self.set_structured_type_members(
-            type_.ref_(self).as_union_type(),
+            || debug_cell::Ref::map(type_.ref_(self), |type_| type_.as_union_type()),
             self.empty_symbols(),
             call_signatures,
             construct_signatures,
@@ -419,7 +419,7 @@ impl TypeChecker {
             )?;
         }
         self.set_structured_type_members(
-            type_.ref_(self).as_intersection_type(),
+            || debug_cell::Ref::map(type_.ref_(self), |type_| type_.as_intersection_type()),
             self.empty_symbols(),
             call_signatures,
             construct_signatures,
@@ -517,7 +517,7 @@ impl TypeChecker {
             target
         } {
             self.set_structured_type_members(
-                type_.ref_(self).as_object_type(),
+                || debug_cell::Ref::map(type_.ref_(self), |type_| type_.as_object_type()),
                 self.empty_symbols(),
                 vec![],
                 vec![],
@@ -544,7 +544,7 @@ impl TypeChecker {
                 type_.ref_(self).as_object_type().maybe_mapper().unwrap(),
             )?;
             self.set_structured_type_members(
-                type_.ref_(self).as_object_type(),
+                || debug_cell::Ref::map(type_.ref_(self), |type_| type_.as_object_type()),
                 self.alloc_symbol_table(members),
                 call_signatures,
                 construct_signatures,
@@ -556,7 +556,7 @@ impl TypeChecker {
             .intersects(SymbolFlags::TypeLiteral)
         {
             self.set_structured_type_members(
-                type_.ref_(self).as_object_type(),
+                || debug_cell::Ref::map(type_.ref_(self), |type_| type_.as_object_type()),
                 self.empty_symbols(),
                 vec![],
                 vec![],
@@ -571,7 +571,7 @@ impl TypeChecker {
             )?;
             let index_infos = self.get_index_infos_of_symbol(symbol)?;
             self.set_structured_type_members(
-                type_.ref_(self).as_object_type(),
+                || debug_cell::Ref::map(type_.ref_(self), |type_| type_.as_object_type()),
                 members,
                 call_signatures,
                 construct_signatures,
@@ -594,7 +594,7 @@ impl TypeChecker {
             }
             let mut base_constructor_index_info: Option<Id<IndexInfo>> = None;
             self.set_structured_type_members(
-                type_.ref_(self).as_object_type(),
+                || debug_cell::Ref::map(type_.ref_(self), |type_| type_.as_object_type()),
                 members.clone(),
                 vec![],
                 vec![],
@@ -655,7 +655,7 @@ impl TypeChecker {
                 }
             }
             self.set_structured_type_members(
-                type_.ref_(self).as_object_type(),
+                || debug_cell::Ref::map(type_.ref_(self), |type_| type_.as_object_type()),
                 members.clone(),
                 vec![],
                 vec![],
@@ -864,7 +864,7 @@ impl TypeChecker {
             members.insert(prop.ref_(self).escaped_name().to_owned(), inferred_prop);
         }
         self.set_structured_type_members(
-            type_.ref_(self).as_reverse_mapped_type(),
+            || debug_cell::Ref::map(type_.ref_(self), |type_| type_.as_reverse_mapped_type()),
             self.alloc_symbol_table(members),
             vec![],
             vec![],
@@ -996,7 +996,7 @@ impl TypeChecker {
         let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None, self);
         let mut index_infos: Vec<Id<IndexInfo>> = vec![];
         self.set_structured_type_members(
-            type_.ref_(self).as_mapped_type(),
+            || debug_cell::Ref::map(type_.ref_(self), |type_| type_.as_mapped_type()),
             self.empty_symbols(),
             vec![],
             vec![],
@@ -1066,7 +1066,7 @@ impl TypeChecker {
             )?;
         }
         self.set_structured_type_members(
-            type_.ref_(self).as_mapped_type(),
+            || debug_cell::Ref::map(type_.ref_(self), |type_| type_.as_mapped_type()),
             self.alloc_symbol_table(members),
             vec![],
             vec![],
