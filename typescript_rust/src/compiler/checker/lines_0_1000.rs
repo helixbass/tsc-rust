@@ -1712,6 +1712,7 @@ impl TypeChecker {
         self.globals.ref_(self)
     }
 
+    #[track_caller]
     pub(super) fn globals_mut(&self) -> debug_cell::RefMut<SymbolTable> {
         self.globals.ref_mut(self)
     }

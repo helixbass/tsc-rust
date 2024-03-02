@@ -881,11 +881,9 @@ impl NodeFactory {
         catch_clause: Option<Id<Node /*CatchClause*/>>,
         finally_block: Option<Id<Node /*Block*/>>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_try_statement = node_ref.as_try_statement();
-        if node_as_try_statement.try_block != try_block
-            || node_as_try_statement.catch_clause != catch_clause
-            || node_as_try_statement.finally_block != finally_block
+        if node.ref_(self).as_try_statement().try_block != try_block
+            || node.ref_(self).as_try_statement().catch_clause != catch_clause
+            || node.ref_(self).as_try_statement().finally_block != finally_block
         {
             self.update(
                 self.create_try_statement(try_block, catch_clause, finally_block),
@@ -1385,17 +1383,17 @@ impl NodeFactory {
         name: Id<Node>,
         members: Option<impl Into<NodeArrayOrVec>>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_enum_declaration = node_ref.as_enum_declaration();
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
         let members = members.map(Into::into);
         if has_option_node_array_changed(node.ref_(self).maybe_decorators(), decorators.as_ref())
             || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
-            || node_as_enum_declaration.name() != name
+            || node.ref_(self).as_enum_declaration().name() != name
             || match members.as_ref() {
                 None => true,
-                Some(members) => has_node_array_changed(node_as_enum_declaration.members, members),
+                Some(members) => {
+                    has_node_array_changed(node.ref_(self).as_enum_declaration().members, members)
+                }
             }
         {
             self.update(

@@ -291,8 +291,10 @@ impl TypeChecker {
                         }
                     }
                 }
-                let symbol_ref = symbol.ref_(self);
-                let assignments = symbol_ref.maybe_assignment_declaration_members();
+                let assignments = symbol
+                    .ref_(self)
+                    .maybe_assignment_declaration_members()
+                    .clone();
                 if let Some(assignments) = assignments.as_ref() {
                     let decls = assignments.values();
                     for &member in decls {
@@ -394,7 +396,7 @@ impl TypeChecker {
                 let value = links.ref_(self).late_symbol.is_none();
                 value
             } && try_some(
-                symbol.ref_(self).maybe_declarations().as_deref(),
+                released!(symbol.ref_(self).maybe_declarations().clone()).as_deref(),
                 Some(|&declaration: &Id<Node>| self.has_late_bindable_name(declaration)),
             )? {
                 let parent = self

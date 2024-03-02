@@ -600,9 +600,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*JSDocParameterTag*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_jsdoc_property_like_tag = node_ref.as_jsdoc_property_like_tag();
-        self.check_source_element(node_as_jsdoc_property_like_tag.type_expression)?;
+        self.check_source_element(node.ref_(self).as_jsdoc_property_like_tag().type_expression)?;
         if get_parameter_symbol_from_jsdoc(node, self).is_none() {
             let decl = get_host_signature_from_jsdoc(node, self);
             if let Some(decl) = decl {
@@ -622,21 +620,23 @@ impl TypeChecker {
                     return Ok(());
                 }
                 if !self.contains_arguments_reference(decl)? {
-                    if is_qualified_name(&node_as_jsdoc_property_like_tag.name.ref_(self)) {
+                    if is_qualified_name(
+                        &node.ref_(self).as_jsdoc_property_like_tag().name.ref_(self),
+                    ) {
                         self.error(
-                            Some(node_as_jsdoc_property_like_tag.name),
+                            Some(node.ref_(self).as_jsdoc_property_like_tag().name),
                             &Diagnostics::Qualified_name_0_is_not_allowed_without_a_leading_param_object_1,
                             Some(vec![
-                                entity_name_to_string(node_as_jsdoc_property_like_tag.name, self).into_owned(),
-                                entity_name_to_string(node_as_jsdoc_property_like_tag.name.ref_(self).as_qualified_name().left, self).into_owned(),
+                                entity_name_to_string(node.ref_(self).as_jsdoc_property_like_tag().name, self).into_owned(),
+                                entity_name_to_string(node.ref_(self).as_jsdoc_property_like_tag().name.ref_(self).as_qualified_name().left, self).into_owned(),
                             ])
                         );
                     } else {
                         self.error(
-                            Some(node_as_jsdoc_property_like_tag.name),
+                            Some(node.ref_(self).as_jsdoc_property_like_tag().name),
                             &Diagnostics::JSDoc_param_tag_has_name_0_but_there_is_no_parameter_with_that_name,
                             Some(vec![
-                                id_text(&node_as_jsdoc_property_like_tag.name.ref_(self)).to_owned()
+                                id_text(&node.ref_(self).as_jsdoc_property_like_tag().name.ref_(self)).to_owned()
                             ])
                         );
                     }
@@ -647,7 +647,7 @@ impl TypeChecker {
                     .rfind(|jsdoc_tag| is_jsdoc_parameter_tag(&jsdoc_tag.ref_(self)))
                     == Some(node)
                     && matches!(
-                        node_as_jsdoc_property_like_tag.type_expression.as_ref().map(|node_type_expression| {
+                        node.ref_(self).as_jsdoc_property_like_tag().type_expression.as_ref().map(|node_type_expression| {
                             node_type_expression.ref_(self).as_jsdoc_type_expression().type_
                         }),
                         Some(node_type_expression_type) if !self.is_array_type(
@@ -658,14 +658,14 @@ impl TypeChecker {
                     )
                 {
                     self.error(
-                        Some(node_as_jsdoc_property_like_tag.name),
+                        Some(node.ref_(self).as_jsdoc_property_like_tag().name),
                         &Diagnostics::JSDoc_param_tag_has_name_0_but_there_is_no_parameter_with_that_name_It_would_match_arguments_if_it_had_an_array_type,
                         Some(vec![
                             id_text(
-                                &if node_as_jsdoc_property_like_tag.name.ref_(self).kind() == SyntaxKind::QualifiedName {
-                                    node_as_jsdoc_property_like_tag.name.ref_(self).as_qualified_name().right
+                                &if node.ref_(self).as_jsdoc_property_like_tag().name.ref_(self).kind() == SyntaxKind::QualifiedName {
+                                    node.ref_(self).as_jsdoc_property_like_tag().name.ref_(self).as_qualified_name().right
                                 } else {
-                                    node_as_jsdoc_property_like_tag.name
+                                    node.ref_(self).as_jsdoc_property_like_tag().name
                                 }.ref_(self)
                             ).to_owned()
                         ])

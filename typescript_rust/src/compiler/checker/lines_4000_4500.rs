@@ -221,7 +221,7 @@ impl TypeChecker {
         members: Id<SymbolTable>,
     ) -> io::Result<Vec<Id<Symbol>>> {
         let mut results = vec![];
-        for (id, &symbol) in &*members.ref_(self) {
+        for (id, &symbol) in &released!(members.ref_(self).clone()) {
             if self.is_named_member(symbol, id)? {
                 results.push(symbol.clone());
             }

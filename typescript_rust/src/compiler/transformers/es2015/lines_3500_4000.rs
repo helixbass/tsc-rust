@@ -238,12 +238,10 @@ impl TransformES2015 {
             .factory
             .ref_(self)
             .create_property_assignment(
-                node.ref_(self).as_shorthand_property_assignment().name(),
-                self.visit_identifier(
-                    self.factory
-                        .ref_(self)
-                        .clone_node(node.ref_(self).as_shorthand_property_assignment().name()),
-                )?,
+                released!(node.ref_(self).as_shorthand_property_assignment().name()),
+                self.visit_identifier(self.factory.ref_(self).clone_node(released!(
+                    node.ref_(self).as_shorthand_property_assignment().name()
+                )))?,
             )
             .set_text_range(Some(&*node.ref_(self)), self))
     }

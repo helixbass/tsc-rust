@@ -697,15 +697,13 @@ impl TransformModule {
         node: Id<Node>, /*SourceFile*/
         include_non_amd_dependencies: bool,
     ) -> io::Result<AsynchronousDependencies> {
-        let node_ref = node.ref_(self);
-        let node_as_source_file = node_ref.as_source_file();
         let mut aliased_module_names: Vec<Id<Node /*Expression*/>> = _d();
 
         let mut unaliased_module_names: Vec<Id<Node /*Expression*/>> = _d();
 
         let mut import_alias_names: Vec<Id<Node /*ParameterDeclaration*/>> = _d();
 
-        for amd_dependency in &*node_as_source_file.amd_dependencies() {
+        for amd_dependency in &*node.ref_(self).as_source_file().amd_dependencies() {
             if let Some(amd_dependency_name) = amd_dependency.name.as_ref().non_empty() {
                 aliased_module_names.push(self.factory.ref_(self).create_string_literal(
                     amd_dependency.path.clone(),
@@ -814,7 +812,7 @@ impl TransformModule {
 
         let mut statements: Vec<Id<Node /*Statement*/>> = _d();
         let statement_offset = self.factory.ref_(self).try_copy_prologue(
-            &node.ref_(self).as_source_file().statements().ref_(self),
+            &released!(node.ref_(self).as_source_file().statements()).ref_(self),
             &mut statements,
             Some(self.compiler_options.ref_(self).no_implicit_use_strict != Some(true)),
             Some(|node: Id<Node>| self.top_level_visitor(node)),
@@ -1227,7 +1225,7 @@ impl TransformModuleOnSubstituteNodeOverrider {
                                 .factory
                                 .ref_(self)
                                 .get_generated_name_for_node(
-                                    import_declaration.ref_(self).maybe_parent(),
+                                    released!(import_declaration.ref_(self).maybe_parent()),
                                     None,
                                 ),
                             self.transform_module()

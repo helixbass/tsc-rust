@@ -119,11 +119,11 @@ impl TransformModule {
             .get_generated_name_for_node(Some(node), None);
 
         Ok(
-            if let Some(node_export_clause) = node
+            if let Some(node_export_clause) = released!(node
                 .ref_(self)
                 .as_export_declaration()
                 .export_clause
-                .filter(|node_export_clause| is_named_exports(&node_export_clause.ref_(self)))
+                .filter(|node_export_clause| is_named_exports(&node_export_clause.ref_(self))))
             {
                 let mut statements: Vec<Id<Node /*Statement*/>> = _d();
                 if self.module_kind != ModuleKind::AMD {
@@ -525,7 +525,8 @@ impl TransformModule {
                         || is_class_expression(&variable_initializer.ref_(self)))
                     {
                         let expression = self.factory.ref_(self).create_assignment(
-                            self.factory
+                            released!(self
+                                .factory
                                 .ref_(self)
                                 .create_property_access_expression(
                                     self.factory.ref_(self).create_identifier("exports"),
@@ -540,16 +541,17 @@ impl TransformModule {
                                             .ref_(self),
                                     ),
                                     self,
-                                ),
-                            self.factory.ref_(self).create_identifier(
-                                &get_text_of_identifier_or_literal(
+                                )),
+                            self.factory.ref_(self).create_identifier(&released!(
+                                get_text_of_identifier_or_literal(
                                     &variable
                                         .ref_(self)
                                         .as_variable_declaration()
                                         .name()
                                         .ref_(self),
-                                ),
-                            ),
+                                )
+                                .into_owned()
+                            )),
                         );
                         let updated_variable = self.factory.ref_(self).create_variable_declaration(
                             Some(variable.ref_(self).as_variable_declaration().name()),

@@ -612,13 +612,13 @@ impl SymbolTableToDeclarationStatements {
                     }),
                 )?;
             self.add_result(
-                set_text_range_id_node(
+                released!(set_text_range_id_node(
                     decl,
                     self.get_signature_text_range_location(sig)
                         .refed(self)
                         .as_deref(),
                     self,
-                ),
+                )),
                 modifier_flags,
             );
         }
@@ -732,7 +732,8 @@ impl SymbolTableToDeclarationStatements {
             self.set_results(vec![]);
             let old_adding_declare = self.adding_declare();
             self.set_adding_declare(false);
-            let subcontext = self.alloc_node_builder_context(self.context().ref_(self).clone());
+            let subcontext =
+                self.alloc_node_builder_context(released!(self.context().ref_(self).clone()));
             subcontext
                 .ref_(self)
                 .set_enclosing_declaration(Some(fakespace.clone()));
@@ -1214,7 +1215,7 @@ impl SymbolTableToDeclarationStatements {
         }
         let target_name = self.get_internal_symbol_name(target, &verbatim_target_name);
         self.include_private_symbol(target);
-        match node.ref_(self).kind() {
+        match released!(node.ref_(self).kind()) {
             SyntaxKind::BindingElement => 'case: {
                 if matches!(
                     node.ref_(self).maybe_parent().and_then(|node_parent| node_parent.ref_(self).maybe_parent()),

@@ -1312,11 +1312,8 @@ impl TypeChecker {
                     )));
                 }
             }
-            for (name, &s) in &*resolved_symbol
-                .unwrap_or(symbol)
-                .ref_(self)
-                .exports()
-                .ref_(self)
+            for (name, &s) in
+                &*released!(resolved_symbol.unwrap_or(symbol).ref_(self).exports()).ref_(self)
             {
                 let exported_member = members.get(name).cloned();
                 if let Some(exported_member) =
@@ -1393,7 +1390,9 @@ impl TypeChecker {
                         }
                         let union = self.alloc_symbol(
                             self.create_symbol(
-                                s.ref_(self).flags() | exported_member.ref_(self).flags(),
+                                released!(
+                                    s.ref_(self).flags() | exported_member.ref_(self).flags()
+                                ),
                                 name.clone(),
                                 None,
                             )
@@ -1447,21 +1446,21 @@ impl TypeChecker {
                     exported_type.ref_(self).maybe_symbol()
                 },
                 self.alloc_symbol_table(members),
-                exported_type
+                released!(exported_type
                     .ref_(self)
                     .as_resolved_type()
                     .call_signatures()
-                    .clone(),
-                exported_type
+                    .clone()),
+                released!(exported_type
                     .ref_(self)
                     .as_resolved_type()
                     .construct_signatures()
-                    .clone(),
-                exported_type
+                    .clone()),
+                released!(exported_type
                     .ref_(self)
                     .as_resolved_type()
                     .index_infos()
-                    .clone(),
+                    .clone()),
             )?;
             result.ref_(self).as_object_type().set_object_flags(
                 result.ref_(self).as_object_type().object_flags()

@@ -679,7 +679,8 @@ impl TypeChecker {
                     declaration_type,
                 )?;
             }
-            if let Some(node_initializer) = node.ref_(self).as_has_initializer().maybe_initializer()
+            if let Some(node_initializer) =
+                released!(node.ref_(self).as_has_initializer().maybe_initializer())
             {
                 self.check_type_assignable_to_and_optionally_elaborate(
                     self.check_expression_cached(node_initializer, None)?,
