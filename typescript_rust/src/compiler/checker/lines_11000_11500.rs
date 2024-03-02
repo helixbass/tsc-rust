@@ -698,14 +698,16 @@ impl TypeChecker {
                             |sig: &Id<Signature>, _| -> io::Result<_> {
                                 Ok(if self.is_js_constructor(sig.ref_(self).declaration)? {
                                     Some(self.alloc_signature(self.create_signature(
-                                        sig.ref_(self).declaration.clone(),
-                                        sig.ref_(self).maybe_type_parameters().clone(),
-                                        sig.ref_(self).maybe_this_parameter().clone(),
-                                        sig.ref_(self).parameters().to_owned(),
+                                        released!(sig.ref_(self).declaration.clone()),
+                                        released!(sig.ref_(self).maybe_type_parameters().clone()),
+                                        released!(sig.ref_(self).maybe_this_parameter().clone()),
+                                        released!(sig.ref_(self).parameters().to_owned()),
                                         Some(class_type.clone()),
                                         None,
-                                        sig.ref_(self).min_argument_count(),
-                                        sig.ref_(self).flags & SignatureFlags::PropagatingFlags,
+                                        released!(sig.ref_(self).min_argument_count()),
+                                        released!(
+                                            sig.ref_(self).flags & SignatureFlags::PropagatingFlags
+                                        ),
                                     )))
                                 } else {
                                     None

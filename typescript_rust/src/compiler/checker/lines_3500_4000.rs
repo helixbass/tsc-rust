@@ -13,11 +13,11 @@ use crate::{
     is_exports_identifier, is_external_module, is_external_module_name_relative, is_import_call,
     is_import_declaration, is_module_exports_access_expression, is_object_literal_expression,
     is_type_literal_node, is_variable_declaration, length, mangle_scoped_package_name,
-    node_is_synthesized, push_if_unique_eq, return_ok_default_if_none, return_ok_none_if_none,
-    try_for_each_entry, try_map_defined, unescape_leading_underscores, Diagnostics, HasArena,
-    HasInitializerInterface, HasTypeInterface, InArena, InternalSymbolName, ModuleKind, Node,
-    NodeInterface, ObjectFlags, OptionTry, ResolvedModuleFull, SignatureKind, Symbol, SymbolFlags,
-    SymbolInterface, SymbolTable,
+    node_is_synthesized, push_if_unique_eq, released, return_ok_default_if_none,
+    return_ok_none_if_none, try_for_each_entry, try_map_defined, unescape_leading_underscores,
+    Diagnostics, HasArena, HasInitializerInterface, HasTypeInterface, InArena, InternalSymbolName,
+    ModuleKind, Node, NodeInterface, ObjectFlags, OptionTry, ResolvedModuleFull, SignatureKind,
+    Symbol, SymbolFlags, SymbolInterface, SymbolTable,
 };
 
 impl TypeChecker {
@@ -101,18 +101,16 @@ impl TypeChecker {
             return Ok(None);
         }
         let module_symbol = module_symbol.unwrap();
-        let module_symbol_ref = module_symbol.ref_(self);
-        let module_symbol_exports = module_symbol_ref.maybe_exports();
-        let module_symbol_exports = module_symbol_exports.as_ref();
+        let module_symbol_exports = module_symbol.ref_(self).maybe_exports();
         if module_symbol_exports.is_none() {
             return Ok(None);
         }
         let module_symbol_exports = module_symbol_exports.unwrap();
         let export_equals = self.resolve_symbol(
-            module_symbol_exports
+            released!(module_symbol_exports
                 .ref_(self)
                 .get(InternalSymbolName::ExportEquals)
-                .cloned(),
+                .cloned()),
             dont_resolve_alias,
         )?;
         let exported = self.get_common_js_export_equals(

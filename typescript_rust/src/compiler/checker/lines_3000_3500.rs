@@ -19,14 +19,14 @@ use crate::{
     is_property_access_expression, is_property_assignment, is_qualified_name,
     is_right_side_of_qualified_name_or_property_access, is_string_literal_like,
     is_type_of_expression, is_type_only_import_or_export_declaration, is_variable_declaration,
-    node_is_missing, node_is_synthesized, path_is_relative, remove_extension, remove_prefix,
-    resolution_extension_is_ts_or_json, return_ok_default_if_none, return_ok_none_if_none,
-    starts_with, try_extract_ts_extension, unescape_leading_underscores, AssignmentDeclarationKind,
-    CheckFlags, Debug_, DiagnosticMessage, Diagnostics, Extension, FindAncestorCallbackReturn,
-    HasInitializerInterface, InArena, InternalSymbolName, ModuleKind, ModuleResolutionKind,
-    ModuleSpecifierResolutionHost, NamedDeclarationInterface, Node, NodeFlags, NodeInterface,
-    Symbol, SymbolFlags, SymbolFormatFlags, SymbolInterface, SymbolLinks, SyntaxKind, TypeChecker,
-    TypeCheckerHost,
+    node_is_missing, node_is_synthesized, path_is_relative, released, remove_extension,
+    remove_prefix, resolution_extension_is_ts_or_json, return_ok_default_if_none,
+    return_ok_none_if_none, starts_with, try_extract_ts_extension, unescape_leading_underscores,
+    AssignmentDeclarationKind, CheckFlags, Debug_, DiagnosticMessage, Diagnostics, Extension,
+    FindAncestorCallbackReturn, HasInitializerInterface, InArena, InternalSymbolName, ModuleKind,
+    ModuleResolutionKind, ModuleSpecifierResolutionHost, NamedDeclarationInterface, Node,
+    NodeFlags, NodeInterface, Symbol, SymbolFlags, SymbolFormatFlags, SymbolInterface, SymbolLinks,
+    SyntaxKind, TypeChecker, TypeCheckerHost,
 };
 
 impl TypeChecker {
@@ -72,7 +72,7 @@ impl TypeChecker {
         dont_recursively_resolve: Option<bool>,
     ) -> io::Result<Option<Id<Symbol>>> {
         let dont_recursively_resolve = dont_recursively_resolve.unwrap_or(false);
-        Ok(match node.ref_(self).kind() {
+        Ok(match released!(node.ref_(self).kind()) {
             SyntaxKind::ImportEqualsDeclaration | SyntaxKind::VariableDeclaration => {
                 self.get_target_of_import_equals_declaration(node, dont_recursively_resolve)?
             }

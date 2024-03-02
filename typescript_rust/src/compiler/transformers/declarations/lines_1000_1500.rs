@@ -205,7 +205,7 @@ impl TransformDeclarations {
         if self.should_strip_internal(input) {
             return Ok(None);
         }
-        match input.ref_(self).kind() {
+        match released!(input.ref_(self).kind()) {
             SyntaxKind::ImportEqualsDeclaration => {
                 return Ok(self
                     .transform_import_equals_declaration(input)?
@@ -358,8 +358,6 @@ impl TransformDeclarations {
                         && self.should_emit_function_properties(input))
                 })? {
                     let clean = clean.as_single_node();
-                    let clean_ref = clean.ref_(self);
-                    let clean_as_function_declaration = clean_ref.as_function_declaration();
                     let props = self
                         .resolver
                         .ref_(self)
@@ -367,8 +365,7 @@ impl TransformDeclarations {
                     let fakespace = get_parse_node_factory(self).create_module_declaration(
                         Option::<Id<NodeArray>>::None,
                         Option::<Id<NodeArray>>::None,
-                        clean_as_function_declaration
-                            .maybe_name()
+                        released!(clean.ref_(self).as_function_declaration().maybe_name())
                             .unwrap_or_else(|| {
                                 self.factory.ref_(self).create_identifier("_default")
                             }),
@@ -500,10 +497,13 @@ impl TransformDeclarations {
                         Option::<Id<NodeArray>>::None,
                         Some(modifiers.clone()),
                         None,
-                        clean_as_function_declaration.maybe_name(),
-                        clean_as_function_declaration.maybe_type_parameters(),
-                        clean_as_function_declaration.parameters(),
-                        clean_as_function_declaration.maybe_type(),
+                        clean.ref_(self).as_function_declaration().maybe_name(),
+                        clean
+                            .ref_(self)
+                            .as_function_declaration()
+                            .maybe_type_parameters(),
+                        clean.ref_(self).as_function_declaration().parameters(),
+                        clean.ref_(self).as_function_declaration().maybe_type(),
                         None,
                     );
 

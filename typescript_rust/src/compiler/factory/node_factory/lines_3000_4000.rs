@@ -1496,10 +1496,8 @@ impl NodeFactory {
         node: Id<Node>, /*ModuleBlock*/
         statements: impl Into<NodeArrayOrVec>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_module_block = node_ref.as_module_block();
         let statements = statements.into();
-        if has_node_array_changed(node_as_module_block.statements, &statements) {
+        if has_node_array_changed(node.ref_(self).as_module_block().statements, &statements) {
             self.update(self.create_module_block(Some(statements)), node)
         } else {
             node

@@ -539,7 +539,7 @@ impl TransformTypeScript {
     ) -> io::Result<Id<Node /*SerializedTypeNode*/>> {
         Ok(match released!(node.ref_(self).kind()) {
             SyntaxKind::PropertyDeclaration | SyntaxKind::Parameter => {
-                self.serialize_type_node(node.ref_(self).as_has_type().maybe_type())?
+                self.serialize_type_node(released!(node.ref_(self).as_has_type().maybe_type()))?
             }
             SyntaxKind::SetAccessor | SyntaxKind::GetAccessor => {
                 self.serialize_type_node(self.get_accessor_type_node(node)?)?
@@ -580,11 +580,17 @@ impl TransformTypeScript {
                 self.get_parameters_of_decorated_declaration(value_declaration, container);
             for (i, parameter) in parameters.ref_(self).iter().enumerate() {
                 let parameter = *parameter;
-                let parameter_ref = parameter.ref_(self);
-                let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
                 if i == 0
-                    && is_identifier(&parameter_as_parameter_declaration.name().ref_(self))
-                    && parameter_as_parameter_declaration
+                    && is_identifier(
+                        &parameter
+                            .ref_(self)
+                            .as_parameter_declaration()
+                            .name()
+                            .ref_(self),
+                    )
+                    && parameter
+                        .ref_(self)
+                        .as_parameter_declaration()
                         .name()
                         .ref_(self)
                         .as_identifier()
@@ -593,12 +599,14 @@ impl TransformTypeScript {
                 {
                     continue;
                 }
-                if parameter_as_parameter_declaration
+                if parameter
+                    .ref_(self)
+                    .as_parameter_declaration()
                     .dot_dot_dot_token
                     .is_some()
                 {
                     expressions.push(self.serialize_type_node(get_rest_parameter_element_type(
-                        parameter_as_parameter_declaration.maybe_type(),
+                        parameter.ref_(self).as_parameter_declaration().maybe_type(),
                         self,
                     ))?);
                 } else {
@@ -663,7 +671,7 @@ impl TransformTypeScript {
             return Ok(self.factory.ref_(self).create_identifier("Object"));
         };
 
-        match node.ref_(self).kind() {
+        match released!(node.ref_(self).kind()) {
             SyntaxKind::VoidKeyword | SyntaxKind::UndefinedKeyword | SyntaxKind::NeverKeyword => {
                 return Ok(self.factory.ref_(self).create_void_zero());
             }
@@ -791,7 +799,8 @@ impl TransformTypeScript {
             SyntaxKind::JSDocNullableType
             | SyntaxKind::JSDocNonNullableType
             | SyntaxKind::JSDocOptionalType => {
-                return self.serialize_type_node(node.ref_(self).as_has_type().maybe_type());
+                return self
+                    .serialize_type_node(released!(node.ref_(self).as_has_type().maybe_type()));
             }
             _ => (),
         }

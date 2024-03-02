@@ -1111,9 +1111,9 @@ impl TransformModuleOnSubstituteNodeOverrider {
         node: Id<Node>, /*CallExpression*/
     ) -> io::Result<Id<Node>> {
         if is_identifier(&node.ref_(self).as_call_expression().expression.ref_(self)) {
-            let expression = self.substitute_expression_identifier(
-                node.ref_(self).as_call_expression().expression,
-            )?;
+            let expression = self.substitute_expression_identifier(released!(
+                node.ref_(self).as_call_expression().expression
+            ))?;
             self.transform_module()
                 .no_substitution_mut()
                 .insert(get_node_id(&expression.ref_(self)), true);

@@ -13,8 +13,8 @@ use crate::{
     EmitFlags, FileReference, HasArena, HasInitializerInterface, HasStatementsInterface,
     HasTypeArgumentsInterface, HasTypeParametersInterface, InArena, JSDocTagInterface,
     JSDocTypeLikeTagInterface, ListFormat, LiteralLikeNodeInterface, NamedDeclarationInterface,
-    Node, NodeArray, NodeInterface, OptionInArena, Printer, ReadonlyTextRange, SourceFileLike,
-    StrOrNodeArray, SyntaxKind, TextRange,
+    Node, NodeArray, NodeInterface, OptionInArena, Printer, ReadonlyTextRange,
+    ReadonlyTextRangeConcrete, SourceFileLike, StrOrNodeArray, SyntaxKind, TextRange,
 };
 
 impl Printer {
@@ -874,7 +874,7 @@ impl Printer {
         if should_emit_detached_comment {
             self.try_emit_body_with_detached_comments(
                 node,
-                &*statements.ref_(self),
+                &released!(ReadonlyTextRangeConcrete::from(&*statements.ref_(self))),
                 |node: Id<Node>| self.emit_source_file_worker(node),
             )?;
             return Ok(());

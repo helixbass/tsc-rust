@@ -144,10 +144,8 @@ impl NodeFactory {
         node: Id<Node>, /*NamedImports*/
         elements: impl Into<NodeArrayOrVec>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_named_imports = node_ref.as_named_imports();
         let elements = elements.into();
-        if has_node_array_changed(node_as_named_imports.elements, &elements) {
+        if has_node_array_changed(node.ref_(self).as_named_imports().elements, &elements) {
             self.update(self.create_named_imports(elements), node)
         } else {
             node

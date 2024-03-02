@@ -1992,17 +1992,18 @@ impl TransformES2018 {
             released!(node.ref_(self).maybe_modifiers()),
             Option::<Id<NodeArray>>::None,
             visit_parameter_list(
-                Some(node.ref_(self).as_arrow_function().parameters()),
+                released!(Some(node.ref_(self).as_arrow_function().parameters())),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
             )
             .unwrap(),
             None,
-            node.ref_(self)
-                .as_arrow_function()
-                .equals_greater_than_token
-                .clone(),
+            released!(
+                node.ref_(self)
+                    .as_arrow_function()
+                    .equals_greater_than_token
+            ),
             self.transform_function_body(node),
         );
         self.set_enclosing_function_flags(saved_enclosing_function_flags);

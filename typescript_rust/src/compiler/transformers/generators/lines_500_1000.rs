@@ -111,7 +111,7 @@ impl TransformGenerators {
 
         self.factory
             .ref_(self)
-            .create_block(statements, body.ref_(self).as_block().multi_line)
+            .create_block(statements, released!(body.ref_(self).as_block().multi_line))
             .set_text_range(Some(&*body.ref_(self)), self)
     }
 

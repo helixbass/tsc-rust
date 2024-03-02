@@ -911,7 +911,7 @@ impl Binder {
 
                 if let Some(constructor_symbol) = constructor_symbol {
                     if let Some(constructor_symbol_value_declaration) =
-                        constructor_symbol.ref_(self).maybe_value_declaration()
+                        released!(constructor_symbol.ref_(self).maybe_value_declaration())
                     {
                         let constructor_symbol_members = {
                             let constructor_symbol_ref = constructor_symbol.ref_(self);

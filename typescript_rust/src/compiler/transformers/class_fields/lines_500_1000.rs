@@ -775,16 +775,14 @@ impl TransformClassFields {
             self.set_pending_expressions(saved_pending_expressions);
             return Some(expr.into());
         }
-        let node_ref = node.ref_(self);
-        let node_as_binary_expression = node_ref.as_binary_expression();
         if is_assignment_expression(node, None, self) {
             if self.should_transform_private_elements_or_class_static_blocks
                 && is_private_identifier_property_access_expression(
-                    node_as_binary_expression.left,
+                    node.ref_(self).as_binary_expression().left,
                     self,
                 )
             {
-                let node_left_ref = node_as_binary_expression.left.ref_(self);
+                let node_left_ref = node.ref_(self).as_binary_expression().left.ref_(self);
                 let node_left_as_property_access_expression =
                     node_left_ref.as_property_access_expression();
                 let info =
@@ -795,8 +793,12 @@ impl TransformClassFields {
                         self.create_private_identifier_assignment(
                             &info,
                             node_left_as_property_access_expression.expression,
-                            node_as_binary_expression.right,
-                            node_as_binary_expression.operator_token.ref_(self).kind(),
+                            node.ref_(self).as_binary_expression().right,
+                            node.ref_(self)
+                                .as_binary_expression()
+                                .operator_token
+                                .ref_(self)
+                                .kind(),
                         )
                         .set_original_node(Some(node), self)
                         .set_text_range(Some(&*node.ref_(self)), self)
@@ -804,7 +806,7 @@ impl TransformClassFields {
                     );
                 }
             } else if self.should_transform_super_in_static_initializers
-                && is_super_property(node_as_binary_expression.left, self)
+                && is_super_property(node.ref_(self).as_binary_expression().left, self)
                 && self
                     .maybe_current_static_property_declaration_or_static_block()
                     .is_some()
@@ -827,11 +829,11 @@ impl TransformClassFields {
                                 .update_binary_expression(
                                     node,
                                     self.visit_invalid_super_property(
-                                        node_as_binary_expression.left,
+                                        node.ref_(self).as_binary_expression().left,
                                     ),
-                                    node_as_binary_expression.operator_token,
+                                    node.ref_(self).as_binary_expression().operator_token,
                                     visit_node(
-                                        node_as_binary_expression.right,
+                                        node.ref_(self).as_binary_expression().right,
                                         Some(|node: Id<Node>| self.visitor(node)),
                                         Some(|node| is_expression(node, self)),
                                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -843,10 +845,11 @@ impl TransformClassFields {
                     if let Some(class_constructor) = class_constructor {
                         if let Some(super_class_reference) = super_class_reference {
                             let setter_name = if is_element_access_expression(
-                                &node_as_binary_expression.left.ref_(self),
+                                &node.ref_(self).as_binary_expression().left.ref_(self),
                             ) {
                                 Some(visit_node(
-                                    node_as_binary_expression
+                                    node.ref_(self)
+                                        .as_binary_expression()
                                         .left
                                         .ref_(self)
                                         .as_element_access_expression()
@@ -856,7 +859,9 @@ impl TransformClassFields {
                                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 ))
                             } else if is_identifier(
-                                &node_as_binary_expression
+                                &node
+                                    .ref_(self)
+                                    .as_binary_expression()
                                     .left
                                     .ref_(self)
                                     .as_property_access_expression()
@@ -865,7 +870,8 @@ impl TransformClassFields {
                             ) {
                                 Some(
                                     self.factory.ref_(self).create_string_literal_from_node(
-                                        node_as_binary_expression
+                                        node.ref_(self)
+                                            .as_binary_expression()
                                             .left
                                             .ref_(self)
                                             .as_property_access_expression()
@@ -877,13 +883,17 @@ impl TransformClassFields {
                             };
                             if let Some(mut setter_name) = setter_name {
                                 let mut expression = visit_node(
-                                    node_as_binary_expression.right,
+                                    node.ref_(self).as_binary_expression().right,
                                     Some(|node: Id<Node>| self.visitor(node)),
                                     Some(|node| is_expression(node, self)),
                                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 );
                                 if is_compound_assignment(
-                                    node_as_binary_expression.operator_token.ref_(self).kind(),
+                                    node.ref_(self)
+                                        .as_binary_expression()
+                                        .operator_token
+                                        .ref_(self)
+                                        .kind(),
                                 ) {
                                     let mut getter_name = setter_name;
                                     if !is_simple_inlineable_expression(&setter_name.ref_(self)) {
@@ -909,11 +919,17 @@ impl TransformClassFields {
                                             Some(class_constructor.clone()),
                                         )
                                         .set_original_node(
-                                            Some(node_as_binary_expression.left),
+                                            Some(node.ref_(self).as_binary_expression().left),
                                             self,
                                         )
                                         .set_text_range(
-                                            Some(&*node_as_binary_expression.left.ref_(self)),
+                                            Some(
+                                                &*node
+                                                    .ref_(self)
+                                                    .as_binary_expression()
+                                                    .left
+                                                    .ref_(self),
+                                            ),
                                             self,
                                         );
 
@@ -923,7 +939,8 @@ impl TransformClassFields {
                                         .create_binary_expression(
                                             super_property_get,
                                             get_non_assignment_operator_for_compound_assignment(
-                                                node_as_binary_expression
+                                                node.ref_(self)
+                                                    .as_binary_expression()
                                                     .operator_token
                                                     .ref_(self)
                                                     .kind(),
@@ -976,8 +993,14 @@ impl TransformClassFields {
                 }
             }
         }
-        if node_as_binary_expression.operator_token.ref_(self).kind() == SyntaxKind::InKeyword
-            && is_private_identifier(&node_as_binary_expression.left.ref_(self))
+        if node
+            .ref_(self)
+            .as_binary_expression()
+            .operator_token
+            .ref_(self)
+            .kind()
+            == SyntaxKind::InKeyword
+            && is_private_identifier(&node.ref_(self).as_binary_expression().left.ref_(self))
         {
             return self.visit_private_identifier_in_in_expression(node);
         }

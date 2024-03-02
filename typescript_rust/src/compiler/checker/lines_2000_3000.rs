@@ -1453,9 +1453,8 @@ impl TypeChecker {
         if !is_identifier(&name.ref_(self)) {
             return Ok(None);
         }
-        let name_ref = name.ref_(self);
-        let name_as_identifier = name_ref.as_identifier();
-        let suppress_interop_error = name_as_identifier.escaped_text == InternalSymbolName::Default
+        let suppress_interop_error = name.ref_(self).as_identifier().escaped_text
+            == InternalSymbolName::Default
             && (matches!(
                 self.compiler_options
                     .ref_(self)
@@ -1476,7 +1475,7 @@ impl TypeChecker {
         }
         let target_symbol = target_symbol.unwrap();
         let module_symbol = module_symbol.unwrap();
-        if !(&*name_as_identifier.escaped_text).is_empty() {
+        if !(&*name.ref_(self).as_identifier().escaped_text).is_empty() {
             if is_shorthand_ambient_module_symbol(module_symbol, self) {
                 return Ok(Some(module_symbol));
             }
@@ -1497,12 +1496,14 @@ impl TypeChecker {
             {
                 symbol_from_variable = self.get_property_of_type_(
                     self.get_type_of_symbol(target_symbol)?,
-                    &name_as_identifier.escaped_text,
+                    &name.ref_(self).as_identifier().escaped_text,
                     Some(true),
                 )?;
             } else {
-                symbol_from_variable =
-                    self.get_property_of_variable(target_symbol, &name_as_identifier.escaped_text)?;
+                symbol_from_variable = self.get_property_of_variable(
+                    target_symbol,
+                    &name.ref_(self).as_identifier().escaped_text,
+                )?;
             }
             symbol_from_variable =
                 self.resolve_symbol(symbol_from_variable, Some(dont_resolve_alias))?;
@@ -1510,7 +1511,7 @@ impl TypeChecker {
             let mut symbol_from_module =
                 self.get_export_of_module(target_symbol, name, specifier, dont_resolve_alias)?;
             if symbol_from_module.is_none()
-                && name_as_identifier.escaped_text == InternalSymbolName::Default
+                && name.ref_(self).as_identifier().escaped_text == InternalSymbolName::Default
             {
                 let file = module_symbol
                     .ref_(self)

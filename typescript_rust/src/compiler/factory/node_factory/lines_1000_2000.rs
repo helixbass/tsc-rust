@@ -1250,9 +1250,7 @@ impl NodeFactory {
         node: Id<Node>, /*TypeLiteralNode*/
         members: Id<NodeArray>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_type_literal_node = node_ref.as_type_literal_node();
-        if node_as_type_literal_node.members != members {
+        if node.ref_(self).as_type_literal_node().members != members {
             self.update(self.create_type_literal_node(Some(members)), node)
         } else {
             node

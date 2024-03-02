@@ -504,54 +504,72 @@ impl TransformDeclarations {
         &self,
         decl: Id<Node>, /*ImportDeclaration*/
     ) -> io::Result<Option<Id<Node>>> {
-        let decl_ref = decl.ref_(self);
-        let decl_as_import_declaration = decl_ref.as_import_declaration();
-        if decl_as_import_declaration.import_clause.is_none() {
+        if decl
+            .ref_(self)
+            .as_import_declaration()
+            .import_clause
+            .is_none()
+        {
             return Ok(Some(
                 self.factory.ref_(self).update_import_declaration(
                     decl,
                     Option::<Id<NodeArray>>::None,
                     decl.ref_(self).maybe_modifiers().clone(),
-                    decl_as_import_declaration.import_clause,
+                    decl.ref_(self).as_import_declaration().import_clause,
                     self.rewrite_module_specifier(
                         decl,
-                        Some(decl_as_import_declaration.module_specifier),
+                        Some(decl.ref_(self).as_import_declaration().module_specifier),
                     )?
                     .unwrap(),
                     None,
                 ),
             ));
         }
-        let decl_import_clause = decl_as_import_declaration.import_clause.unwrap();
-        let decl_import_clause_ref = decl_import_clause.ref_(self);
-        let decl_import_clause_as_import_clause = decl_import_clause_ref.as_import_clause();
+        let decl_import_clause = decl
+            .ref_(self)
+            .as_import_declaration()
+            .import_clause
+            .unwrap();
         let visible_default_binding = /*decl.importClause &&*/
-            decl_import_clause_as_import_clause.name.clone().filter(|_| {
+            decl_import_clause.ref_(self).as_import_clause().name.clone().filter(|_| {
                 self.resolver.ref_(self).is_declaration_visible(decl_import_clause)
             });
-        if decl_import_clause_as_import_clause.named_bindings.is_none() {
+        if decl_import_clause
+            .ref_(self)
+            .as_import_clause()
+            .named_bindings
+            .is_none()
+        {
             return visible_default_binding.try_map(|visible_default_binding| -> io::Result<_> {
                 Ok(self.factory.ref_(self).update_import_declaration(
                     decl,
                     Option::<Id<NodeArray>>::None,
                     decl.ref_(self).maybe_modifiers().clone(),
-                    Some(self.factory.ref_(self).update_import_clause(
-                        decl_import_clause,
-                        decl_import_clause_as_import_clause.is_type_only,
-                        Some(visible_default_binding),
-                        None,
-                    )),
+                    Some(
+                        self.factory.ref_(self).update_import_clause(
+                            decl_import_clause,
+                            decl_import_clause
+                                .ref_(self)
+                                .as_import_clause()
+                                .is_type_only,
+                            Some(visible_default_binding),
+                            None,
+                        ),
+                    ),
                     self.rewrite_module_specifier(
                         decl,
-                        Some(decl_as_import_declaration.module_specifier),
+                        Some(decl.ref_(self).as_import_declaration().module_specifier),
                     )?
                     .unwrap(),
                     None,
                 ))
             });
         }
-        let decl_import_clause_named_bindings =
-            decl_import_clause_as_import_clause.named_bindings.unwrap();
+        let decl_import_clause_named_bindings = decl_import_clause
+            .ref_(self)
+            .as_import_clause()
+            .named_bindings
+            .unwrap();
         if decl_import_clause_named_bindings.ref_(self).kind() == SyntaxKind::NamespaceImport {
             let named_bindings = if self
                 .resolver
@@ -569,15 +587,20 @@ impl TransformDeclarations {
                             decl,
                             Option::<Id<NodeArray>>::None,
                             decl.ref_(self).maybe_modifiers().clone(),
-                            Some(self.factory.ref_(self).update_import_clause(
-                                decl_import_clause,
-                                decl_import_clause_as_import_clause.is_type_only,
-                                visible_default_binding,
-                                named_bindings,
-                            )),
+                            Some(
+                                self.factory.ref_(self).update_import_clause(
+                                    decl_import_clause,
+                                    decl_import_clause
+                                        .ref_(self)
+                                        .as_import_clause()
+                                        .is_type_only,
+                                    visible_default_binding,
+                                    named_bindings,
+                                ),
+                            ),
                             self.rewrite_module_specifier(
                                 decl,
-                                Some(decl_as_import_declaration.module_specifier),
+                                Some(decl.ref_(self).as_import_declaration().module_specifier),
                             )?
                             .unwrap(),
                             None,
@@ -611,10 +634,13 @@ impl TransformDeclarations {
                 self.factory.ref_(self).update_import_declaration(
                     decl,
                     Option::<Id<NodeArray>>::None,
-                    decl.ref_(self).maybe_modifiers().clone(),
+                    released!(decl.ref_(self).maybe_modifiers().clone()),
                     Some(self.factory.ref_(self).update_import_clause(
                         decl_import_clause,
-                        decl_import_clause_as_import_clause.is_type_only,
+                        released!(decl_import_clause
+                                .ref_(self)
+                                .as_import_clause()
+                                .is_type_only),
                         visible_default_binding,
                         if
                         /*bindingList &&*/
@@ -629,7 +655,7 @@ impl TransformDeclarations {
                     )),
                     self.rewrite_module_specifier(
                         decl,
-                        Some(decl_as_import_declaration.module_specifier),
+                        Some(decl.ref_(self).as_import_declaration().module_specifier),
                     )?
                     .unwrap(),
                     None,
@@ -649,7 +675,7 @@ impl TransformDeclarations {
                     None,
                     self.rewrite_module_specifier(
                         decl,
-                        Some(decl_as_import_declaration.module_specifier),
+                        Some(decl.ref_(self).as_import_declaration().module_specifier),
                     )?
                     .unwrap(),
                     None,

@@ -17,12 +17,12 @@ use crate::{
     is_property_access_expression, is_property_assignment, is_property_declaration,
     is_property_signature, is_prototype_property_assignment, is_shorthand_property_assignment,
     is_source_file, is_string_literal_like, is_variable_declaration, last_or_undefined, map,
-    return_ok_none_if_none, try_for_each, try_for_each_child_recursively_bool, try_map, CheckFlags,
-    Debug_, Diagnostics, ElementFlags, HasArena, HasInitializerInterface, HasStatementsInterface,
-    InArena, IndexInfo, NamedDeclarationInterface, Node, NodeArray, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, OptionTry, ScriptTarget, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeSystemPropertyName,
+    released, return_ok_none_if_none, try_for_each, try_for_each_child_recursively_bool, try_map,
+    CheckFlags, Debug_, Diagnostics, ElementFlags, HasArena, HasInitializerInterface,
+    HasStatementsInterface, InArena, IndexInfo, NamedDeclarationInterface, Node, NodeArray,
+    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, OptionTry, ScriptTarget, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
+    TypeFlags, TypeInterface, TypeSystemPropertyName,
 };
 
 impl TypeChecker {
@@ -444,13 +444,19 @@ impl TypeChecker {
             .flags()
             .intersects(SymbolFlags::ModuleExports)
         {
-            if let Some(symbol_value_declaration) = symbol.ref_(self).maybe_value_declaration() {
+            if let Some(symbol_value_declaration) =
+                released!(symbol.ref_(self).maybe_value_declaration())
+            {
                 let file_symbol = self
                     .get_symbol_of_node(get_source_file_of_node(symbol_value_declaration, self))?
                     .unwrap();
                 let result = self.alloc_symbol(
-                    self.create_symbol(file_symbol.ref_(self).flags(), "exports".to_owned(), None)
-                        .into(),
+                    self.create_symbol(
+                        released!(file_symbol.ref_(self).flags()),
+                        "exports".to_owned(),
+                        None,
+                    )
+                    .into(),
                 );
                 result.ref_(self).set_declarations(
                     file_symbol

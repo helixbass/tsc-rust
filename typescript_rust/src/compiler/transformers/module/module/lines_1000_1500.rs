@@ -526,7 +526,7 @@ impl TransformModule {
                                 .ref_(self)
                                 .create_property_access_expression(
                                     self.factory.ref_(self).create_identifier("exports"),
-                                    variable.ref_(self).as_variable_declaration().name(),
+                                    released!(variable.ref_(self).as_variable_declaration().name()),
                                 )
                                 .set_text_range(
                                     Some(

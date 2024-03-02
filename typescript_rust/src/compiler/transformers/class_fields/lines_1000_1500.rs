@@ -179,12 +179,13 @@ impl TransformClassFields {
                 self,
             ),
             released!(node.ref_(self).maybe_modifiers()),
-            node.ref_(self).as_class_expression().maybe_name(),
+            released!(node.ref_(self).as_class_expression().maybe_name()),
             Option::<Id<NodeArray>>::None,
             maybe_visit_nodes(
-                node.ref_(self)
+                released!(node
+                    .ref_(self)
                     .as_class_expression()
-                    .maybe_heritage_clauses(),
+                    .maybe_heritage_clauses()),
                 Some(|node: Id<Node>| self.heritage_clause_visitor(node)),
                 Some(|node: Id<Node>| is_heritage_clause(&node.ref_(self))),
                 None,

@@ -13,7 +13,7 @@ use crate::{
     is_internal_module_import_equals_declaration, is_module_exports_access_expression,
     is_named_exports, is_namespace_export, is_private_identifier, is_string_literal,
     is_type_only_import_or_export_declaration, length, maybe_get_source_file_of_node,
-    node_is_missing, try_for_each, try_for_each_import_clause_declaration_bool,
+    node_is_missing, released, try_for_each, try_for_each_import_clause_declaration_bool,
     unescape_leading_underscores, Debug_, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
     HasArena, HasStatementsInterface, InArena, LiteralLikeNodeInterface, ModifierFlags, ModuleKind,
     NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry, ScriptTarget, Symbol,
@@ -340,19 +340,15 @@ impl TypeChecker {
             );
         }
         if self.check_external_import_or_export_declaration(node) {
-            let node_ref = node.ref_(self);
-            let node_as_import_declaration = node_ref.as_import_declaration();
-            let import_clause = node_as_import_declaration.import_clause;
+            let import_clause = node.ref_(self).as_import_declaration().import_clause;
             if let Some(import_clause) = import_clause
                 .filter(|&import_clause| !self.check_grammar_import_clause(import_clause))
             {
-                let import_clause_ref = import_clause.ref_(self);
-                let import_clause_as_import_clause = import_clause_ref.as_import_clause();
-                if import_clause_as_import_clause.name.is_some() {
+                if import_clause.ref_(self).as_import_clause().name.is_some() {
                     self.check_import_binding(import_clause)?;
                 }
                 if let Some(import_clause_named_bindings) =
-                    import_clause_as_import_clause.named_bindings
+                    released!(import_clause.ref_(self).as_import_clause().named_bindings)
                 {
                     if import_clause_named_bindings.ref_(self).kind() == SyntaxKind::NamespaceImport
                     {
@@ -375,16 +371,18 @@ impl TypeChecker {
                     } else {
                         let module_existed = self.resolve_external_module_name_(
                             node,
-                            node_as_import_declaration.module_specifier,
+                            node.ref_(self).as_import_declaration().module_specifier,
                             None,
                         )?;
                         if module_existed.is_some() {
                             try_for_each(
-                                &*import_clause_named_bindings
-                                    .ref_(self)
-                                    .as_named_imports()
-                                    .elements
-                                    .ref_(self),
+                                &*released!(
+                                    import_clause_named_bindings
+                                        .ref_(self)
+                                        .as_named_imports()
+                                        .elements
+                                )
+                                .ref_(self),
                                 |&element: &Id<Node>, _| -> io::Result<Option<()>> {
                                     self.check_import_binding(element)?;
                                     Ok(None)
