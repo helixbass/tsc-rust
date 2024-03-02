@@ -221,7 +221,7 @@ impl TransformModule {
 
                 Some(single_or_many_node(statements))
             } else if let Some(node_export_clause) =
-                node.ref_(self).as_export_declaration().export_clause
+                released!(node.ref_(self).as_export_declaration().export_clause)
             {
                 let node_export_clause_ref = node_export_clause.ref_(self);
                 let node_export_clause_as_namespace_export =

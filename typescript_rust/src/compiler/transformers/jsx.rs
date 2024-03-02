@@ -1002,9 +1002,8 @@ impl TransformJsx {
         &self,
         node: Id<Node>, /*JsxText*/
     ) -> Option<Id<Node /*StringLiteral*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_jsx_text = node_ref.as_jsx_text();
-        let fixed = self.fixup_whitespace_and_decode_entities(&node_as_jsx_text.text());
+        let fixed =
+            self.fixup_whitespace_and_decode_entities(&node.ref_(self).as_jsx_text().text());
         fixed.map(|fixed| {
             self.factory
                 .ref_(self)

@@ -569,12 +569,14 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         self.check_grammar_jsx_expression(node);
-        let node_ref = node.ref_(self);
-        let node_as_jsx_expression = node_ref.as_jsx_expression();
         Ok(
-            if let Some(node_expression) = node_as_jsx_expression.expression {
+            if let Some(node_expression) = node.ref_(self).as_jsx_expression().expression {
                 let type_ = self.check_expression(node_expression, check_mode, None)?;
-                if node_as_jsx_expression.dot_dot_dot_token.is_some()
+                if node
+                    .ref_(self)
+                    .as_jsx_expression()
+                    .dot_dot_dot_token
+                    .is_some()
                     && type_ != self.any_type()
                     && !self.is_array_type(type_)
                 {

@@ -650,22 +650,20 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*JsxSelfClosingElement*/
     ) -> io::Result<VisitResult> {
-        let node_ref = node.ref_(self);
-        let node_as_jsx_self_closing_element = node_ref.as_jsx_self_closing_element();
         Ok(Some(
             self.factory
                 .ref_(self)
                 .update_jsx_self_closing_element(
                     node,
                     try_visit_node(
-                        node_as_jsx_self_closing_element.tag_name,
+                        node.ref_(self).as_jsx_self_closing_element().tag_name,
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node: Id<Node>| is_jsx_tag_name_expression(&node.ref_(self))),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     Option::<Id<NodeArray>>::None,
                     try_visit_node(
-                        node_as_jsx_self_closing_element.attributes,
+                        node.ref_(self).as_jsx_self_closing_element().attributes,
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node: Id<Node>| is_jsx_attributes(&node.ref_(self))),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

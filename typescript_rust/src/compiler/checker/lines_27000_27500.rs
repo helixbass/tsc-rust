@@ -599,7 +599,7 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> io::Result<Vec<Id<Type>>> {
         let mut children_types: Vec<Id<Type>> = vec![];
-        for &child in &*node.ref_(self).as_has_children().children().ref_(self) {
+        for &child in &*released!(node.ref_(self).as_has_children().children()).ref_(self) {
             if child.ref_(self).kind() == SyntaxKind::JsxText {
                 if !child
                     .ref_(self)

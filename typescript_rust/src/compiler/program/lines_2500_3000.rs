@@ -537,26 +537,28 @@ impl Program {
             file.ref_(self)
                 .as_source_file()
                 .set_original_file_name(Some(original_file_name.to_owned()));
-            file.ref_(self).as_source_file().set_implied_node_format(
-                get_implied_node_format_for_file(
-                    file.ref_(self)
-                        .as_source_file()
-                        .maybe_resolved_path()
-                        .as_ref()
-                        .unwrap(),
-                    self.maybe_module_resolution_cache()
-                        .map(|module_resolution_cache| {
-                            module_resolution_cache
-                                .ref_(self)
-                                .get_package_json_info_cache()
-                        })
-                        .refed(self)
-                        .as_double_deref(),
-                    self.host().ref_(self).as_dyn_module_resolution_host(),
-                    self.options.clone(),
-                    self,
-                ),
+            let implied_node_format = get_implied_node_format_for_file(
+                &released!(file
+                    .ref_(self)
+                    .as_source_file()
+                    .maybe_resolved_path()
+                    .clone()
+                    .unwrap()),
+                self.maybe_module_resolution_cache()
+                    .map(|module_resolution_cache| {
+                        module_resolution_cache
+                            .ref_(self)
+                            .get_package_json_info_cache()
+                    })
+                    .refed(self)
+                    .as_double_deref(),
+                self.host().ref_(self).as_dyn_module_resolution_host(),
+                self.options.clone(),
+                self,
             );
+            file.ref_(self)
+                .as_source_file()
+                .set_implied_node_format(implied_node_format);
             self.add_file_include_reason(Some(file), reason.clone());
 
             if CompilerHost::use_case_sensitive_file_names(&**self.host().ref_(self)) {

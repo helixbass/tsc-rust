@@ -852,7 +852,7 @@ impl TypeChecker {
         let param_type =
             self.get_effective_first_argument_for_jsx_signature(signature.clone(), node)?;
         let attributes_type = self.check_expression_with_contextual_type(
-            node.ref_(self).as_jsx_opening_like_element().attributes(),
+            released!(node.ref_(self).as_jsx_opening_like_element().attributes()),
             param_type,
             None,
             check_mode,

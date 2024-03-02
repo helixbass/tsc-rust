@@ -40,15 +40,18 @@ impl Printer {
         node: Id<Node>, /*JsxSelfClosingElement*/
     ) -> io::Result<()> {
         self.write_punctuation("<");
-        let node_ref = node.ref_(self);
-        let node_as_jsx_self_closing_element = node_ref.as_jsx_self_closing_element();
-        self.emit_jsx_tag_name(node_as_jsx_self_closing_element.tag_name)?;
+        self.emit_jsx_tag_name(node.ref_(self).as_jsx_self_closing_element().tag_name)?;
         self.emit_type_arguments(
             node,
-            node_as_jsx_self_closing_element.maybe_type_arguments(),
+            node.ref_(self)
+                .as_jsx_self_closing_element()
+                .maybe_type_arguments(),
         )?;
         self.write_space();
-        self.emit(Some(node_as_jsx_self_closing_element.attributes), None)?;
+        self.emit(
+            Some(node.ref_(self).as_jsx_self_closing_element().attributes),
+            None,
+        )?;
         self.write_punctuation("/>");
 
         Ok(())
