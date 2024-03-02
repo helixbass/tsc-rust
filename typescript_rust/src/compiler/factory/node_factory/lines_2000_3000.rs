@@ -663,15 +663,17 @@ impl NodeFactory {
         question_dot_token: Option<Id<Node /*QuestionDotToken*/>>,
         name: Id<Node /*Identifier | PrivateIdentifier*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_property_access_expression = node_ref.as_property_access_expression();
         Debug_.assert(
             node.ref_(self).flags().intersects(NodeFlags::OptionalChain),
             Some("Cannot update a PropertyAccessExpression using updatePropertyAccessChain. Use updatePropertyAccess instead.")
         );
-        if node_as_property_access_expression.expression != expression
-            || node_as_property_access_expression.question_dot_token != question_dot_token
-            || node_as_property_access_expression.expression != expression
+        if node.ref_(self).as_property_access_expression().expression != expression
+            || node
+                .ref_(self)
+                .as_property_access_expression()
+                .question_dot_token
+                != question_dot_token
+            || node.ref_(self).as_property_access_expression().expression != expression
         {
             self.update(
                 self.create_property_access_chain(expression, question_dot_token, name),
@@ -1534,13 +1536,11 @@ impl NodeFactory {
         node: Id<Node>, /*PostfixUnaryExpression*/
         operand: Id<Node /*Expression*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_postfix_unary_expression = node_ref.as_postfix_unary_expression();
-        if node_as_postfix_unary_expression.operand != operand {
+        if node.ref_(self).as_postfix_unary_expression().operand != operand {
             self.update(
                 self.create_postfix_unary_expression(
                     operand,
-                    node_as_postfix_unary_expression.operator,
+                    node.ref_(self).as_postfix_unary_expression().operator,
                 ),
                 node,
             )

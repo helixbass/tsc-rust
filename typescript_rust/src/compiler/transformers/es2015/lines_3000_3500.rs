@@ -675,14 +675,16 @@ impl TransformES2015 {
         receiver: Id<Node>, /*Identifier*/
         start: usize,
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_object_literal_expression = node_ref.as_object_literal_expression();
-        let properties = &node_as_object_literal_expression.properties;
+        let properties = node.ref_(self).as_object_literal_expression().properties;
         for &property in properties.ref_(self).iter().skip(start) {
-            match property.ref_(self).kind() {
+            match released!(property.ref_(self).kind()) {
                 SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
                     let accessors = get_all_accessor_declarations(
-                        &node_as_object_literal_expression.properties.ref_(self),
+                        &node
+                            .ref_(self)
+                            .as_object_literal_expression()
+                            .properties
+                            .ref_(self),
                         property,
                         self,
                     );
@@ -691,7 +693,7 @@ impl TransformES2015 {
                             receiver,
                             &accessors,
                             node,
-                            node_as_object_literal_expression.multi_line == Some(true),
+                            node.ref_(self).as_object_literal_expression().multi_line == Some(true),
                         )?);
                     }
                 }
@@ -701,7 +703,7 @@ impl TransformES2015 {
                             property,
                             receiver,
                             node,
-                            node_as_object_literal_expression.multi_line,
+                            node.ref_(self).as_object_literal_expression().multi_line,
                         )?,
                     );
                 }
@@ -709,14 +711,14 @@ impl TransformES2015 {
                     expressions.push(self.transform_property_assignment_to_expression(
                         property,
                         receiver,
-                        node_as_object_literal_expression.multi_line,
+                        node.ref_(self).as_object_literal_expression().multi_line,
                     )?);
                 }
                 SyntaxKind::ShorthandPropertyAssignment => {
                     expressions.push(self.transform_shorthand_property_assignment_to_expression(
                         property,
                         receiver,
-                        node_as_object_literal_expression.multi_line,
+                        node.ref_(self).as_object_literal_expression().multi_line,
                     )?);
                 }
                 _ => Debug_.fail_bad_syntax_kind(&node.ref_(self), None),
@@ -732,8 +734,6 @@ impl TransformES2015 {
         receiver: Id<Node>, /*Expression*/
         starts_on_new_line: Option<bool>,
     ) -> io::Result<Id<Node>> {
-        let property_ref = property.ref_(self);
-        let property_as_property_assignment = property_ref.as_property_assignment();
         let expression = self
             .factory
             .ref_(self)
@@ -742,7 +742,7 @@ impl TransformES2015 {
                     &self.factory.ref_(self),
                     receiver,
                     try_visit_node(
-                        property_as_property_assignment.name(),
+                        property.ref_(self).as_property_assignment().name(),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node: Id<Node>| is_property_name(&node.ref_(self))),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -750,7 +750,11 @@ impl TransformES2015 {
                     Option::<&Node>::None,
                 ),
                 try_visit_node(
-                    property_as_property_assignment.maybe_initializer().unwrap(),
+                    property
+                        .ref_(self)
+                        .as_property_assignment()
+                        .maybe_initializer()
+                        .unwrap(),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

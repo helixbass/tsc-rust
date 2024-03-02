@@ -184,23 +184,24 @@ impl TypeChecker {
         node: Id<Node>, /*PropertyAccessChain*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
-        let node_ref = node.ref_(self);
-        let node_as_property_access_expression = node_ref.as_property_access_expression();
-        let left_type =
-            self.check_expression(node_as_property_access_expression.expression, None, None)?;
+        let left_type = self.check_expression(
+            node.ref_(self).as_property_access_expression().expression,
+            None,
+            None,
+        )?;
         let non_optional_type = self.get_optional_expression_type(
             left_type,
-            node_as_property_access_expression.expression,
+            node.ref_(self).as_property_access_expression().expression,
         )?;
         self.propagate_optional_type_marker(
             self.check_property_access_expression_or_qualified_name(
                 node,
-                node_as_property_access_expression.expression,
+                node.ref_(self).as_property_access_expression().expression,
                 self.check_non_null_type(
                     non_optional_type,
-                    node_as_property_access_expression.expression,
+                    node.ref_(self).as_property_access_expression().expression,
                 )?,
-                node_as_property_access_expression.name,
+                node.ref_(self).as_property_access_expression().name,
                 check_mode,
             )?,
             node,

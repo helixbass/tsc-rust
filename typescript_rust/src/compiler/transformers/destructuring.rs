@@ -578,7 +578,7 @@ pub fn try_flatten_destructuring_binding<'visitor>(
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?,
                 false,
-                &*initializer.ref_(arena),
+                &released!(ReadonlyTextRangeConcrete::from(&*initializer.ref_(arena))),
                 arena,
             )?;
             node = context
@@ -1052,7 +1052,7 @@ fn flatten_object_binding_or_assignment_pattern(
                 flatten_context,
                 element,
                 Some(rhs_value),
-                &*element.ref_(arena),
+                &released!(ReadonlyTextRangeConcrete::from(&*element.ref_(arena))),
                 None,
                 arena,
             )?;
@@ -1283,10 +1283,12 @@ fn create_destructuring_property_access(
         let argument_expression = ensure_identifier(
             flatten_context,
             try_visit_node(
-                property_name
-                    .ref_(arena)
-                    .as_computed_property_name()
-                    .expression,
+                released!(
+                    property_name
+                        .ref_(arena)
+                        .as_computed_property_name()
+                        .expression
+                ),
                 flatten_context
                     .is_visitor_supported()
                     .then(|| |node: Id<Node>| flatten_context.visitor(node).unwrap()),
@@ -1294,7 +1296,7 @@ fn create_destructuring_property_access(
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             false,
-            &*property_name.ref_(arena),
+            &released!(ReadonlyTextRangeConcrete::from(&*property_name.ref_(arena))),
             arena,
         )?;
         flatten_context

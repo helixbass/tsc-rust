@@ -410,13 +410,13 @@ impl TransformSystemModule {
                     Some(create_assignment),
                     self,
                 )?
-            } else if let Some(node_initializer) = node
+            } else if let Some(node_initializer) = released!(node
                 .ref_(self)
                 .as_variable_declaration()
-                .maybe_initializer()
+                .maybe_initializer())
             {
                 create_assignment(
-                    node.ref_(self).as_variable_declaration().name(),
+                    released!(node.ref_(self).as_variable_declaration().name()),
                     try_visit_node(
                         node_initializer,
                         Some(|node: Id<Node>| self.visitor(node)),

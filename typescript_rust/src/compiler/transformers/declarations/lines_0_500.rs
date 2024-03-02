@@ -1210,10 +1210,7 @@ impl TransformDeclarations {
             ))?),
             if self.resolver.ref_(self).is_optional_parameter(p)? {
                 Some(
-                    p.ref_(self)
-                        .as_parameter_declaration()
-                        .question_token
-                        .clone()
+                    released!(p.ref_(self).as_parameter_declaration().question_token)
                         .unwrap_or_else(|| {
                             self.factory
                                 .ref_(self)

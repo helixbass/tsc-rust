@@ -573,7 +573,7 @@ impl TransformES2015 {
         self.set_converted_loop_state(None);
 
         let parameters = try_visit_parameter_list(
-            Some(node.ref_(self).as_function_expression().parameters()),
+            released!(Some(node.ref_(self).as_function_expression().parameters())),
             |node: Id<Node>| self.visitor(node),
             &*self.context.ref_(self),
             self,

@@ -303,7 +303,11 @@ impl TypeChecker {
                 self.get_signatures_of_type(t, SignatureKind::Construct)
             },
         )?)?;
-        let index_infos = self.get_union_index_infos(type_.ref_(self).as_union_type().types())?;
+        let index_infos = self.get_union_index_infos(&released!(type_
+            .ref_(self)
+            .as_union_type()
+            .types()
+            .to_owned()))?;
         self.set_structured_type_members(
             || debug_cell::Ref::map(type_.ref_(self), |type_| type_.as_union_type()),
             self.empty_symbols(),

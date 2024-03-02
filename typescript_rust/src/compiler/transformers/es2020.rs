@@ -321,7 +321,7 @@ impl TransformES2020 {
         capture_this_arg: bool,
         is_delete: bool,
     ) -> Id<Node /*Expression*/> {
-        match node.ref_(self).kind() {
+        match released!(node.ref_(self).kind()) {
             SyntaxKind::ParenthesizedExpression => {
                 self.visit_non_optional_parenthesized_expression(node, capture_this_arg, is_delete)
             }
@@ -352,7 +352,7 @@ impl TransformES2020 {
         let FlattenChainReturn { expression, chain } = self.flatten_chain(node);
         let left = self.visit_non_optional_expression(
             expression,
-            is_call_chain(&chain[0].ref_(self)),
+            released!(is_call_chain(&chain[0].ref_(self))),
             false,
         );
         let left_this_arg = is_synthetic_reference(&left.ref_(self))
@@ -579,14 +579,17 @@ impl TransformES2020 {
     }
 
     fn visit_delete_expression(&self, node: Id<Node> /*DeleteExpression*/) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_delete_expression = node_ref.as_delete_expression();
         Some(
             if is_optional_chain(
-                &skip_parentheses(node_as_delete_expression.expression, None, self).ref_(self),
+                &skip_parentheses(
+                    node.ref_(self).as_delete_expression().expression,
+                    None,
+                    self,
+                )
+                .ref_(self),
             ) {
                 self.visit_non_optional_expression(
-                    node_as_delete_expression.expression,
+                    node.ref_(self).as_delete_expression().expression,
                     false,
                     true,
                 )
@@ -595,7 +598,7 @@ impl TransformES2020 {
                 self.factory.ref_(self).update_delete_expression(
                     node,
                     visit_node(
-                        node_as_delete_expression.expression,
+                        node.ref_(self).as_delete_expression().expression,
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

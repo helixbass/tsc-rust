@@ -570,7 +570,7 @@ impl TypeChecker {
                             initializer_type,
                             self.get_widened_type_for_variable_like_declaration(node, None)?,
                             Some(node),
-                            node.ref_(self).as_has_initializer().maybe_initializer(),
+                            released!(node.ref_(self).as_has_initializer().maybe_initializer()),
                             None,
                             None,
                         )?;

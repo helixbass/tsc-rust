@@ -17,6 +17,8 @@ mod visit_each_child;
 pub use try_visit_each_child::*;
 pub use visit_each_child::*;
 
+use crate::released;
+
 #[inline(always)]
 pub fn visit_node(
     node: Id<Node>,
@@ -662,14 +664,14 @@ fn add_default_value_assignment_if_needed(
             .as_deref(),
     ) {
         add_default_value_assignment_for_binding_pattern(parameter, context, arena)
-    } else if let Some(parameter_initializer) = parameter
+    } else if let Some(parameter_initializer) = released!(parameter
         .ref_(arena)
         .as_parameter_declaration()
-        .maybe_initializer()
+        .maybe_initializer())
     {
         add_default_value_assignment_for_initializer(
             parameter,
-            parameter.ref_(arena).as_parameter_declaration().name(),
+            released!(parameter.ref_(arena).as_parameter_declaration().name()),
             parameter_initializer,
             context,
             arena,
@@ -684,18 +686,16 @@ fn add_default_value_assignment_for_binding_pattern(
     context: &(impl TransformationContext + ?Sized),
     arena: &impl HasArena,
 ) -> Id<Node> {
-    let parameter_ref = parameter.ref_(arena);
-    let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
     let factory = context.factory();
     context.add_initialization_statement(factory.ref_(arena).create_variable_statement(
         Option::<Id<NodeArray>>::None,
         factory.ref_(arena).create_variable_declaration_list(
             vec![factory.ref_(arena).create_variable_declaration(
-                    parameter_as_parameter_declaration.maybe_name(),
+                    parameter.ref_(arena).as_parameter_declaration().maybe_name(),
                     None,
-                    parameter_as_parameter_declaration.maybe_type(),
+                    parameter.ref_(arena).as_parameter_declaration().maybe_type(),
                     Some(
-                        parameter_as_parameter_declaration
+                        parameter.ref_(arena).as_parameter_declaration()
                             .maybe_initializer()
                             .map_or_else(
                                 || {
@@ -729,14 +729,23 @@ fn add_default_value_assignment_for_binding_pattern(
         parameter,
         parameter.ref_(arena).maybe_decorators(),
         parameter.ref_(arena).maybe_modifiers(),
-        parameter_as_parameter_declaration.dot_dot_dot_token,
+        parameter
+            .ref_(arena)
+            .as_parameter_declaration()
+            .dot_dot_dot_token,
         Some(
             factory
                 .ref_(arena)
                 .get_generated_name_for_node(Some(parameter), None),
         ),
-        parameter_as_parameter_declaration.question_token,
-        parameter_as_parameter_declaration.maybe_type(),
+        parameter
+            .ref_(arena)
+            .as_parameter_declaration()
+            .question_token,
+        parameter
+            .ref_(arena)
+            .as_parameter_declaration()
+            .maybe_type(),
         None,
     )
 }

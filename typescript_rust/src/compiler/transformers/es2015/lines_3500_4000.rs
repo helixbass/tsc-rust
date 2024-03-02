@@ -291,11 +291,13 @@ impl TransformES2015 {
                 node.ref_(self).as_array_literal_expression().elements,
                 false,
                 node.ref_(self).as_array_literal_expression().multi_line == Some(true),
-                node.ref_(self)
-                    .as_array_literal_expression()
-                    .elements
-                    .ref_(self)
-                    .has_trailing_comma,
+                released!(
+                    node.ref_(self)
+                        .as_array_literal_expression()
+                        .elements
+                        .ref_(self)
+                        .has_trailing_comma
+                ),
             );
         }
         try_visit_each_child(
@@ -830,7 +832,7 @@ impl TransformES2015 {
     ) -> io::Result<Id<Node /*Expression*/>> {
         let num_elements = elements.ref_(self).len();
         let segments = flatten(&try_span_map(
-            &elements.ref_(self),
+            &released!(elements.ref_(self).clone()),
             |node: &Id<Node>, _| -> Rc<dyn PartitionSpread> {
                 if is_spread_element(&node.ref_(self)) {
                     // TODO: this looks like it should be arena-ified

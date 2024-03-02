@@ -194,7 +194,7 @@ impl TypeChecker {
                         )?
                     } else {
                         self.check_expression_cached(
-                            arg.ref_(self).as_spread_element().expression,
+                            released!(arg.ref_(self).as_spread_element().expression),
                             None,
                         )?
                     })
