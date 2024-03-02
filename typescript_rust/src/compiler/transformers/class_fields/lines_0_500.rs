@@ -874,8 +874,6 @@ impl TransformClassFields {
         &self,
         node: Id<Node>, /*MethodDeclaration | AccessorDeclaration*/
     ) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_function_like_declaration = node_ref.as_function_like_declaration();
         Debug_.assert(
             !node
                 .ref_(self)
@@ -886,7 +884,7 @@ impl TransformClassFields {
             None,
         );
 
-        let node_name = node_as_function_like_declaration.name();
+        let node_name = node.ref_(self).as_function_like_declaration().name();
         if !self.should_transform_private_elements_or_class_static_blocks
             || !is_private_identifier(&node_name.ref_(self))
         {
@@ -918,24 +916,30 @@ impl TransformClassFields {
                     function_name.clone(),
                     self.factory.ref_(self).create_function_expression(
                         maybe_filter(
-                            node.ref_(self)
-                                .maybe_modifiers()
+                            released!(node.ref_(self).maybe_modifiers())
                                 .refed(self)
                                 .as_double_deref(),
                             |m: &Id<Node>| !is_static_modifier(&m.ref_(self)),
                         ),
-                        node_as_function_like_declaration.maybe_asterisk_token(),
+                        node.ref_(self)
+                            .as_function_like_declaration()
+                            .maybe_asterisk_token(),
                         Some(function_name),
                         Option::<Id<NodeArray>>::None,
                         visit_parameter_list(
-                            Some(node_as_function_like_declaration.parameters()),
+                            Some(node.ref_(self).as_function_like_declaration().parameters()),
                             |node: Id<Node>| self.class_element_visitor(node),
                             &*self.context.ref_(self),
                             self,
                         ),
                         None,
                         visit_function_body(
-                            Some(node_as_function_like_declaration.maybe_body().unwrap()),
+                            Some(
+                                node.ref_(self)
+                                    .as_function_like_declaration()
+                                    .maybe_body()
+                                    .unwrap(),
+                            ),
                             |node: Id<Node>| self.class_element_visitor(node),
                             &*self.context.ref_(self),
                             self,

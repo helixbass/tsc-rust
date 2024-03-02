@@ -105,8 +105,8 @@ impl Printer {
                 if self.is_unique_name(&name) {
                     if reserved_in_nested_scopes == Some(true) {
                         self.reserve_name_in_nested_scopes(&name);
-                        return name;
                     }
+                    return name;
                 }
             }
         }
