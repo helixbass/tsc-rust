@@ -185,12 +185,7 @@ pub fn collect_external_module_info(
     let mut has_import_star = false;
     let mut has_import_default = false;
 
-    for &node in &*source_file
-        .ref_(arena)
-        .as_source_file()
-        .statements()
-        .ref_(arena)
-    {
+    for &node in &*released!(source_file.ref_(arena).as_source_file().statements()).ref_(arena) {
         match released!(node.ref_(arena).kind()) {
             SyntaxKind::ImportDeclaration => {
                 external_imports.push(node.clone());

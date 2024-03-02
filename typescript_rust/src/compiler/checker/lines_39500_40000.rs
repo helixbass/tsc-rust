@@ -510,11 +510,13 @@ impl TypeChecker {
             );
         }
 
-        let node_ref = node.ref_(self);
-        let node_as_export_declaration = node_ref.as_export_declaration();
-        if node_as_export_declaration.module_specifier.is_some()
+        if node
+            .ref_(self)
+            .as_export_declaration()
+            .module_specifier
+            .is_some()
             && matches!(
-                node_as_export_declaration.export_clause,
+                node.ref_(self).as_export_declaration().export_clause,
                 Some(node_export_clause) if is_named_exports(&node_export_clause.ref_(self)) &&
                     length(Some(&*node_export_clause.ref_(self).as_named_exports().elements.ref_(self))) > 0
             )
@@ -524,18 +526,21 @@ impl TypeChecker {
         }
 
         self.check_grammar_export_declaration(node);
-        if node_as_export_declaration.module_specifier.is_none()
+        if node
+            .ref_(self)
+            .as_export_declaration()
+            .module_specifier
+            .is_none()
             || self.check_external_import_or_export_declaration(node)
         {
-            if let Some(node_export_clause) = node_as_export_declaration
+            if let Some(node_export_clause) = node
+                .ref_(self)
+                .as_export_declaration()
                 .export_clause
                 .filter(|node_export_clause| !is_namespace_export(&node_export_clause.ref_(self)))
             {
                 try_for_each(
-                    &*node_export_clause
-                        .ref_(self)
-                        .as_named_exports()
-                        .elements
+                    &*released!(node_export_clause.ref_(self).as_named_exports().elements)
                         .ref_(self),
                     |&element: &Id<Node>, _| -> io::Result<Option<()>> {
                         self.check_export_specifier(element)?;
@@ -547,7 +552,11 @@ impl TypeChecker {
                     && is_ambient_module(node.ref_(self).parent().ref_(self).parent(), self);
                 let in_ambient_namespace_declaration = !in_ambient_external_module
                     && node.ref_(self).parent().ref_(self).kind() == SyntaxKind::ModuleBlock
-                    && node_as_export_declaration.module_specifier.is_none()
+                    && node
+                        .ref_(self)
+                        .as_export_declaration()
+                        .module_specifier
+                        .is_none()
                     && node.ref_(self).flags().intersects(NodeFlags::Ambient);
                 if node.ref_(self).parent().ref_(self).kind() != SyntaxKind::SourceFile
                     && !in_ambient_external_module
@@ -562,14 +571,17 @@ impl TypeChecker {
             } else {
                 let module_symbol = self.resolve_external_module_name_(
                     node,
-                    node_as_export_declaration.module_specifier.unwrap(),
+                    node.ref_(self)
+                        .as_export_declaration()
+                        .module_specifier
+                        .unwrap(),
                     None,
                 )?;
                 if let Some(module_symbol) = module_symbol
                     .filter(|&module_symbol| self.has_export_assignment_symbol(module_symbol))
                 {
                     self.error(
-                        node_as_export_declaration.module_specifier,
+                        node.ref_(self).as_export_declaration().module_specifier,
                         &Diagnostics::Module_0_uses_export_and_cannot_be_used_with_export_Asterisk,
                         Some(vec![self.symbol_to_string_(
                             module_symbol,
@@ -579,7 +591,9 @@ impl TypeChecker {
                             None,
                         )?]),
                     );
-                } else if let Some(node_export_clause) = node_as_export_declaration.export_clause {
+                } else if let Some(node_export_clause) =
+                    node.ref_(self).as_export_declaration().export_clause
+                {
                     self.check_alias_symbol(node_export_clause)?;
                 }
                 if self.module_kind != ModuleKind::System
@@ -590,7 +604,12 @@ impl TypeChecker {
                             .maybe_implied_node_format()
                             == Some(ModuleKind::CommonJS))
                 {
-                    if node_as_export_declaration.export_clause.is_some() {
+                    if node
+                        .ref_(self)
+                        .as_export_declaration()
+                        .export_clause
+                        .is_some()
+                    {
                         if get_es_module_interop(&self.compiler_options.ref_(self)) == Some(true) {
                             self.check_external_emit_helpers(
                                 node,

@@ -9,12 +9,13 @@ use crate::{
     has_syntactic_modifier, is_binding_pattern, is_block, is_class_element, is_decorator,
     is_expression, is_external_module_import_equals_declaration, is_heritage_clause, is_modifier,
     is_module_or_enum_declaration, is_omitted_expression, is_parameter_declaration, is_statement,
-    maybe_visit_nodes, return_if_none, single_or_many_node, try_flatten_destructuring_assignment,
-    try_maybe_visit_node, try_maybe_visit_nodes, try_visit_each_child, try_visit_node,
-    try_visit_nodes, ClassLikeDeclarationInterface, CoreTransformationContext, Debug_, EmitFlags,
-    FlattenLevel, FunctionLikeDeclarationInterface, GetOrInsertDefault, HasInitializerInterface,
-    InArena, InterfaceOrClassLikeDeclarationInterface, ModifierFlags, NamedDeclarationInterface,
-    NodeArray, NodeExt, NodeFlags, OptionInArena, ReadonlyTextRange, SignatureDeclarationInterface,
+    maybe_visit_nodes, released, return_if_none, single_or_many_node,
+    try_flatten_destructuring_assignment, try_maybe_visit_node, try_maybe_visit_nodes,
+    try_visit_each_child, try_visit_node, try_visit_nodes, ClassLikeDeclarationInterface,
+    CoreTransformationContext, Debug_, EmitFlags, FlattenLevel, FunctionLikeDeclarationInterface,
+    GetOrInsertDefault, HasInitializerInterface, InArena, InterfaceOrClassLikeDeclarationInterface,
+    ModifierFlags, NamedDeclarationInterface, NodeArray, NodeExt, NodeFlags, OptionInArena,
+    ReadonlyTextRange, SignatureDeclarationInterface,
 };
 
 impl TransformSystemModule {
@@ -297,7 +298,8 @@ impl TransformSystemModule {
         let is_exported_declaration = has_syntactic_modifier(node, ModifierFlags::Export, self);
         let is_marked_declaration = self.has_associated_end_of_declaration_marker(node);
         for &variable in &*released!(
-            node_as_variable_statement
+            node.ref_(self)
+                .as_variable_statement()
                 .declaration_list
                 .ref_(self)
                 .as_variable_declaration_list()
@@ -383,8 +385,6 @@ impl TransformSystemModule {
         node: Id<Node>, /*VariableDeclaration*/
         is_exported_declaration: bool,
     ) -> io::Result<Id<Node /*Expression*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_variable_declaration = node_ref.as_variable_declaration();
         let create_assignment =
             |name: Id<Node>, value: Id<Node>, location: Option<&dyn ReadonlyTextRange>| {
                 Ok(if is_exported_declaration {
@@ -395,7 +395,8 @@ impl TransformSystemModule {
             };
         Ok(
             if is_binding_pattern(
-                node_as_variable_declaration
+                node.ref_(self)
+                    .as_variable_declaration()
                     .maybe_name()
                     .refed(self)
                     .as_deref(),
@@ -409,10 +410,13 @@ impl TransformSystemModule {
                     Some(create_assignment),
                     self,
                 )?
-            } else if let Some(node_initializer) = node_as_variable_declaration.maybe_initializer()
+            } else if let Some(node_initializer) = node
+                .ref_(self)
+                .as_variable_declaration()
+                .maybe_initializer()
             {
                 create_assignment(
-                    node_as_variable_declaration.name(),
+                    node.ref_(self).as_variable_declaration().name(),
                     try_visit_node(
                         node_initializer,
                         Some(|node: Id<Node>| self.visitor(node)),
@@ -422,7 +426,7 @@ impl TransformSystemModule {
                     None,
                 )?
             } else {
-                node_as_variable_declaration.name()
+                node.ref_(self).as_variable_declaration().name()
             },
         )
     }

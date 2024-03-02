@@ -419,12 +419,19 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*ImportDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_ref = node.ref_(self);
-        let node_as_import_declaration = node_ref.as_import_declaration();
-        if node_as_import_declaration.import_clause.is_none() {
+        if node
+            .ref_(self)
+            .as_import_declaration()
+            .import_clause
+            .is_none()
+        {
             return Ok(Some(node.into()));
         }
-        let node_import_clause = node_as_import_declaration.import_clause.unwrap();
+        let node_import_clause = node
+            .ref_(self)
+            .as_import_declaration()
+            .import_clause
+            .unwrap();
         if node_import_clause
             .ref_(self)
             .as_import_clause()
@@ -454,8 +461,14 @@ impl TransformTypeScript {
                             Option::<Id<NodeArray>>::None,
                             Option::<Id<NodeArray>>::None,
                             import_clause,
-                            node_as_import_declaration.module_specifier.clone(),
-                            node_as_import_declaration.assert_clause.clone(),
+                            node.ref_(self)
+                                .as_import_declaration()
+                                .module_specifier
+                                .clone(),
+                            node.ref_(self)
+                                .as_import_declaration()
+                                .assert_clause
+                                .clone(),
                         )
                         .into(),
                 )
@@ -469,16 +482,14 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*ImportClause*/
     ) -> io::Result<VisitResult> /*<ImportClause>*/ {
-        let node_ref = node.ref_(self);
-        let node_as_import_clause = node_ref.as_import_clause();
-        Debug_.assert(!node_as_import_clause.is_type_only, None);
+        Debug_.assert(!node.ref_(self).as_import_clause().is_type_only, None);
         let name = if self.should_emit_alias_declaration(node)? {
-            node_as_import_clause.name
+            node.ref_(self).as_import_clause().name
         } else {
             None
         };
         let named_bindings = try_maybe_visit_node(
-            node_as_import_clause.named_bindings,
+            node.ref_(self).as_import_clause().named_bindings,
             Some(|node: Id<Node>| self.visit_named_import_bindings(node)),
             Some(|node: Id<Node>| is_named_import_bindings(&node.ref_(self))),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

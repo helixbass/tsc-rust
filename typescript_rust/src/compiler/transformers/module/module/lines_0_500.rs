@@ -680,7 +680,7 @@ impl TransformModule {
                         None,
                     )
                     .set_text_range(
-                        Some(&*node.ref_(self).as_source_file().statements().ref_(self)),
+                        Some(&*released!(node.ref_(self).as_source_file().statements()).ref_(self)),
                         self,
                     ),
                 None,

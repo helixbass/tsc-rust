@@ -499,8 +499,7 @@ impl TypeChecker {
 
         if use_.intersects(IterationUse::AllowsStringInputFlag) {
             if array_type.ref_(self).flags().intersects(TypeFlags::Union) {
-                let input_type_ref = input_type.ref_(self);
-                let array_types = input_type_ref.as_union_type().types();
+                let ref array_types = input_type.ref_(self).as_union_type().types().to_owned();
                 let filtered_types = filter(array_types, |&t: &Id<Type>| {
                     !t.ref_(self).flags().intersects(TypeFlags::StringLike)
                 });

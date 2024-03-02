@@ -582,8 +582,8 @@ impl TypeChecker {
             }
         }
 
-        let mut expression_type =
-            self.check_non_null_expression(node.ref_(self).as_new_expression().expression)?;
+        let mut expression_type = self
+            .check_non_null_expression(released!(node.ref_(self).as_new_expression().expression))?;
         if expression_type == self.silent_never_type() {
             return Ok(self.silent_never_signature());
         }
