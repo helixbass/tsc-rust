@@ -1092,9 +1092,9 @@ impl TransformDeclarations {
                     )?
                 }
                 SyntaxKind::PropertyDeclaration => {
-                    let input_ref = input.ref_(self);
-                    let input_as_property_declaration = input_ref.as_property_declaration();
-                    if is_private_identifier(&input_as_property_declaration.name().ref_(self)) {
+                    if is_private_identifier(
+                        &input.ref_(self).as_property_declaration().name().ref_(self),
+                    ) {
                         return self.visit_declaration_subtree_cleanup(
                             input,
                             can_produce_diagnostic,
@@ -1116,11 +1116,14 @@ impl TransformDeclarations {
                             input,
                             Option::<Id<NodeArray>>::None,
                             self.ensure_modifiers(input),
-                            input_as_property_declaration.name(),
-                            input_as_property_declaration.maybe_question_token(),
+                            released!(input.ref_(self).as_property_declaration().name()),
+                            released!(input
+                                    .ref_(self)
+                                    .as_property_declaration()
+                                    .maybe_question_token()),
                             self.ensure_type(
                                 input,
-                                input_as_property_declaration.maybe_type(),
+                                released!(input.ref_(self).as_property_declaration().maybe_type()),
                                 None,
                             )?,
                             self.ensure_no_initializer(input)?,
@@ -1240,43 +1243,44 @@ impl TransformDeclarations {
                         ),
                     )?
                 }
-                SyntaxKind::IndexSignature => {
-                    let input_ref = input.ref_(self);
-                    let input_as_index_signature_declaration =
-                        input_ref.as_index_signature_declaration();
-                    self.visit_declaration_subtree_cleanup(
-                        input,
-                        can_produce_diagnostic,
-                        previous_enclosing_declaration,
-                        &old_diag,
-                        should_enter_suppress_new_diagnostics_context_context,
-                        old_within_object_literal_type,
-                        Some(
-                            self.factory.ref_(self).update_index_signature(
+                SyntaxKind::IndexSignature => self.visit_declaration_subtree_cleanup(
+                    input,
+                    can_produce_diagnostic,
+                    previous_enclosing_declaration,
+                    &old_diag,
+                    should_enter_suppress_new_diagnostics_context_context,
+                    old_within_object_literal_type,
+                    Some(
+                        self.factory.ref_(self).update_index_signature(
+                            input,
+                            Option::<Id<NodeArray>>::None,
+                            self.ensure_modifiers(input),
+                            self.update_params_list(
                                 input,
-                                Option::<Id<NodeArray>>::None,
-                                self.ensure_modifiers(input),
-                                self.update_params_list(
-                                    input,
-                                    Some(input_as_index_signature_declaration.parameters()),
-                                    None,
-                                )?
-                                .unwrap(),
-                                try_maybe_visit_node(
-                                    input_as_index_signature_declaration.maybe_type(),
-                                    Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
-                                    Option::<fn(Id<Node>) -> bool>::None,
-                                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
-                                )?
-                                .unwrap_or_else(|| {
-                                    self.factory
-                                        .ref_(self)
-                                        .create_keyword_type_node(SyntaxKind::AnyKeyword)
-                                }),
-                            ),
+                                Some(released!(input
+                                    .ref_(self)
+                                    .as_index_signature_declaration()
+                                    .parameters())),
+                                None,
+                            )?
+                            .unwrap(),
+                            try_maybe_visit_node(
+                                input
+                                    .ref_(self)
+                                    .as_index_signature_declaration()
+                                    .maybe_type(),
+                                Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
+                                Option::<fn(Id<Node>) -> bool>::None,
+                                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
+                            )?
+                            .unwrap_or_else(|| {
+                                self.factory
+                                    .ref_(self)
+                                    .create_keyword_type_node(SyntaxKind::AnyKeyword)
+                            }),
                         ),
-                    )?
-                }
+                    ),
+                )?,
                 SyntaxKind::VariableDeclaration => {
                     if is_binding_pattern(
                         input

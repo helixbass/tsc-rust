@@ -14,7 +14,7 @@ use crate::{
     is_get_or_set_accessor_declaration, is_identifier, is_in_js_file, is_let, is_literal_type_node,
     is_omitted_expression, is_prefix_unary_expression, is_private_identifier,
     is_property_declaration, is_spread_element, is_static, is_string_literal, is_type_literal_node,
-    is_var_const, is_variable_declaration, length, maybe_is_class_like,
+    is_var_const, is_variable_declaration, length, maybe_is_class_like, released,
     resolve_tripleslash_reference, return_ok_default_if_none, skip_trivia, text_span_end,
     token_to_string, try_find, AllAccessorDeclarations, AllArenas, CheckFlags, Debug_,
     DiagnosticMessage, Diagnostics, EmitResolver, GetOrInsertDefault, HasArena,
@@ -1651,7 +1651,7 @@ impl EmitResolver for EmitResolverCreateResolver {
             Some("Non-sourcefile node passed into getDeclarationsForSourceFile"),
         );
         let Some(sym) = self.type_checker.ref_(self).get_symbol_of_node(node)? else {
-            return Ok(match node.ref_(self).maybe_locals().as_ref() {
+            return Ok(match released!(node.ref_(self).maybe_locals()).as_ref() {
                 None => Some(vec![]),
                 Some(node_locals) => self
                     .type_checker

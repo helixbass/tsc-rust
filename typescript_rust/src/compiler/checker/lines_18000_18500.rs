@@ -1061,8 +1061,7 @@ impl CheckTypeRelatedTo {
             return Ok(Ternary::False);
         }
 
-        let source = self_
-            .ref_(arena)
+        let source = released!(self_.ref_(arena))
             .type_checker
             .ref_(arena)
             .get_normalized_type(original_source, false)?;

@@ -436,8 +436,6 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*ClassExpression*/
     ) -> io::Result<Id<Node /*<Expression>*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_class_expression = node_ref.as_class_expression();
         if !self.is_class_like_declaration_with_type_script_syntax(node) {
             return try_visit_each_child(
                 node,
@@ -453,10 +451,12 @@ impl TransformTypeScript {
             .create_class_expression(
                 Option::<Id<NodeArray>>::None,
                 Option::<Id<NodeArray>>::None,
-                node_as_class_expression.maybe_name(),
+                node.ref_(self).as_class_expression().maybe_name(),
                 Option::<Id<NodeArray>>::None,
                 try_maybe_visit_nodes(
-                    node_as_class_expression.maybe_heritage_clauses(),
+                    node.ref_(self)
+                        .as_class_expression()
+                        .maybe_heritage_clauses(),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node: Id<Node>| is_heritage_clause(&node.ref_(self))),
                     None,

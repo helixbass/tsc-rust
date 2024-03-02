@@ -181,12 +181,13 @@ impl NodeFactory {
                 node_as_class_expression.members(),
             )
         } else if is_variable_statement(&node.ref_(self)) {
-            let node_ref = node.ref_(self);
-            let node_as_variable_statement = node_ref.as_variable_statement();
             self.update_variable_statement(
                 node,
                 Some(modifiers),
-                node_as_variable_statement.declaration_list.clone(),
+                node.ref_(self)
+                    .as_variable_statement()
+                    .declaration_list
+                    .clone(),
             )
         } else if is_function_declaration(&node.ref_(self)) {
             let node_ref = node.ref_(self);

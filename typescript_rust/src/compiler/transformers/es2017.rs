@@ -753,23 +753,23 @@ impl TransformES2017 {
         &self,
         node: Id<Node>, /*FunctionExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_function_expression = node_ref.as_function_expression();
         Ok(self.factory.ref_(self).update_function_expression(
             node,
             try_maybe_visit_nodes(
-                node.ref_(self).maybe_modifiers(),
+                released!(node.ref_(self).maybe_modifiers()),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                 None,
                 None,
                 self,
             )?,
-            node_as_function_expression.maybe_asterisk_token(),
-            node_as_function_expression.maybe_name(),
+            node.ref_(self)
+                .as_function_expression()
+                .maybe_asterisk_token(),
+            node.ref_(self).as_function_expression().maybe_name(),
             Option::<Id<NodeArray>>::None,
             try_visit_parameter_list(
-                Some(node_as_function_expression.parameters()),
+                Some(node.ref_(self).as_function_expression().parameters()),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
@@ -780,7 +780,7 @@ impl TransformES2017 {
                 self.transform_async_function_body(node)?
             } else {
                 try_visit_function_body(
-                    node_as_function_expression.maybe_body(),
+                    node.ref_(self).as_function_expression().maybe_body(),
                     |node: Id<Node>| self.visitor(node),
                     &*self.context.ref_(self),
                     self,
@@ -974,8 +974,6 @@ impl TransformES2017 {
         &self,
         node: Id<Node>, /*FunctionLikeDeclaration*/
     ) -> io::Result<Id<Node /*ConciseBody*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_function_like_declaration = node_ref.as_function_like_declaration();
         self.context.ref_(self).resume_lexical_environment();
 
         let ref original = get_original_node(node, self);
@@ -995,7 +993,12 @@ impl TransformES2017 {
         let saved_enclosing_function_parameter_names =
             self.maybe_enclosing_function_parameter_names().clone();
         self.set_enclosing_function_parameter_names(Some(HashSet::new()));
-        for &parameter in &*node_as_function_like_declaration.parameters().ref_(self) {
+        for &parameter in &*node
+            .ref_(self)
+            .as_function_like_declaration()
+            .parameters()
+            .ref_(self)
+        {
             self.record_declaration_name(
                 parameter,
                 &mut self.enclosing_function_parameter_names_mut(),
@@ -1013,7 +1016,9 @@ impl TransformES2017 {
         if !is_arrow_function {
             let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
             let statement_offset = self.factory.ref_(self).try_copy_prologue(
-                &node_as_function_like_declaration
+                &node
+                    .ref_(self)
+                    .as_function_like_declaration()
                     .maybe_body()
                     .unwrap()
                     .ref_(self)
@@ -1035,7 +1040,10 @@ impl TransformES2017 {
                             has_lexical_arguments,
                             promise_constructor.clone(),
                             self.transform_async_function_body_worker(
-                                node_as_function_like_declaration.maybe_body().unwrap(),
+                                node.ref_(self)
+                                    .as_function_like_declaration()
+                                    .maybe_body()
+                                    .unwrap(),
                                 Some(statement_offset),
                             )?,
                         ),
@@ -1080,7 +1088,8 @@ impl TransformES2017 {
             let block = self.factory.ref_(self).create_block(statements, Some(true));
             set_text_range(
                 &*block.ref_(self),
-                node_as_function_like_declaration
+                node.ref_(self)
+                    .as_function_like_declaration()
                     .maybe_body()
                     .refed(self)
                     .as_deref(),
@@ -1116,7 +1125,10 @@ impl TransformES2017 {
                     has_lexical_arguments,
                     promise_constructor,
                     self.transform_async_function_body_worker(
-                        node_as_function_like_declaration.maybe_body().unwrap(),
+                        node.ref_(self)
+                            .as_function_like_declaration()
+                            .maybe_body()
+                            .unwrap(),
                         None,
                     )?,
                 );

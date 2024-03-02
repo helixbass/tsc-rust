@@ -241,10 +241,8 @@ impl NodeFactory {
         object_type: Id<Node /*TypeNode*/>,
         index_type: Id<Node /*TypeNode*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_indexed_access_type_node = node_ref.as_indexed_access_type_node();
-        if node_as_indexed_access_type_node.object_type != object_type
-            || node_as_indexed_access_type_node.index_type != index_type
+        if node.ref_(self).as_indexed_access_type_node().object_type != object_type
+            || node.ref_(self).as_indexed_access_type_node().index_type != index_type
         {
             self.update(
                 self.create_indexed_access_type_node(object_type, index_type),
@@ -2036,8 +2034,6 @@ impl NodeFactory {
         members: impl Into<NodeArrayOrVec>,
         /*<ClassElement>*/
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_class_expression = node_ref.as_class_expression();
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
         let type_parameters = type_parameters.map(Into::into);
@@ -2045,16 +2041,20 @@ impl NodeFactory {
         let members = members.into();
         if has_option_node_array_changed(node.ref_(self).maybe_decorators(), decorators.as_ref())
             || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
-            || node_as_class_expression.maybe_name() != name
+            || node.ref_(self).as_class_expression().maybe_name() != name
             || has_option_node_array_changed(
-                node_as_class_expression.maybe_type_parameters(),
+                node.ref_(self)
+                    .as_class_expression()
+                    .maybe_type_parameters(),
                 type_parameters.as_ref(),
             )
             || has_option_node_array_changed(
-                node_as_class_expression.maybe_heritage_clauses(),
+                node.ref_(self)
+                    .as_class_expression()
+                    .maybe_heritage_clauses(),
                 heritage_clauses.as_ref(),
             )
-            || has_node_array_changed(node_as_class_expression.members(), &members)
+            || has_node_array_changed(node.ref_(self).as_class_expression().members(), &members)
         {
             self.update(
                 self.create_class_expression(

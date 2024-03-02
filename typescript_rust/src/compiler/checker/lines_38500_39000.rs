@@ -46,11 +46,7 @@ impl TypeChecker {
             })?;
         let base_static_type = self.get_base_constructor_type_of_class(type_)?;
 
-        for &member in &*node
-            .ref_(self)
-            .as_class_like_declaration()
-            .members()
-            .ref_(self)
+        for &member in &*released!(node.ref_(self).as_class_like_declaration().members()).ref_(self)
         {
             if has_ambient_modifier(member, self) {
                 continue;

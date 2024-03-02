@@ -1113,7 +1113,7 @@ impl TypeChecker {
         } else if type_.ref_(self).flags().intersects(TypeFlags::Intersection) {
             return self.get_intersection_type(
                 &try_map(
-                    type_.ref_(self).as_intersection_type().types(),
+                    &released!(type_.ref_(self).as_intersection_type().types().to_owned()),
                     |&type_: &Id<Type>, _| self.get_type_without_signatures(type_),
                 )?,
                 Option::<Id<Symbol>>::None,

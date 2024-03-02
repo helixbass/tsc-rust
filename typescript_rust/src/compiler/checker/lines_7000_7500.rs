@@ -22,13 +22,14 @@ use crate::{
     is_parameter_declaration, is_private_identifier, is_property_access_expression,
     is_shorthand_ambient_module_symbol, is_source_file, is_static, is_string_literal_like,
     is_variable_declaration, is_variable_statement, length, map, maybe_get_source_file_of_node,
-    return_ok_default_if_none, set_parent, set_synthetic_leading_comments, set_text_range_id_node,
-    some, try_flat_map, try_map, try_map_defined, try_maybe_first_defined, try_maybe_map,
-    unescape_leading_underscores, AssignmentDeclarationKind, BoolExt, Debug_, HasArena,
-    HasInitializerInterface, HasTypeArgumentsInterface, InArena, InternalSymbolName, IteratorExt,
-    MapOrDefault, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags,
-    NodeFlags, NodeInterface, OptionInArena, OptionTry, Signature, SignatureKind, StringOrNumber,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, SynthesizedComment, Type, TypeInterface,
+    released, return_ok_default_if_none, set_parent, set_synthetic_leading_comments,
+    set_text_range_id_node, some, try_flat_map, try_map, try_map_defined, try_maybe_first_defined,
+    try_maybe_map, unescape_leading_underscores, AssignmentDeclarationKind, BoolExt, Debug_,
+    HasArena, HasInitializerInterface, HasTypeArgumentsInterface, InArena, InternalSymbolName,
+    IteratorExt, MapOrDefault, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
+    NodeBuilderFlags, NodeFlags, NodeInterface, OptionInArena, OptionTry, Signature, SignatureKind,
+    StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, SynthesizedComment, Type,
+    TypeInterface,
 };
 
 impl SymbolTableToDeclarationStatements {
@@ -1100,7 +1101,7 @@ impl SymbolTableToDeclarationStatements {
                         .into_iter(),
                     ),
                 ),
-                symbol
+                released!(symbol
                     .ref_(self)
                     .maybe_declarations()
                     .as_ref()
@@ -1115,7 +1116,7 @@ impl SymbolTableToDeclarationStatements {
                             .next()
                     })
                     .refed(self)
-                    .as_deref(),
+                    .as_deref()),
                 self,
             ),
             modifier_flags,

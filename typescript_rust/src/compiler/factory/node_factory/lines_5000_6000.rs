@@ -1660,7 +1660,10 @@ impl NodeFactory {
 
         match statements {
             NodeArrayOrVec::NodeArray(statements) => self
-                .create_node_array(Some(left), Some(statements.ref_(self).has_trailing_comma))
+                .create_node_array(
+                    Some(left),
+                    Some(released!(statements.ref_(self).has_trailing_comma)),
+                )
                 .set_text_range(Some(&*statements.ref_(self)), self)
                 .into(),
             NodeArrayOrVec::Vec(statements) => statements.into(),

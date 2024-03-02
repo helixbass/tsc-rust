@@ -4,7 +4,7 @@ use super::{init_flow_node, ActiveLabel, Binder};
 use crate::{
     concatenate, for_each_bool, is_binary_expression, is_dotted_name,
     is_logical_or_coalescing_assignment_operator, is_optional_chain, is_outermost_optional_chain,
-    is_parenthesized_expression, is_prefix_unary_expression, skip_parentheses,
+    is_parenthesized_expression, is_prefix_unary_expression, released, skip_parentheses,
     unused_label_is_error, Diagnostics, FlowArrayMutation, FlowAssignment, FlowCall, FlowFlags,
     FlowNode, FlowNodeBase, FlowSwitchClause, HasArena, HasInitializerInterface, InArena,
     NamedDeclarationInterface, Node, NodeInterface, SyntaxKind,
@@ -521,11 +521,11 @@ impl Binder {
                     }
                 }
                 self.set_current_flow(Some(
-                    match normal_exit_label
+                    match released!(normal_exit_label
                         .ref_(self)
                         .as_flow_label()
                         .maybe_antecedents()
-                        .clone()
+                        .clone())
                     {
                         Some(normal_exit_label_antecedents) => self.create_reduce_label(
                             finally_label,

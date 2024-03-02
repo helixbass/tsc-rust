@@ -52,7 +52,7 @@ impl TypeChecker {
                 |jsdoc: &Id<Node>, _| -> io::Result<Option<()>> {
                     let tags = jsdoc.ref_(self).as_jsdoc().tags;
                     try_maybe_for_each(
-                        tags.refed(self).as_deref(),
+                        released!(tags.refed(self).as_deref().cloned()).as_deref(),
                         |&tag: &Id<Node>, _| -> io::Result<Option<()>> {
                             self.check_source_element(Some(tag))?;
                             Ok(None)
