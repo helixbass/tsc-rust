@@ -785,9 +785,9 @@ impl SymbolTableToDeclarationStatements {
             };
             fakespace = get_factory(self).update_module_declaration(
                 fakespace,
-                fakespace.ref_(self).maybe_decorators(),
-                fakespace.ref_(self).maybe_modifiers(),
-                fakespace.ref_(self).as_module_declaration().name,
+                released!(fakespace.ref_(self).maybe_decorators()),
+                released!(fakespace.ref_(self).maybe_modifiers()),
+                released!(fakespace.ref_(self).as_module_declaration().name),
                 Some(get_factory(self).create_module_block(Some(export_modifier_stripped))),
             );
             self.add_result(fakespace, modifier_flags);

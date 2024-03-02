@@ -333,7 +333,7 @@ impl TypeChecker {
                 }
             }
 
-            self.check_block(catch_clause.ref_(self).as_catch_clause().block)?;
+            self.check_block(released!(catch_clause.ref_(self).as_catch_clause().block))?;
         }
 
         if let Some(node_finally_block) = node.ref_(self).as_try_statement().finally_block {

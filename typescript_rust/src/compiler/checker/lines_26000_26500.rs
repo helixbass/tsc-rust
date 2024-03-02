@@ -63,9 +63,9 @@ impl TypeChecker {
                     })?);
                 }
                 if kind == AssignmentDeclarationKind::None {
-                    return Ok(Some(self.get_type_of_expression(
-                        binary_expression.ref_(self).as_binary_expression().left,
-                    )?));
+                    return Ok(Some(self.get_type_of_expression(released!(
+                        binary_expression.ref_(self).as_binary_expression().left
+                    ))?));
                 }
                 self.get_contextual_type_for_this_property_assignment(binary_expression)?
             }

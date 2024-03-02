@@ -816,7 +816,7 @@ impl TypeChecker {
                 .and_then(|file_symbol| file_symbol.ref_(self).maybe_global_exports())
             {
                 let source = file_symbol_global_exports;
-                for (id, source_symbol) in &*source.ref_(self) {
+                for (id, source_symbol) in &released!(source.ref_(self).clone()) {
                     if !self.globals().contains_key(id) {
                         self.globals_mut().insert(id.clone(), source_symbol.clone());
                     }

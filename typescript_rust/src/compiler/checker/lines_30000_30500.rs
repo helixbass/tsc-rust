@@ -126,7 +126,7 @@ impl TypeChecker {
         }
         Ok(self.alloc_signature(
             self.create_signature(
-                candidates[0].ref_(self).declaration.clone(),
+                released!(candidates[0].ref_(self).declaration),
                 None,
                 this_parameter,
                 parameters,
@@ -569,9 +569,7 @@ impl TypeChecker {
         candidates_out_array: Option<&mut Vec<Id<Signature>>>,
         check_mode: CheckMode,
     ) -> io::Result<Id<Signature>> {
-        let node_ref = node.ref_(self);
-        let node_as_new_expression = node_ref.as_new_expression();
-        if let Some(node_arguments) = node_as_new_expression.arguments.as_ref() {
+        if let Some(node_arguments) = node.ref_(self).as_new_expression().arguments.as_ref() {
             if self.language_version < ScriptTarget::ES5 {
                 let spread_index = self.get_spread_argument_index(&node_arguments.ref_(self));
                 if let Some(spread_index) = spread_index {
@@ -585,7 +583,7 @@ impl TypeChecker {
         }
 
         let mut expression_type =
-            self.check_non_null_expression(node_as_new_expression.expression)?;
+            self.check_non_null_expression(node.ref_(self).as_new_expression().expression)?;
         if expression_type == self.silent_never_type() {
             return Ok(self.silent_never_signature());
         }
@@ -596,7 +594,12 @@ impl TypeChecker {
         }
 
         if self.is_type_any(Some(expression_type)) {
-            if node_as_new_expression.maybe_type_arguments().is_some() {
+            if node
+                .ref_(self)
+                .as_new_expression()
+                .maybe_type_arguments()
+                .is_some()
+            {
                 self.error(
                     Some(node),
                     &Diagnostics::Untyped_function_calls_may_not_accept_type_arguments,
@@ -689,7 +692,7 @@ impl TypeChecker {
         }
 
         self.invocation_error(
-            node_as_new_expression.expression,
+            node.ref_(self).as_new_expression().expression,
             expression_type,
             SignatureKind::Construct,
             None,

@@ -545,10 +545,11 @@ impl TypeChecker {
                 )?,
             );
             call_signatures = self.instantiate_signatures(
-                &*source
+                &*released!(source
                     .ref_(self)
                     .as_interface_type_with_declared_members()
-                    .declared_call_signatures(),
+                    .declared_call_signatures()
+                    .clone()),
                 mapper.clone().unwrap(),
             )?;
             construct_signatures = self.instantiate_signatures(

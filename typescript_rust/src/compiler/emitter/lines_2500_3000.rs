@@ -357,10 +357,8 @@ impl Printer {
         &self,
         node: Id<Node>, /*PrefixUnaryExpression*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_prefix_unary_expression = node_ref.as_prefix_unary_expression();
         self.write_token_text(
-            node_as_prefix_unary_expression.operator,
+            node.ref_(self).as_prefix_unary_expression().operator,
             |text: &str| self.write_operator(text),
             None,
         );
@@ -368,7 +366,7 @@ impl Printer {
             self.write_space();
         }
         self.emit_expression(
-            Some(node_as_prefix_unary_expression.operand),
+            Some(node.ref_(self).as_prefix_unary_expression().operand),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(
                     self.parenthesizer(),
@@ -405,7 +403,7 @@ impl Printer {
         node: Id<Node>, /*PostfixUnaryExpression*/
     ) -> io::Result<()> {
         self.emit_expression(
-            Some(node.ref_(self).as_postfix_unary_expression().operand),
+            released!(Some(node.ref_(self).as_postfix_unary_expression().operand)),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeOperandOfPostfixUnaryCurrentParenthesizerRule::new(
                     self.parenthesizer(),
@@ -855,7 +853,10 @@ impl Printer {
             node,
             None,
         );
-        self.emit_expression(node.ref_(self).as_has_expression().maybe_expression(), None)?;
+        self.emit_expression(
+            released!(node.ref_(self).as_has_expression().maybe_expression()),
+            None,
+        )?;
         self.emit_token_with_comment(
             SyntaxKind::CloseParenToken,
             node.ref_(self)
@@ -904,7 +905,7 @@ impl Printer {
         &self,
         node: Id<Node>, /*WhileStatement*/
     ) -> io::Result<()> {
-        self.emit_while_clause(node, node.ref_(self).pos())?;
+        self.emit_while_clause(node, released!(node.ref_(self).pos()))?;
         self.emit_embedded_statement(node, node.ref_(self).as_while_statement().statement)?;
 
         Ok(())

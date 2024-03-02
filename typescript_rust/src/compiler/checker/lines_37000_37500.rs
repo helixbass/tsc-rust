@@ -83,10 +83,8 @@ impl TypeChecker {
     ) -> io::Result<()> {
         self.check_grammar_statement_in_ambient_context(node);
 
-        let node_ref = node.ref_(self);
-        let node_as_while_statement = node_ref.as_while_statement();
-        self.check_truthiness_expression(node_as_while_statement.expression, None)?;
-        self.check_source_element(Some(node_as_while_statement.statement))?;
+        self.check_truthiness_expression(node.ref_(self).as_while_statement().expression, None)?;
+        self.check_source_element(Some(node.ref_(self).as_while_statement().statement))?;
 
         Ok(())
     }
@@ -114,11 +112,10 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*ForStatement*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_for_statement = node_ref.as_for_statement();
         if !self.check_grammar_statement_in_ambient_context(node) {
             if let Some(node_initializer) =
-                node_as_for_statement
+                node.ref_(self)
+                    .as_for_statement()
                     .initializer
                     .filter(|node_initializer| {
                         node_initializer.ref_(self).kind() == SyntaxKind::VariableDeclarationList
@@ -128,14 +125,16 @@ impl TypeChecker {
             }
         }
 
-        if let Some(node_initializer) = node_as_for_statement.initializer {
+        if let Some(node_initializer) = node.ref_(self).as_for_statement().initializer {
             if node_initializer.ref_(self).kind() == SyntaxKind::VariableDeclarationList {
                 try_for_each(
-                    &*node_initializer
-                        .ref_(self)
-                        .as_variable_declaration_list()
-                        .declarations
-                        .ref_(self),
+                    &*released!(
+                        node_initializer
+                            .ref_(self)
+                            .as_variable_declaration_list()
+                            .declarations
+                    )
+                    .ref_(self),
                     |&declaration: &Id<Node>, _| -> io::Result<Option<()>> {
                         self.check_variable_declaration(declaration)?;
                         Ok(None)
@@ -146,13 +145,13 @@ impl TypeChecker {
             }
         }
 
-        if let Some(node_condition) = node_as_for_statement.condition {
+        if let Some(node_condition) = node.ref_(self).as_for_statement().condition {
             self.check_truthiness_expression(node_condition, None)?;
         }
-        if let Some(node_incrementor) = node_as_for_statement.incrementor {
+        if let Some(node_incrementor) = node.ref_(self).as_for_statement().incrementor {
             self.check_expression(node_incrementor, None, None)?;
         }
-        self.check_source_element(Some(node_as_for_statement.statement))?;
+        self.check_source_element(Some(node.ref_(self).as_for_statement().statement))?;
         if node.ref_(self).maybe_locals().is_some() {
             self.register_for_unused_identifiers_check(node);
         }

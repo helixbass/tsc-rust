@@ -5,9 +5,9 @@ use id_arena::Id;
 use crate::{
     chain_bundle, compiler::factory::utilities_public::set_text_range_id_node, impl_has_arena,
     is_element_access_expression, is_expression, is_property_access_expression,
-    maybe_visit_each_child, visit_each_child, visit_node, AllArenas, CoreTransformationContext,
-    HasArena, InArena, Node, NodeFactory, NodeInterface, SyntaxKind, TransformFlags,
-    TransformNodesTransformationResult, Transformer, TransformerFactory,
+    maybe_visit_each_child, released, visit_each_child, visit_node, AllArenas,
+    CoreTransformationContext, HasArena, InArena, Node, NodeFactory, NodeInterface, SyntaxKind,
+    TransformFlags, TransformNodesTransformationResult, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, VisitResult,
 };
 
@@ -49,7 +49,7 @@ impl TransformES2016 {
         {
             return Some(node.into());
         }
-        match node.ref_(self).kind() {
+        match released!(node.ref_(self).kind()) {
             SyntaxKind::BinaryExpression => Some(self.visit_binary_expression(node).into()),
             _ => maybe_visit_each_child(
                 Some(node),
@@ -65,12 +65,12 @@ impl TransformES2016 {
         &self,
         node: Id<Node>, /*BinaryExpression*/
     ) -> Id<Node /*Expression*/> {
-        match node
+        match released!(node
             .ref_(self)
             .as_binary_expression()
             .operator_token
             .ref_(self)
-            .kind()
+            .kind())
         {
             SyntaxKind::AsteriskAsteriskEqualsToken => {
                 self.visit_exponentiation_assignment_expression(node)
@@ -207,16 +207,14 @@ impl TransformES2016 {
         &self,
         node: Id<Node>, /*BinaryExpression*/
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_binary_expression = node_ref.as_binary_expression();
         let left = visit_node(
-            node_as_binary_expression.left,
+            node.ref_(self).as_binary_expression().left,
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
         let right = visit_node(
-            node_as_binary_expression.right,
+            node.ref_(self).as_binary_expression().right,
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

@@ -1274,20 +1274,19 @@ impl TypeChecker {
             }
             return Ok(self.any_type());
         }
-        let expression_ref = expression.ref_(self);
-        let expression_as_binary_expression = expression_ref.as_binary_expression();
         if self.contains_same_named_this_property(
-            expression_as_binary_expression.left,
-            expression_as_binary_expression.right,
+            expression.ref_(self).as_binary_expression().left,
+            expression.ref_(self).as_binary_expression().right,
         )? {
             return Ok(self.any_type());
         }
         let type_ = if let Some(resolved_symbol) = resolved_symbol {
             self.get_type_of_symbol(resolved_symbol)?
         } else {
-            self.get_widened_literal_type(
-                self.check_expression_cached(expression_as_binary_expression.right, None)?,
-            )?
+            self.get_widened_literal_type(self.check_expression_cached(
+                expression.ref_(self).as_binary_expression().right,
+                None,
+            )?)?
         };
         if type_.ref_(self).flags().intersects(TypeFlags::Object)
             && kind == AssignmentDeclarationKind::ModuleExports
