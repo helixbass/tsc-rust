@@ -308,8 +308,8 @@ impl TypeChecker {
     ) -> io::Result<Id<Signature>> {
         let namespace = self.get_jsx_namespace_at(Some(node))?;
         let exports = namespace.try_map(|namespace| self.get_exports_of_symbol(namespace))?;
-        let type_symbol = exports.as_ref().try_and_then(|exports| {
-            self.get_symbol(&exports.ref_(self), &JsxNames::Element, SymbolFlags::Type)
+        let type_symbol = exports.try_and_then(|exports| {
+            self.get_symbol(exports, &JsxNames::Element, SymbolFlags::Type)
         })?;
         let return_node = type_symbol.try_and_then(|type_symbol| {
             self.node_builder().ref_(self).symbol_to_entity_name(

@@ -1059,12 +1059,7 @@ impl TypeChecker {
                         if unchecked_helpers.intersects(helper) {
                             let name = self.get_helper_name(helper);
                             let symbol = self.get_symbol(
-                                &helpers_module
-                                    .ref_(self)
-                                    .maybe_exports()
-                                    .clone()
-                                    .unwrap()
-                                    .ref_(self),
+                                helpers_module.ref_(self).maybe_exports().unwrap(),
                                 &escape_leading_underscores(name),
                                 SymbolFlags::Value,
                             )?;

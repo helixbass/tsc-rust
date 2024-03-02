@@ -943,12 +943,14 @@ impl TypeChecker {
         dont_resolve_alias: bool,
     ) -> io::Result<Option<Id<Symbol>>> {
         let module_symbol_exports = module_symbol.ref_(self).exports();
-        let module_symbol_exports = module_symbol_exports.ref_(self);
-        let export_value = module_symbol_exports.get(InternalSymbolName::ExportEquals);
-        let export_symbol = if let Some(&export_value) = export_value {
+        let export_value = module_symbol_exports
+            .ref_(self)
+            .get(InternalSymbolName::ExportEquals)
+            .copied();
+        let export_symbol = if let Some(export_value) = export_value {
             self.get_property_of_type(self.get_type_of_symbol(export_value)?, name)?
         } else {
-            module_symbol_exports.get(name).cloned()
+            module_symbol_exports.ref_(self).get(name).cloned()
         };
         let resolved = self.resolve_symbol(export_symbol, Some(dont_resolve_alias))?;
         self.mark_symbol_of_alias_declaration_if_type_only(

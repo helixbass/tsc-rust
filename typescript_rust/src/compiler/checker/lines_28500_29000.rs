@@ -1,4 +1,4 @@
-use std::{convert::TryInto, io, ptr};
+use std::{convert::TryInto, io};
 
 use id_arena::Id;
 use local_macros::enum_unwrapped;
@@ -209,7 +209,7 @@ impl TypeChecker {
             Some(outer_name),
             false,
             false,
-            |symbols: &SymbolTable, name: &str /*__String*/, meaning: SymbolFlags| {
+            |symbols: Id<SymbolTable>, name: &str /*__String*/, meaning: SymbolFlags| {
                 Debug_.assert_equal(
                     &outer_name,
                     &name,
@@ -221,11 +221,11 @@ impl TypeChecker {
                     return Ok(symbol);
                 }
                 let candidates: Vec<Id<Symbol>>;
-                if ptr::eq(symbols, &*self.globals()) {
+                if symbols == self.globals {
                     let primitives = map_defined(
                         Some(["string", "number", "boolean", "object", "bigint", "symbol"]),
                         |s: &str, _| {
-                            if symbols.contains_key(&capitalize(s)) {
+                            if symbols.ref_(self).contains_key(&capitalize(s)) {
                                 Some(
                                     self.alloc_symbol(
                                         self.create_symbol(
@@ -243,10 +243,10 @@ impl TypeChecker {
                     );
                     candidates = primitives
                         .into_iter()
-                        .chain(symbols.values().cloned())
+                        .chain(symbols.ref_(self).values().cloned())
                         .collect();
                 } else {
-                    candidates = symbols.values().cloned().collect();
+                    candidates = symbols.ref_(self).values().cloned().collect();
                 }
                 self.get_spelling_suggestion_for_name(
                     &unescape_leading_underscores(name),

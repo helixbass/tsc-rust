@@ -1121,12 +1121,12 @@ impl TypeChecker {
 
     pub(super) fn get_symbol(
         &self,
-        symbols: &SymbolTable,
+        symbols: Id<SymbolTable>,
         name: &str, /*__String*/
         meaning: SymbolFlags,
     ) -> io::Result<Option<Id<Symbol>>> {
         if meaning != SymbolFlags::None {
-            let symbol = self.get_merged_symbol(symbols.get(name).map(Clone::clone));
+            let symbol = self.get_merged_symbol(symbols.ref_(self).get(name).copied());
             if let Some(symbol) = symbol {
                 Debug_.assert(
                     !get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Instantiated),
@@ -1157,14 +1157,12 @@ impl TypeChecker {
         let class_declaration = parameter.ref_(self).parent().ref_(self).parent();
 
         let parameter_symbol = self.get_symbol(
-            &constructor_declaration.ref_(self).locals().ref_(self),
+            constructor_declaration.ref_(self).locals(),
             parameter_name,
             SymbolFlags::Value,
         )?;
         let property_symbol = self.get_symbol(
-            &self
-                .get_members_of_symbol(class_declaration.ref_(self).symbol())?
-                .ref_(self),
+            self.get_members_of_symbol(class_declaration.ref_(self).symbol())?,
             parameter_name,
             SymbolFlags::Value,
         )?;
@@ -1652,7 +1650,7 @@ impl TypeChecker {
             name_arg,
             is_use,
             exclude_globals,
-            |symbols: &SymbolTable, name: &str /*__String*/, meaning: SymbolFlags| {
+            |symbols: Id<SymbolTable>, name: &str /*__String*/, meaning: SymbolFlags| {
                 self.get_symbol(symbols, name, meaning)
             },
         )
@@ -1668,7 +1666,7 @@ impl TypeChecker {
         is_use: bool,
         exclude_globals: bool,
         mut lookup: impl FnMut(
-            &SymbolTable,
+            Id<SymbolTable>,
             &str, /*__String*/
             SymbolFlags,
         ) -> io::Result<Option<Id<Symbol>>>,
@@ -1689,9 +1687,9 @@ impl TypeChecker {
         while let Some(mut location_unwrapped) = location {
             {
                 let location_maybe_locals = location_unwrapped.ref_(self).maybe_locals();
-                if let Some(location_locals) = location_maybe_locals.as_ref() {
+                if let Some(location_locals) = location_maybe_locals {
                     if !self.is_global_source_file(location_unwrapped) {
-                        result = lookup(&location_locals.ref_(self), name, meaning)?;
+                        result = lookup(location_locals, name, meaning)?;
                         if let Some(result_unwrapped) = result {
                             let mut use_result = true;
                             if is_function_like(Some(&location_unwrapped.ref_(self)))
@@ -1798,7 +1796,6 @@ impl TypeChecker {
                             .get_symbol_of_node(location_unwrapped)?
                             .and_then(|symbol| symbol.ref_(self).maybe_exports().clone())
                             .unwrap_or_else(|| self.empty_symbols());
-                        let module_exports = module_exports.ref_(self);
                         let mut should_skip_rest_of_match_arm = false;
                         if location_unwrapped.ref_(self).kind() == SyntaxKind::SourceFile
                             || (is_module_declaration(&location_unwrapped.ref_(self))
@@ -1808,7 +1805,10 @@ impl TypeChecker {
                                     .intersects(NodeFlags::Ambient)
                                 && !is_global_scope_augmentation(&location_unwrapped.ref_(self)))
                         {
-                            result = module_exports.get(InternalSymbolName::Default).cloned();
+                            result = module_exports
+                                .ref_(self)
+                                .get(InternalSymbolName::Default)
+                                .cloned();
                             if let Some(result_unwrapped) = result {
                                 let local_symbol =
                                     get_local_symbol_for_export_default(result_unwrapped, self);
@@ -1821,10 +1821,10 @@ impl TypeChecker {
                                 result = None;
                             }
 
-                            let module_export = module_exports.get(name);
+                            let module_export = module_exports.ref_(self).get(name).copied();
                             if matches!(
                                 module_export,
-                                Some(&module_export) if module_export.ref_(self).flags() == SymbolFlags::Alias &&
+                                Some(module_export) if module_export.ref_(self).flags() == SymbolFlags::Alias &&
                                     (get_declaration_of_kind(module_export, SyntaxKind::ExportSpecifier, self).is_some()
                                      || get_declaration_of_kind(module_export, SyntaxKind::NamespaceExport, self).is_some())
                             ) {
@@ -1835,7 +1835,7 @@ impl TypeChecker {
                         if !should_skip_rest_of_match_arm {
                             if name != InternalSymbolName::Default {
                                 result = lookup(
-                                    &module_exports,
+                                    module_exports,
                                     name,
                                     meaning & SymbolFlags::ModuleMember,
                                 )?;
@@ -1867,11 +1867,9 @@ impl TypeChecker {
                 }
                 SyntaxKind::EnumDeclaration => {
                     result = lookup(
-                        &self
-                            .get_symbol_of_node(location_unwrapped)?
+                        self.get_symbol_of_node(location_unwrapped)?
                             .and_then(|symbol| symbol.ref_(self).maybe_exports().clone())
-                            .unwrap_or_else(|| self.empty_symbols())
-                            .ref_(self),
+                            .unwrap_or_else(|| self.empty_symbols()),
                         name,
                         meaning & SymbolFlags::EnumMember,
                     )?;
@@ -1885,12 +1883,8 @@ impl TypeChecker {
                             .find_constructor_declaration(location_unwrapped.ref_(self).parent());
                         if let Some(ctor) = ctor {
                             if let Some(ctor_locals) = ctor.ref_(self).maybe_locals() {
-                                if lookup(
-                                    &ctor_locals.ref_(self),
-                                    name,
-                                    meaning & SymbolFlags::Value,
-                                )?
-                                .is_some()
+                                if lookup(ctor_locals, name, meaning & SymbolFlags::Value)?
+                                    .is_some()
                                 {
                                     property_with_invalid_initializer =
                                         Some(location_unwrapped.clone());
@@ -1903,14 +1897,12 @@ impl TypeChecker {
                 | SyntaxKind::ClassExpression
                 | SyntaxKind::InterfaceDeclaration => {
                     result = lookup(
-                        &*self
-                            .get_symbol_of_node(location_unwrapped)?
+                        self.get_symbol_of_node(location_unwrapped)?
                             .unwrap()
                             .ref_(self)
                             .maybe_members()
                             .clone()
-                            .unwrap_or_else(|| self.empty_symbols())
-                            .ref_(self),
+                            .unwrap_or_else(|| self.empty_symbols()),
                         name,
                         meaning & SymbolFlags::Type,
                     )?;
@@ -1968,12 +1960,10 @@ impl TypeChecker {
                         let container = location_unwrapped.ref_(self).parent().ref_(self).parent();
                         if is_class_like(&container.ref_(self)) {
                             result = lookup(
-                                &self
-                                    .get_symbol_of_node(container)?
+                                self.get_symbol_of_node(container)?
                                     .unwrap()
                                     .ref_(self)
-                                    .members()
-                                    .ref_(self),
+                                    .members(),
                                 name,
                                 meaning & SymbolFlags::Type,
                             )?;
@@ -1992,12 +1982,10 @@ impl TypeChecker {
                         || grandparent.ref_(self).kind() == SyntaxKind::InterfaceDeclaration
                     {
                         result = lookup(
-                            &self
-                                .get_symbol_of_node(grandparent)?
+                            self.get_symbol_of_node(grandparent)?
                                 .unwrap()
                                 .ref_(self)
-                                .members()
-                                .ref_(self),
+                                .members(),
                             name,
                             meaning & SymbolFlags::Type,
                         )?;
@@ -2168,7 +2156,7 @@ impl TypeChecker {
             }
 
             if !exclude_globals {
-                result = lookup(&self.globals(), name, meaning)?;
+                result = lookup(self.globals, name, meaning)?;
             }
         }
         if result.is_none() {
@@ -2432,7 +2420,7 @@ impl TypeChecker {
                         Some(value_declaration) if value_declaration.ref_(self).pos() > associated_declaration_for_containing_initializer_or_binding_name.ref_(self).pos() &&
                             matches!(
                                 root.ref_(self).parent().ref_(self).maybe_locals(),
-                                Some(locals) if lookup(&locals.ref_(self), candidate.ref_(self).escaped_name(), meaning)? == Some(candidate)
+                                Some(locals) if lookup(locals, candidate.ref_(self).escaped_name(), meaning)? == Some(candidate)
                             )
                     ) {
                         self.error(

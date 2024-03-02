@@ -899,7 +899,7 @@ impl TypeChecker {
             return Ok(None);
         }
         let symbol = self.get_symbol(
-            &self.globals(),
+            self.globals,
             &format!("\"{}\"", module_name),
             SymbolFlags::ValueModule,
         )?;

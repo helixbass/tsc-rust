@@ -27,12 +27,7 @@ impl TypeChecker {
         let jsx_element_attrib_prop_interface_sym =
             jsx_namespace.try_and_then(|jsx_namespace| {
                 self.get_symbol(
-                    &jsx_namespace
-                        .ref_(self)
-                        .maybe_exports()
-                        .as_ref()
-                        .unwrap()
-                        .ref_(self),
+                    jsx_namespace.ref_(self).maybe_exports().unwrap(),
                     name_of_attrib_prop_container,
                     SymbolFlags::Type,
                 )
@@ -96,12 +91,7 @@ impl TypeChecker {
         }
         let jsx_namespace = jsx_namespace.unwrap();
         let ret = self.get_symbol(
-            &jsx_namespace
-                .ref_(self)
-                .maybe_exports()
-                .as_ref()
-                .unwrap()
-                .ref_(self),
+            jsx_namespace.ref_(self).maybe_exports().unwrap(),
             &JsxNames::LibraryManagedAttributes,
             SymbolFlags::Type,
         )?;

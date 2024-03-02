@@ -787,9 +787,7 @@ impl TypeChecker {
                         )?
                     } else {
                         self.get_symbol(
-                            &self
-                                .get_exports_of_symbol(merged_resolved_symbol)?
-                                .ref_(self),
+                            self.get_exports_of_symbol(merged_resolved_symbol)?,
                             &current.ref_(self).as_identifier().escaped_text,
                             meaning,
                         )?

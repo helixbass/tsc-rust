@@ -675,9 +675,8 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let namespace = self.get_jsx_namespace_at(location)?;
         let exports = namespace.try_map(|namespace| self.get_exports_of_symbol(namespace))?;
-        let type_symbol = exports.try_and_then(|exports| {
-            self.get_symbol(&exports.ref_(self), name, SymbolFlags::Type)
-        })?;
+        let type_symbol =
+            exports.try_and_then(|exports| self.get_symbol(exports, name, SymbolFlags::Type))?;
         Ok(if let Some(type_symbol) = type_symbol {
             self.get_declared_type_of_symbol(type_symbol)?
         } else {
@@ -850,12 +849,10 @@ impl TypeChecker {
             if let Some(resolved_namespace) = resolved_namespace {
                 let candidate = self.resolve_symbol(
                     self.get_symbol(
-                        &self
-                            .get_exports_of_symbol(
-                                self.resolve_symbol(Some(resolved_namespace), None)?
-                                    .unwrap(),
-                            )?
-                            .ref_(self),
+                        self.get_exports_of_symbol(
+                            self.resolve_symbol(Some(resolved_namespace), None)?
+                                .unwrap(),
+                        )?,
                         &JsxNames::JSX,
                         SymbolFlags::Namespace,
                     )?,
