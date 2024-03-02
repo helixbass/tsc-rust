@@ -787,10 +787,12 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*IndexedAccessTypeNode*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_indexed_access_type_node = node_ref.as_indexed_access_type_node();
-        self.check_source_element(Some(node_as_indexed_access_type_node.object_type))?;
-        self.check_source_element(Some(node_as_indexed_access_type_node.index_type))?;
+        self.check_source_element(Some(
+            node.ref_(self).as_indexed_access_type_node().object_type,
+        ))?;
+        self.check_source_element(Some(
+            node.ref_(self).as_indexed_access_type_node().index_type,
+        ))?;
         self.check_indexed_access_index_type(
             self.get_type_from_indexed_access_type_node(node)?,
             node,

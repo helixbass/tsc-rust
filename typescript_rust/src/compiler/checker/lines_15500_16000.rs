@@ -26,12 +26,12 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if links.ref_(self).resolved_type.is_none() {
-            let node_ref = node.ref_(self);
-            let node_as_indexed_access_type_node = node_ref.as_indexed_access_type_node();
-            let object_type =
-                self.get_type_from_type_node_(node_as_indexed_access_type_node.object_type)?;
-            let index_type =
-                self.get_type_from_type_node_(node_as_indexed_access_type_node.index_type)?;
+            let object_type = self.get_type_from_type_node_(
+                node.ref_(self).as_indexed_access_type_node().object_type,
+            )?;
+            let index_type = self.get_type_from_type_node_(
+                node.ref_(self).as_indexed_access_type_node().index_type,
+            )?;
             let potential_alias = self.get_alias_symbol_for_type_node(node)?;
             let resolved = self.get_indexed_access_type(
                 object_type,
