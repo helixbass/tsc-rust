@@ -17,7 +17,8 @@ use crate::{
     ObjectTypeInterface, OptionInArena, OptionTry, PseudoBigInt, Signature, SignatureFlags,
     StringLiteralType, StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
     TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    TypeMapperCallback, TypePredicate, TypeReferenceInterface, UniqueESSymbolType,
+    TypeMapperCallback, TypeMapperCallbackCall, TypePredicate, TypeReferenceInterface,
+    UniqueESSymbolType,
 };
 
 impl TypeChecker {
@@ -807,7 +808,7 @@ impl TypeChecker {
             type_
         } else if matches!(&*mapper.ref_(self), TypeMapper::Function(_mapper)) {
             let func = mapper.ref_(self).as_function().func.clone();
-            func.ref_(self).call(self, type_)?
+            released!(func.ref_(self).get_call()).call(self, type_)?
         } else {
             let (mapper_mapper1, mapper_mapper2) = match &*mapper.ref_(self) {
                 TypeMapper::Composite(composite_or_merged_mapper)
@@ -1325,6 +1326,26 @@ impl BackreferenceMapperCallback {
 }
 
 impl TypeMapperCallback for BackreferenceMapperCallback {
+    fn get_call(&self) -> Box<dyn TypeMapperCallbackCall> {
+        Box::new(BackreferenceMapperCallbackCall::new(self))
+    }
+}
+
+struct BackreferenceMapperCallbackCall {
+    context_inferences: Vec<Id<InferenceInfo>>,
+    index: usize,
+}
+
+impl BackreferenceMapperCallbackCall {
+    pub fn new(value: &BackreferenceMapperCallback) -> Self {
+        Self {
+            context_inferences: value.context_inferences.clone(),
+            index: value.index,
+        }
+    }
+}
+
+impl TypeMapperCallbackCall for BackreferenceMapperCallbackCall {
     fn call(&self, checker: &TypeChecker, t: Id<Type>) -> io::Result<Id<Type>> {
         Ok(
             if matches!(

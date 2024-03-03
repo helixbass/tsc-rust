@@ -12,7 +12,7 @@ use crate::{
     NodeInterface, ObjectFlags, ObjectTypeInterface, OutofbandVarianceMarkerHandler,
     RelationComparisonResult, SignatureKind, Symbol, SymbolInterface, Ternary, Type, TypeChecker,
     TypeComparer, TypeComparerCall, TypeFlags, TypeInterface, TypeMapper, TypeMapperCallback,
-    UnionOrIntersectionTypeInterface, VarianceFlags,
+    TypeMapperCallbackCall, UnionOrIntersectionTypeInterface, VarianceFlags,
 };
 
 impl CheckTypeRelatedTo {
@@ -2628,7 +2628,16 @@ impl CheckTypeRelatedTo {
 }
 
 pub(super) struct ReportUnmeasurableMarkers;
+
 impl TypeMapperCallback for ReportUnmeasurableMarkers {
+    fn get_call(&self) -> Box<dyn TypeMapperCallbackCall> {
+        Box::new(ReportUnmeasurableMarkersCall)
+    }
+}
+
+pub(super) struct ReportUnmeasurableMarkersCall;
+
+impl TypeMapperCallbackCall for ReportUnmeasurableMarkersCall {
     fn call(
         &self,
         checker: &TypeChecker,
@@ -2649,7 +2658,16 @@ impl TypeMapperCallback for ReportUnmeasurableMarkers {
 }
 
 pub(super) struct ReportUnreliableMarkers;
+
 impl TypeMapperCallback for ReportUnreliableMarkers {
+    fn get_call(&self) -> Box<dyn TypeMapperCallbackCall> {
+        Box::new(ReportUnreliableMarkersCall)
+    }
+}
+
+pub(super) struct ReportUnreliableMarkersCall;
+
+impl TypeMapperCallbackCall for ReportUnreliableMarkersCall {
     fn call(
         &self,
         checker: &TypeChecker,

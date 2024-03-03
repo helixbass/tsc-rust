@@ -885,7 +885,10 @@ pub struct TypeMapperArray {
 }
 
 pub trait TypeMapperCallback {
-    // TODO: now that TypeChecker is wrapped in Rc should remove the checker argument here?
+    fn get_call(&self) -> Box<dyn TypeMapperCallbackCall>;
+}
+
+pub trait TypeMapperCallbackCall {
     fn call(&self, checker: &TypeChecker, type_: Id<Type>) -> io::Result<Id<Type>>;
 }
 

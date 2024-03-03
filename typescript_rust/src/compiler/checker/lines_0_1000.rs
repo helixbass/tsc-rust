@@ -33,7 +33,8 @@ use crate::{
     RelationComparisonResult, Signature, SignatureFlags, SignatureKind, StringOrNumber, Symbol,
     SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
     SymbolWalker, SyntaxKind, Type, TypeChecker, TypeCheckerHost, TypeFlags, TypeFormatFlags,
-    TypeId, TypeInterface, TypeMapperCallback, TypePredicate, TypePredicateKind, VarianceFlags,
+    TypeId, TypeInterface, TypeMapperCallback, TypeMapperCallbackCall, TypePredicate,
+    TypePredicateKind, VarianceFlags,
 };
 
 lazy_static! {
@@ -1484,6 +1485,14 @@ pub fn create_type_checker(
 struct RestrictiveMapperFunc {}
 
 impl TypeMapperCallback for RestrictiveMapperFunc {
+    fn get_call(&self) -> Box<dyn TypeMapperCallbackCall> {
+        Box::new(RestrictiveMapperFuncCall)
+    }
+}
+
+struct RestrictiveMapperFuncCall;
+
+impl TypeMapperCallbackCall for RestrictiveMapperFuncCall {
     fn call(&self, type_checker: &TypeChecker, t: Id<Type>) -> io::Result<Id<Type>> {
         Ok(
             if t.ref_(type_checker)
@@ -1502,6 +1511,14 @@ impl TypeMapperCallback for RestrictiveMapperFunc {
 struct PermissiveMapperFunc {}
 
 impl TypeMapperCallback for PermissiveMapperFunc {
+    fn get_call(&self) -> Box<dyn TypeMapperCallbackCall> {
+        Box::new(PermissiveMapperFuncCall)
+    }
+}
+
+struct PermissiveMapperFuncCall;
+
+impl TypeMapperCallbackCall for PermissiveMapperFuncCall {
     fn call(&self, type_checker: &TypeChecker, t: Id<Type>) -> io::Result<Id<Type>> {
         Ok(
             if t.ref_(type_checker)
