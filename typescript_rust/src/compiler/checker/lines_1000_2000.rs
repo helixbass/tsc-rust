@@ -56,7 +56,7 @@ impl TypeChecker {
                     {
                         return file_local_jsx_fragment_namespace.clone();
                     }
-                    let file_pragmas = file.ref_(self).as_source_file().pragmas();
+                    let ref file_pragmas = file.ref_(self).as_source_file().pragmas().clone();
                     let jsx_fragment_pragma = file_pragmas.get(&PragmaName::Jsxfrag);
                     if let Some(jsx_fragment_pragma) = jsx_fragment_pragma {
                         let chosen_pragma = &jsx_fragment_pragma[0];
@@ -182,7 +182,7 @@ impl TypeChecker {
         {
             return Some(file_local_jsx_namespace.clone());
         }
-        let file_pragmas = file.ref_(self).as_source_file().pragmas();
+        let ref file_pragmas = file.ref_(self).as_source_file().pragmas().clone();
         let jsx_pragma = file_pragmas.get(&PragmaName::Jsx);
         if let Some(jsx_pragma) = jsx_pragma {
             let chosen_pragma = &jsx_pragma[0];
