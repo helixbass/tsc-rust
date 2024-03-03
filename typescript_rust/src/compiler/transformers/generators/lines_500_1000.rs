@@ -124,9 +124,9 @@ impl TransformGenerators {
             .transform_flags()
             .intersects(TransformFlags::ContainsYield)
         {
-            self.transform_and_emit_variable_declaration_list(
-                node.ref_(self).as_variable_statement().declaration_list,
-            );
+            self.transform_and_emit_variable_declaration_list(released!(
+                node.ref_(self).as_variable_statement().declaration_list
+            ));
             None
         } else {
             if get_emit_flags(node, self).intersects(EmitFlags::CustomPrologue) {
@@ -548,18 +548,24 @@ impl TransformGenerators {
         &self,
         node: Id<Node>, /*YieldExpression*/
     ) -> Id<Node /*LeftHandSideExpression*/> {
-        let node_ref = node.ref_(self);
-        let node_as_yield_expression = node_ref.as_yield_expression();
         let resume_label = self.define_label();
         let expression = maybe_visit_node(
-            node_as_yield_expression.expression,
+            node.ref_(self).as_yield_expression().expression,
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
-        if node_as_yield_expression.asterisk_token.is_some() {
-            let iterator = if !get_emit_flags(node_as_yield_expression.expression.unwrap(), self)
-                .intersects(EmitFlags::Iterator)
+        if node
+            .ref_(self)
+            .as_yield_expression()
+            .asterisk_token
+            .is_some()
+        {
+            let iterator = if !get_emit_flags(
+                node.ref_(self).as_yield_expression().expression.unwrap(),
+                self,
+            )
+            .intersects(EmitFlags::Iterator)
             {
                 Some(
                     self.emit_helpers()

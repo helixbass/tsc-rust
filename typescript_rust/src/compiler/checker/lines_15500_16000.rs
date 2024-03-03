@@ -1246,7 +1246,7 @@ impl TypeChecker {
                         result.ref_(self).set_declarations(declarations);
                     }
                     result_links.ref_mut(self).name_type =
-                        self.get_symbol_links(left_prop).ref_(self).name_type;
+                        released!(self.get_symbol_links(left_prop).ref_(self).name_type);
                     members.insert(left_prop.ref_(self).escaped_name().to_owned(), result);
                 }
             } else {

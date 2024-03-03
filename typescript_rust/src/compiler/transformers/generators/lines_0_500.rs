@@ -894,7 +894,7 @@ impl TransformGenerators {
 
     pub(super) fn visit_java_script_containing_yield(&self, node: Id<Node>) -> VisitResult /*<Node>*/
     {
-        match node.ref_(self).kind() {
+        match released!(node.ref_(self).kind()) {
             SyntaxKind::BinaryExpression => Some(self.visit_binary_expression(node).into()),
             SyntaxKind::CommaListExpression => self.visit_comma_list_expression(node),
             SyntaxKind::ConditionalExpression => {

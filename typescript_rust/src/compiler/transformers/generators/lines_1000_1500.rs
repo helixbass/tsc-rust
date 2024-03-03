@@ -201,16 +201,14 @@ impl TransformGenerators {
         &self,
         node: Id<Node>, /*CallExpression*/
     ) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_call_expression = node_ref.as_call_expression();
         if !is_import_call(node, self)
             && for_each_bool(
-                &*node_as_call_expression.arguments.ref_(self),
+                &*node.ref_(self).as_call_expression().arguments.ref_(self),
                 |&argument: &Id<Node>, _| self.contains_yield(Some(argument)),
             )
         {
             let CallBinding { target, this_arg } = self.factory.ref_(self).create_call_binding(
-                node_as_call_expression.expression,
+                node.ref_(self).as_call_expression().expression,
                 |node: Id<Node>| {
                     self.context.ref_(self).hoist_variable_declaration(node);
                 },
@@ -229,7 +227,7 @@ impl TransformGenerators {
                         )),
                         this_arg,
                         self.visit_elements(
-                            node_as_call_expression.arguments,
+                            node.ref_(self).as_call_expression().arguments,
                             Option::<Id<Node>>::None,
                             Option::<&Node>::None,
                             None,

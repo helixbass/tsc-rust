@@ -65,29 +65,48 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*ImportCall*/
     ) -> io::Result<Id<Type>> {
-        let node_ref = node.ref_(self);
-        let node_as_call_expression = node_ref.as_call_expression();
-        if !self.check_grammar_arguments(Some(node_as_call_expression.arguments)) {
+        if !self.check_grammar_arguments(Some(node.ref_(self).as_call_expression().arguments)) {
             self.check_grammar_import_call_expression(node);
         }
 
-        if node_as_call_expression.arguments.ref_(self).is_empty() {
+        if node
+            .ref_(self)
+            .as_call_expression()
+            .arguments
+            .ref_(self)
+            .is_empty()
+        {
             return self.create_promise_return_type(node, self.any_type());
         }
 
-        let specifier = node_as_call_expression.arguments.ref_(self)[0];
+        let specifier = node.ref_(self).as_call_expression().arguments.ref_(self)[0];
         let specifier_type = self.check_expression_cached(specifier, None)?;
-        let options_type =
-            if node_as_call_expression.arguments.ref_(self).len() > 1 {
-                Some(self.check_expression_cached(
-                    node_as_call_expression.arguments.ref_(self)[1],
-                    None,
-                )?)
-            } else {
-                None
-            };
-        for i in 2..node_as_call_expression.arguments.ref_(self).len() {
-            self.check_expression_cached(node_as_call_expression.arguments.ref_(self)[i], None)?;
+        let options_type = if node
+            .ref_(self)
+            .as_call_expression()
+            .arguments
+            .ref_(self)
+            .len()
+            > 1
+        {
+            Some(self.check_expression_cached(
+                node.ref_(self).as_call_expression().arguments.ref_(self)[1],
+                None,
+            )?)
+        } else {
+            None
+        };
+        for i in 2..node
+            .ref_(self)
+            .as_call_expression()
+            .arguments
+            .ref_(self)
+            .len()
+        {
+            self.check_expression_cached(
+                node.ref_(self).as_call_expression().arguments.ref_(self)[i],
+                None,
+            )?;
         }
 
         if specifier_type
@@ -118,7 +137,7 @@ impl TypeChecker {
                 self.check_type_assignable_to(
                     options_type,
                     self.get_nullable_type(import_call_options_type, TypeFlags::Undefined)?,
-                    Some(node_as_call_expression.arguments.ref_(self)[1]),
+                    Some(node.ref_(self).as_call_expression().arguments.ref_(self)[1]),
                     None,
                     None,
                     None,
