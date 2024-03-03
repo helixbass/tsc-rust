@@ -1735,8 +1735,6 @@ impl TransformES2018 {
         &self,
         node: Id<Node>, /*ParameterDeclaration*/
     ) -> Id<Node /*ParameterDeclaration*/> {
-        let node_ref = node.ref_(self);
-        let node_as_parameter_declaration = node_ref.as_parameter_declaration();
         if node
             .ref_(self)
             .transform_flags()
@@ -1746,7 +1744,7 @@ impl TransformES2018 {
                 node,
                 Option::<Id<NodeArray>>::None,
                 Option::<Id<NodeArray>>::None,
-                node_as_parameter_declaration.dot_dot_dot_token.clone(),
+                released!(node.ref_(self).as_parameter_declaration().dot_dot_dot_token),
                 Some(
                     self.factory
                         .ref_(self)
@@ -1755,7 +1753,10 @@ impl TransformES2018 {
                 None,
                 None,
                 maybe_visit_node(
-                    node_as_parameter_declaration.maybe_initializer(),
+                    released!(node
+                        .ref_(self)
+                        .as_parameter_declaration()
+                        .maybe_initializer()),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

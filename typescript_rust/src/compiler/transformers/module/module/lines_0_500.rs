@@ -703,7 +703,9 @@ impl TransformModule {
 
         let mut import_alias_names: Vec<Id<Node /*ParameterDeclaration*/>> = _d();
 
-        for amd_dependency in &*node.ref_(self).as_source_file().amd_dependencies() {
+        for amd_dependency in
+            &released!(node.ref_(self).as_source_file().amd_dependencies().clone())
+        {
             if let Some(amd_dependency_name) = amd_dependency.name.as_ref().non_empty() {
                 aliased_module_names.push(self.factory.ref_(self).create_string_literal(
                     amd_dependency.path.clone(),

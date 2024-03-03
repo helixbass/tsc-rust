@@ -394,9 +394,9 @@ impl TypeChecker {
                             let inferences = map(
                                 &*context.ref_(self).inferences(),
                                 |info: &Id<InferenceInfo>, _| {
-                                    self.alloc_inference_info(
-                                        self.create_inference_info(info.ref_(self).type_parameter),
-                                    )
+                                    self.alloc_inference_info(self.create_inference_info(
+                                        released!(info.ref_(self).type_parameter),
+                                    ))
                                 },
                             );
                             self.apply_to_parameter_types(

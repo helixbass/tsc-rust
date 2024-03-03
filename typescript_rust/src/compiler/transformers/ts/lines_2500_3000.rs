@@ -461,14 +461,8 @@ impl TransformTypeScript {
                             Option::<Id<NodeArray>>::None,
                             Option::<Id<NodeArray>>::None,
                             import_clause,
-                            node.ref_(self)
-                                .as_import_declaration()
-                                .module_specifier
-                                .clone(),
-                            node.ref_(self)
-                                .as_import_declaration()
-                                .assert_clause
-                                .clone(),
+                            released!(node.ref_(self).as_import_declaration().module_specifier),
+                            released!(node.ref_(self).as_import_declaration().assert_clause),
                         )
                         .into(),
                 )

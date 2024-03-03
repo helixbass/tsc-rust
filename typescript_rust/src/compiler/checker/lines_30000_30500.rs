@@ -325,7 +325,7 @@ impl TypeChecker {
             let super_type =
                 self.check_super_expression(node.ref_(self).as_call_expression().expression)?;
             if self.is_type_any(Some(super_type)) {
-                for &arg in &*node.ref_(self).as_call_expression().arguments.ref_(self) {
+                for &arg in &*released!(node.ref_(self).as_call_expression().arguments).ref_(self) {
                     self.check_expression(arg, None, None)?;
                 }
                 return Ok(self.any_signature());

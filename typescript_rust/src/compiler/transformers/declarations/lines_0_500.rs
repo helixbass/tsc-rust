@@ -656,11 +656,11 @@ impl TransformDeclarations {
                                                     )
                                                 ]),
                                                 self.factory.ref_(self).create_string_literal(
-                                                    get_resolved_external_module_name(
+                                                    released!(get_resolved_external_module_name(
                                                         &**self.context.ref_(self).get_emit_host().ref_(self),
                                                         &source_file.ref_(self),
                                                         None,
-                                                    ),
+                                                    )),
                                                     None,
                                                     None,
                                                 ),
@@ -1147,7 +1147,7 @@ impl TransformDeclarations {
                 self.factory.ref_(self).update_object_binding_pattern(
                     name,
                     try_visit_nodes(
-                        name.ref_(self).as_object_binding_pattern().elements,
+                        released!(name.ref_(self).as_object_binding_pattern().elements),
                         Some(|node: Id<Node>| -> io::Result<_> {
                             Ok(Some(self.visit_binding_element(node)?.into()))
                         }),
@@ -1168,15 +1168,16 @@ impl TransformDeclarations {
         if elem.ref_(self).kind() == SyntaxKind::OmittedExpression {
             return Ok(elem);
         }
-        let elem_ref = elem.ref_(self);
-        let elem_as_binding_element = elem_ref.as_binding_element();
         Ok(self.factory.ref_(self).update_binding_element(
             elem,
-            elem_as_binding_element.dot_dot_dot_token,
-            elem_as_binding_element.property_name,
-            self.filter_binding_pattern_initializers(elem_as_binding_element.name())?,
+            released!(elem.ref_(self).as_binding_element().dot_dot_dot_token),
+            released!(elem.ref_(self).as_binding_element().property_name),
+            self.filter_binding_pattern_initializers(released!(elem
+                .ref_(self)
+                .as_binding_element()
+                .name()))?,
             if self.should_print_with_initializer(elem)? {
-                elem_as_binding_element.maybe_initializer()
+                released!(elem.ref_(self).as_binding_element().maybe_initializer())
             } else {
                 None
             },

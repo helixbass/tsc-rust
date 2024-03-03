@@ -220,8 +220,8 @@ impl TransformES2015 {
         } else {
             updated = self.factory.ref_(self).update_set_accessor_declaration(
                 node,
-                node.ref_(self).maybe_decorators(),
-                node.ref_(self).maybe_modifiers(),
+                released!(node.ref_(self).maybe_decorators()),
+                released!(node.ref_(self).maybe_modifiers()),
                 node_name,
                 parameters,
                 Some(body),

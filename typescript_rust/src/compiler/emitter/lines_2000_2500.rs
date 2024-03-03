@@ -399,7 +399,10 @@ impl Printer {
                 .as_function_type_node()
                 .maybe_type_parameters(),
         )?;
-        self.emit_parameters_for_arrow(node, node.ref_(self).as_function_type_node().parameters())?;
+        self.emit_parameters_for_arrow(
+            node,
+            released!(node.ref_(self).as_function_type_node().parameters()),
+        )?;
         self.write_space();
         self.write_punctuation("=>");
         self.write_space();

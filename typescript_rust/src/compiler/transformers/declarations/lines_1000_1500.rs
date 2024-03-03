@@ -110,13 +110,17 @@ impl TransformDeclarations {
                 ));
             }
             SyntaxKind::ExportAssignment => {
-                let input_ref = input.ref_(self);
-                let input_as_export_assignment = input_ref.as_export_assignment();
                 if is_source_file(&input.ref_(self).parent().ref_(self)) {
                     self.set_result_has_external_module_indicator(true);
                 }
                 self.set_result_has_scope_marker(true);
-                if input_as_export_assignment.expression.ref_(self).kind() == SyntaxKind::Identifier
+                if input
+                    .ref_(self)
+                    .as_export_assignment()
+                    .expression
+                    .ref_(self)
+                    .kind()
+                    == SyntaxKind::Identifier
                 {
                     return Ok(Some(input.into()));
                 } else {
@@ -134,7 +138,7 @@ impl TransformDeclarations {
                         Some(new_id.clone()),
                         None,
                         self.resolver.ref_(self).create_type_of_expression(
-                            input_as_export_assignment.expression,
+                            released!(input.ref_(self).as_export_assignment().expression),
                             input,
                             declaration_emit_node_builder_flags(),
                             self.symbol_tracker(),

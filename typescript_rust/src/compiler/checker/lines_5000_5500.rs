@@ -301,7 +301,7 @@ impl NodeBuilder {
                     .intersects(NodeBuilderFlags::UseStructuralFallback)
                     || self.type_checker.ref_(self).is_value_symbol_accessible(
                         symbol,
-                        context.ref_(self).maybe_enclosing_declaration(),
+                        released!(context.ref_(self).maybe_enclosing_declaration()),
                     )?));
         }
         Ok(false)
@@ -1077,10 +1077,11 @@ impl NodeBuilder {
             )]));
         }
         let mut type_elements: Vec<Id<Node>> = vec![];
-        for signature in &*resolved_type
+        for signature in &released!(resolved_type
             .ref_(self)
             .as_resolved_type()
             .call_signatures()
+            .clone())
         {
             type_elements.push(self.signature_to_signature_declaration_helper(
                 signature.clone(),

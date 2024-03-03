@@ -961,10 +961,10 @@ impl TransformDeclarations {
                             .unwrap(),
                             self.ensure_type(
                                 input,
-                                input
+                                released!(input
                                     .ref_(self)
                                     .as_construct_signature_declaration()
-                                    .maybe_type(),
+                                    .maybe_type()),
                                 None,
                             )?,
                         ),
@@ -1190,25 +1190,20 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        Some(
-                            self.factory.ref_(self).update_property_signature(
-                                input,
-                                self.ensure_modifiers(input),
-                                released!(input.ref_(self).as_property_signature().name()),
-                                released!(input
+                        Some(self.factory.ref_(self).update_property_signature(
+                            input,
+                            self.ensure_modifiers(input),
+                            released!(input.ref_(self).as_property_signature().name()),
+                            released!(input
                                     .ref_(self)
                                     .as_property_signature()
                                     .maybe_question_token()),
-                                self.ensure_type(
-                                    input,
-                                    released!(input
-                                        .ref_(self)
-                                        .as_property_signature()
-                                        .maybe_type()),
-                                    None,
-                                )?,
-                            ),
-                        ),
+                            self.ensure_type(
+                                input,
+                                released!(input.ref_(self).as_property_signature().maybe_type()),
+                                None,
+                            )?,
+                        )),
                     )?
                 }
                 SyntaxKind::MethodSignature => {

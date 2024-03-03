@@ -818,7 +818,7 @@ impl NodeBuilder {
     ) -> io::Result<Id<Node>> {
         if !self.type_checker.ref_(self).is_error_type(type_) {
             if let Some(context_enclosing_declaration) =
-                context.ref_(self).maybe_enclosing_declaration()
+                released!(context.ref_(self).maybe_enclosing_declaration())
             {
                 let annotation =
                     signature

@@ -1873,7 +1873,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Symbol>> {
         let resolved = self
             .resolve_external_module_symbol(
-                Some(node.ref_(self).parent().ref_(self).symbol()),
+                released!(Some(node.ref_(self).parent().ref_(self).symbol())),
                 Some(dont_resolve_alias),
             )?
             .unwrap();

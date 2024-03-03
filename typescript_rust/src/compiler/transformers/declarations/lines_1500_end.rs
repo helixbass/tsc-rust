@@ -72,7 +72,12 @@ impl TransformDeclarations {
         d: Id<Node>, /*BindingPattern*/
     ) -> io::Result<Vec<Id<Node /*VariableDeclaration*/>>> {
         Ok(flatten(&try_map_defined(
-            Some(&*released!(d.ref_(self).as_has_elements().elements()).ref_(self)),
+            Some(&*released!(d
+                .ref_(self)
+                .as_has_elements()
+                .elements()
+                .ref_(self)
+                .clone())),
             |&e: &Id<Node>, _| self.recreate_binding_element(e),
         )?))
     }

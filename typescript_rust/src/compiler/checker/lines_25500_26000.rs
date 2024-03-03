@@ -439,7 +439,7 @@ impl TypeChecker {
                     .as_deref(),
             ) {
                 return Ok(Some(self.get_type_from_binding_pattern(
-                    declaration.ref_(self).as_named_declaration().name(),
+                    released!(declaration.ref_(self).as_named_declaration().name()),
                     Some(true),
                     Some(false),
                 )?));

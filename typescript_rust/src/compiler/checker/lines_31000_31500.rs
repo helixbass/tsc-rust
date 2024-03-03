@@ -517,7 +517,7 @@ impl TypeChecker {
                 self.check_non_null_chain(node)?
             } else {
                 self.get_non_nullable_type(self.check_expression(
-                    node.ref_(self).as_has_expression().expression(),
+                    released!(node.ref_(self).as_has_expression().expression()),
                     None,
                     None,
                 )?)?

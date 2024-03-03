@@ -173,7 +173,11 @@ impl TypeChecker {
                 .intersects(TypeFlags::Union)
         {
             signatures = self.get_union_signatures(&try_map(
-                apparent_elem_type.ref_(self).as_union_type().types(),
+                &released!(apparent_elem_type
+                    .ref_(self)
+                    .as_union_type()
+                    .types()
+                    .to_owned()),
                 |&t: &Id<Type>, _| self.get_uninstantiated_jsx_signatures_of_type(t, caller),
             )?)?;
         }

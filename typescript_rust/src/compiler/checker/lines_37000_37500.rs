@@ -69,10 +69,8 @@ impl TypeChecker {
     pub(super) fn check_do_statement(&self, node: Id<Node> /*DoStatement*/) -> io::Result<()> {
         self.check_grammar_statement_in_ambient_context(node);
 
-        let node_ref = node.ref_(self);
-        let node_as_do_statement = node_ref.as_do_statement();
-        self.check_source_element(Some(node_as_do_statement.statement))?;
-        self.check_truthiness_expression(node_as_do_statement.expression, None)?;
+        self.check_source_element(Some(node.ref_(self).as_do_statement().statement))?;
+        self.check_truthiness_expression(node.ref_(self).as_do_statement().expression, None)?;
 
         Ok(())
     }

@@ -109,12 +109,12 @@ impl TypeChecker {
                     .intersects(TypeFlags::Substitution)
             {
                 return self.get_indexed_access_type(
-                    self.get_actual_type_variable(
-                        type_.ref_(self).as_indexed_access_type().object_type,
-                    )?,
-                    self.get_actual_type_variable(
-                        type_.ref_(self).as_indexed_access_type().index_type,
-                    )?,
+                    self.get_actual_type_variable(released!(
+                        type_.ref_(self).as_indexed_access_type().object_type
+                    ))?,
+                    self.get_actual_type_variable(released!(
+                        type_.ref_(self).as_indexed_access_type().index_type
+                    ))?,
                     None,
                     Option::<Id<Node>>::None,
                     Option::<Id<Symbol>>::None,

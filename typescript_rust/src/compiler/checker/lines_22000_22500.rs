@@ -369,10 +369,10 @@ impl InferTypes {
             self.infer_from_type_arguments(
                 &*self.type_checker.ref_(self).get_type_arguments(source)?,
                 &*self.type_checker.ref_(self).get_type_arguments(target)?,
-                &self
-                    .type_checker
+                &self.type_checker.ref_(self).get_variances(released!(source
                     .ref_(self)
-                    .get_variances(source.ref_(self).as_type_reference_interface().target()),
+                    .as_type_reference_interface()
+                    .target())),
             )?;
             return Ok(());
         }
