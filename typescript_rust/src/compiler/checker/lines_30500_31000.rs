@@ -942,22 +942,20 @@ impl TypeChecker {
             && return_type.ref_(self).flags().intersects(TypeFlags::Void)
             && self.get_type_predicate_of_signature(signature)?.is_some()
         {
-            let node_ref = node.ref_(self);
-            let node_as_call_expression = node_ref.as_call_expression();
-            if !is_dotted_name(node_as_call_expression.expression, self) {
+            if !is_dotted_name(node.ref_(self).as_call_expression().expression, self) {
                 self.error(
-                    Some(node_as_call_expression.expression),
+                    Some(node.ref_(self).as_call_expression().expression),
                     &Diagnostics::Assertions_require_the_call_target_to_be_an_identifier_or_qualified_name,
                     None,
                 );
             } else if self.get_effects_signature(node)?.is_none() {
                 let diagnostic = self.error(
-                    Some(node_as_call_expression.expression),
+                    Some(node.ref_(self).as_call_expression().expression),
                     &Diagnostics::Assertions_require_every_name_in_the_call_target_to_be_declared_with_an_explicit_type_annotation,
                     None,
                 );
                 self.get_type_of_dotted_name(
-                    node_as_call_expression.expression,
+                    node.ref_(self).as_call_expression().expression,
                     Some(&diagnostic.ref_(self)),
                 )?;
             }

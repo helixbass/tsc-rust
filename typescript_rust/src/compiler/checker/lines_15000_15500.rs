@@ -10,13 +10,13 @@ use crate::{
     get_property_name_for_property_name_node, get_text_of_node, is_access_expression,
     is_assignment_target, is_call_like_expression, is_call_or_new_expression, is_delete_target,
     is_function_like, is_identifier, is_indexed_access_type_node, is_private_identifier,
-    is_property_name, maybe_every, pseudo_big_int_to_string, try_every, try_map, try_reduce_left,
-    try_some, uncapitalize, unescape_leading_underscores, AccessFlags, AssignmentKind,
-    DiagnosticMessageChain, Diagnostics, HasArena, InArena, IndexInfo, IndexedAccessType,
-    LiteralType, Node, NodeFlags, NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface,
-    ObjectTypeInterface, OptionTry, StringMappingType, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, TemplateLiteralType, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnionOrIntersectionTypeInterface, UnionReduction,
+    is_property_name, maybe_every, pseudo_big_int_to_string, released, try_every, try_map,
+    try_reduce_left, try_some, uncapitalize, unescape_leading_underscores, AccessFlags,
+    AssignmentKind, DiagnosticMessageChain, Diagnostics, HasArena, InArena, IndexInfo,
+    IndexedAccessType, LiteralType, Node, NodeFlags, NodeInterface, Number, ObjectFlags,
+    ObjectFlagsTypeInterface, ObjectTypeInterface, OptionTry, StringMappingType, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, TemplateLiteralType, Type, TypeChecker, TypeFlags,
+    TypeInterface, UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -1180,7 +1180,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         if index_type.ref_(self).flags().intersects(TypeFlags::Union) {
             let types = try_map(
-                index_type.ref_(self).as_union_type().types(),
+                &released!(index_type.ref_(self).as_union_type().types().to_owned()),
                 |&t: &Id<Type>, _| {
                     self.get_simplified_type(
                         self.get_indexed_access_type(
@@ -1301,7 +1301,7 @@ impl TypeChecker {
                 .try_map_type(
                     self.substitute_indexed_mapped_type(
                         object_type,
-                        type_.ref_(self).as_indexed_access_type().index_type,
+                        released!(type_.ref_(self).as_indexed_access_type().index_type),
                     )?,
                     &mut |t| Ok(Some(self.get_simplified_type(t, writing)?)),
                     None,
@@ -1549,7 +1549,7 @@ impl TypeChecker {
         {
             let mut prop_types: Vec<Id<Type>> = vec![];
             let mut was_missing_prop = false;
-            for &t in index_type.ref_(self).as_union_type().types() {
+            for &t in &released!(index_type.ref_(self).as_union_type().types().to_owned()) {
                 let prop_type = self.get_property_type_for_index_type(
                     object_type,
                     apparent_object_type,

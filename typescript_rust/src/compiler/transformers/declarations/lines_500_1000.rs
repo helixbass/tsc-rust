@@ -933,40 +933,45 @@ impl TransformDeclarations {
                         )),
                     )?
                 }
-                SyntaxKind::ConstructSignature => {
-                    let input_ref = input.ref_(self);
-                    let input_as_construct_signature_declaration =
-                        input_ref.as_construct_signature_declaration();
-                    self.visit_declaration_subtree_cleanup(
-                        input,
-                        can_produce_diagnostic,
-                        previous_enclosing_declaration,
-                        &old_diag,
-                        should_enter_suppress_new_diagnostics_context_context,
-                        old_within_object_literal_type,
-                        Some(
-                            self.factory.ref_(self).update_construct_signature(
+                SyntaxKind::ConstructSignature => self.visit_declaration_subtree_cleanup(
+                    input,
+                    can_produce_diagnostic,
+                    previous_enclosing_declaration,
+                    &old_diag,
+                    should_enter_suppress_new_diagnostics_context_context,
+                    old_within_object_literal_type,
+                    Some(
+                        self.factory.ref_(self).update_construct_signature(
+                            input,
+                            self.ensure_type_params(
                                 input,
-                                self.ensure_type_params(
-                                    input,
-                                    input_as_construct_signature_declaration
-                                        .maybe_type_parameters(),
-                                )?,
-                                self.update_params_list(
-                                    input,
-                                    Some(input_as_construct_signature_declaration.parameters()),
-                                    None,
-                                )?
-                                .unwrap(),
-                                self.ensure_type(
-                                    input,
-                                    input_as_construct_signature_declaration.maybe_type(),
-                                    None,
-                                )?,
-                            ),
+                                input
+                                    .ref_(self)
+                                    .as_construct_signature_declaration()
+                                    .maybe_type_parameters(),
+                            )?,
+                            self.update_params_list(
+                                input,
+                                Some(
+                                    input
+                                        .ref_(self)
+                                        .as_construct_signature_declaration()
+                                        .parameters(),
+                                ),
+                                None,
+                            )?
+                            .unwrap(),
+                            self.ensure_type(
+                                input,
+                                input
+                                    .ref_(self)
+                                    .as_construct_signature_declaration()
+                                    .maybe_type(),
+                                None,
+                            )?,
                         ),
-                    )?
-                }
+                    ),
+                )?,
                 SyntaxKind::Constructor => {
                     let ctor = self.factory.ref_(self).create_constructor_declaration(
                         Option::<Id<NodeArray>>::None,
@@ -1327,10 +1332,11 @@ impl TransformDeclarations {
                             .as_deref(),
                     ) {
                         return Ok(Some(
-                            self.recreate_binding_pattern(
-                                input.ref_(self).as_variable_declaration().name(),
-                            )?
-                            .into(),
+                            self.recreate_binding_pattern(released!(input
+                                .ref_(self)
+                                .as_variable_declaration()
+                                .name()))?
+                                .into(),
                         ));
                     }
                     should_enter_suppress_new_diagnostics_context_context = true;

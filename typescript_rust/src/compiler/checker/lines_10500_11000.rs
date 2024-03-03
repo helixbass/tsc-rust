@@ -561,10 +561,11 @@ impl TypeChecker {
                 mapper.clone().unwrap(),
             )?;
             index_infos = self.instantiate_index_infos(
-                &*source
+                &released!(source
                     .ref_(self)
                     .as_interface_type_with_declared_members()
-                    .declared_index_infos(),
+                    .declared_index_infos()
+                    .clone()),
                 mapper.clone().unwrap(),
             )?;
         }

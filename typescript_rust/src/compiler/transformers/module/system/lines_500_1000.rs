@@ -297,15 +297,15 @@ impl TransformSystemModule {
         let mut expressions: Option<Vec<Id<Node /*Expression*/>>> = _d();
         let is_exported_declaration = has_syntactic_modifier(node, ModifierFlags::Export, self);
         let is_marked_declaration = self.has_associated_end_of_declaration_marker(node);
-        for &variable in &*released!(
-            node.ref_(self)
-                .as_variable_statement()
-                .declaration_list
-                .ref_(self)
-                .as_variable_declaration_list()
-                .declarations
-        )
-        .ref_(self)
+        for &variable in &*released!(node
+            .ref_(self)
+            .as_variable_statement()
+            .declaration_list
+            .ref_(self)
+            .as_variable_declaration_list()
+            .declarations
+            .ref_(self)
+            .clone())
         {
             if variable
                 .ref_(self)

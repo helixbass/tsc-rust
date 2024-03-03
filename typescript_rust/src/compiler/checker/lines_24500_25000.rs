@@ -392,11 +392,13 @@ impl GetFlowTypeOfReference {
         call_expression: Id<Node>, /*CallExpression*/
         assume_true: bool,
     ) -> io::Result<Id<Type>> {
-        if let Some(predicate_type) = predicate.ref_(self).type_.filter(|&predicate_type| {
-            !(self.type_checker.ref_(self).is_type_any(Some(type_))
-                && (predicate_type == self.type_checker.ref_(self).global_object_type()
-                    || predicate_type == self.type_checker.ref_(self).global_function_type()))
-        }) {
+        if let Some(predicate_type) =
+            released!(predicate.ref_(self).type_).filter(|&predicate_type| {
+                !(self.type_checker.ref_(self).is_type_any(Some(type_))
+                    && (predicate_type == self.type_checker.ref_(self).global_object_type()
+                        || predicate_type == self.type_checker.ref_(self).global_function_type()))
+            })
+        {
             let predicate_argument = self
                 .type_checker
                 .ref_(self)

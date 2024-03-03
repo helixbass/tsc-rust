@@ -63,8 +63,6 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*CatchClause*/
     ) -> io::Result<Id<Node /*CatchClause*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_catch_clause = node_ref.as_catch_clause();
         let ancestor_facts = self.enter_subtree(
             HierarchyFacts::BlockScopeExcludes,
             HierarchyFacts::BlockScopeIncludes,
@@ -72,10 +70,17 @@ impl TransformES2015 {
         #[allow(clippy::needless_late_init)]
         let updated: Id<Node /*CatchClause*/>;
         Debug_.assert(
-            node_as_catch_clause.variable_declaration.is_some(),
+            node.ref_(self)
+                .as_catch_clause()
+                .variable_declaration
+                .is_some(),
             Some("Catch clause variable should always be present when downleveling ES2015."),
         );
-        let node_variable_declaration = node_as_catch_clause.variable_declaration.unwrap();
+        let node_variable_declaration = node
+            .ref_(self)
+            .as_catch_clause()
+            .variable_declaration
+            .unwrap();
         if is_binding_pattern(
             node_variable_declaration
                 .ref_(self)
@@ -115,7 +120,10 @@ impl TransformES2015 {
             updated = self.factory.ref_(self).update_catch_clause(
                 node,
                 Some(new_variable_declaration),
-                self.add_statement_to_start_of_block(node_as_catch_clause.block, destructure)?,
+                self.add_statement_to_start_of_block(
+                    node.ref_(self).as_catch_clause().block,
+                    destructure,
+                )?,
             );
         } else {
             updated = try_visit_each_child(

@@ -1719,11 +1719,11 @@ impl CheckTypeRelatedTo {
                     target_signatures[i].clone(),
                     true,
                     report_errors,
-                    incompatible_reporter(
+                    released!(incompatible_reporter(
                         &self_.ref_(arena),
                         source_signatures[i],
                         target_signatures[i],
-                    ),
+                    )),
                 )?;
                 if related == Ternary::False {
                     return Ok(Ternary::False);

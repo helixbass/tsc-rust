@@ -910,7 +910,10 @@ impl Printer {
         node: Id<Node>, /*WhileStatement*/
     ) -> io::Result<()> {
         self.emit_while_clause(node, released!(node.ref_(self).pos()))?;
-        self.emit_embedded_statement(node, node.ref_(self).as_while_statement().statement)?;
+        self.emit_embedded_statement(
+            node,
+            released!(node.ref_(self).as_while_statement().statement),
+        )?;
 
         Ok(())
     }
@@ -962,7 +965,7 @@ impl Printer {
             None,
         );
         self.emit_expression_with_leading_space(
-            node.ref_(self).as_for_statement().incrementor,
+            released!(node.ref_(self).as_for_statement().incrementor),
             None,
         )?;
         self.emit_token_with_comment(

@@ -1922,7 +1922,7 @@ impl CheckTypeRelatedTo {
                     .ref_(arena)
                     .is_known_property(
                         reduced_target,
-                        prop.ref_(arena).escaped_name(),
+                        &released!(prop.ref_(arena).escaped_name().to_owned()),
                         is_comparing_jsx_attributes,
                     )?
                 {

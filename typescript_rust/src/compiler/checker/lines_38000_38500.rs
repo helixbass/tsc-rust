@@ -125,10 +125,12 @@ impl TypeChecker {
                         )?;
                     }
                 }
-                let clause_ref = clause.ref_(self);
-                let clause_as_case_or_default_clause = clause_ref.as_case_or_default_clause();
                 try_for_each(
-                    &*clause_as_case_or_default_clause.statements().ref_(self),
+                    &*clause
+                        .ref_(self)
+                        .as_case_or_default_clause()
+                        .statements()
+                        .ref_(self),
                     |&statement: &Id<Node>, _| -> io::Result<Option<()>> {
                         self.check_source_element(Some(statement))?;
                         Ok(None)
@@ -140,7 +142,7 @@ impl TypeChecker {
                     .no_fallthrough_cases_in_switch
                     == Some(true)
                     && matches!(
-                        clause_as_case_or_default_clause.maybe_fallthrough_flow_node().as_ref(),
+                        clause.ref_(self).as_case_or_default_clause().maybe_fallthrough_flow_node().as_ref(),
                         Some(clause_fallthrough_flow_node) if self.is_reachable_flow_node(
                             clause_fallthrough_flow_node.clone()
                         )?

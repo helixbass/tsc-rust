@@ -828,12 +828,10 @@ impl NodeFactory {
         children: impl Into<NodeArrayOrVec>,
         closing_element: Id<Node /*JsxClosingElement*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_jsx_element = node_ref.as_jsx_element();
         let children = children.into();
-        if node_as_jsx_element.opening_element != opening_element
-            || has_node_array_changed(node_as_jsx_element.children, &children)
-            || node_as_jsx_element.closing_element != closing_element
+        if node.ref_(self).as_jsx_element().opening_element != opening_element
+            || has_node_array_changed(node.ref_(self).as_jsx_element().children, &children)
+            || node.ref_(self).as_jsx_element().closing_element != closing_element
         {
             self.update(
                 self.create_jsx_element(opening_element, children, closing_element),
@@ -877,15 +875,15 @@ impl NodeFactory {
         type_arguments: Option<impl Into<NodeArrayOrVec>>,
         attributes: Id<Node /*JsxAttributes*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_jsx_self_closing_element = node_ref.as_jsx_self_closing_element();
         let type_arguments = type_arguments.map(Into::into);
-        if node_as_jsx_self_closing_element.tag_name != tag_name
+        if node.ref_(self).as_jsx_self_closing_element().tag_name != tag_name
             || has_option_node_array_changed(
-                node_as_jsx_self_closing_element.maybe_type_arguments(),
+                node.ref_(self)
+                    .as_jsx_self_closing_element()
+                    .maybe_type_arguments(),
                 type_arguments.as_ref(),
             )
-            || node_as_jsx_self_closing_element.attributes != attributes
+            || node.ref_(self).as_jsx_self_closing_element().attributes != attributes
         {
             self.update(
                 self.create_jsx_self_closing_element(tag_name, type_arguments, attributes),
@@ -1096,9 +1094,9 @@ impl NodeFactory {
         name: Id<Node /*Identifier*/>,
         initializer: Option<Id<Node /*StringLiteral | JsxExpression*/>>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_jsx_attribute = node_ref.as_jsx_attribute();
-        if node_as_jsx_attribute.name != name || node_as_jsx_attribute.initializer != initializer {
+        if node.ref_(self).as_jsx_attribute().name != name
+            || node.ref_(self).as_jsx_attribute().initializer != initializer
+        {
             self.update(self.create_jsx_attribute(name, initializer), node)
         } else {
             node
@@ -1124,10 +1122,8 @@ impl NodeFactory {
         node: Id<Node>, /*JsxAttributes*/
         properties: impl Into<NodeArrayOrVec>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_jsx_attributes = node_ref.as_jsx_attributes();
         let properties = properties.into();
-        if has_node_array_changed(node_as_jsx_attributes.properties, &properties) {
+        if has_node_array_changed(node.ref_(self).as_jsx_attributes().properties, &properties) {
             self.update(self.create_jsx_attributes(properties), node)
         } else {
             node

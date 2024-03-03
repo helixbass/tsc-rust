@@ -72,7 +72,8 @@ impl TypeChecker {
         if let Some(prop_declarations) = prop.ref_(self).maybe_declarations().clone() {
             result.ref_(self).set_declarations(prop_declarations);
         }
-        result_links.ref_mut(self).name_type = self.get_symbol_links(prop).ref_(self).name_type;
+        result_links.ref_mut(self).name_type =
+            released!(self.get_symbol_links(prop).ref_(self).name_type);
         result_links.ref_mut(self).synthetic_origin = Some(prop);
         Ok(result)
     }

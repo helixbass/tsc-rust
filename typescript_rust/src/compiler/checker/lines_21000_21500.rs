@@ -1200,12 +1200,10 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
         if links.ref_(self).type_.is_none() {
-            let symbol_ref = symbol.ref_(self);
-            let symbol_as_reverse_mapped_symbol = symbol_ref.as_reverse_mapped_symbol();
             links.ref_mut(self).type_ = Some(self.infer_reverse_mapped_type(
-                symbol_as_reverse_mapped_symbol.property_type,
-                symbol_as_reverse_mapped_symbol.mapped_type,
-                symbol_as_reverse_mapped_symbol.constraint_type,
+                symbol.ref_(self).as_reverse_mapped_symbol().property_type,
+                symbol.ref_(self).as_reverse_mapped_symbol().mapped_type,
+                symbol.ref_(self).as_reverse_mapped_symbol().constraint_type,
             )?);
         }
         let ret = links.ref_(self).type_.clone().unwrap();

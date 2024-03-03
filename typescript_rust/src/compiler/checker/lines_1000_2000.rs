@@ -946,7 +946,7 @@ impl TypeChecker {
         if is_global_scope_augmentation(&module_augmentation.ref_(self)) {
             self.merge_symbol_table(
                 self.globals_id(),
-                module_augmentation.ref_(self).symbol().ref_(self).exports(),
+                released!(module_augmentation.ref_(self).symbol().ref_(self).exports()),
                 None,
             )?;
         } else {
@@ -1043,7 +1043,11 @@ impl TypeChecker {
                             }
                         }
                     }
-                    self.merge_symbol(main_module, module_augmentation.ref_(self).symbol(), None)?;
+                    self.merge_symbol(
+                        main_module,
+                        released!(module_augmentation.ref_(self).symbol()),
+                        None,
+                    )?;
                 }
             } else {
                 self.error(

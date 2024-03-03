@@ -1016,7 +1016,7 @@ impl TypeChecker {
             .flags()
             .intersects(NodeFlags::InWithStatement)
         {
-            match node.ref_(self).kind() {
+            match released!(node.ref_(self).kind()) {
                 SyntaxKind::Identifier => {
                     let symbol = self
                         .get_export_symbol_of_value_symbol_if_exported(Some(

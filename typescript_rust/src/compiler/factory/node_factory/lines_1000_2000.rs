@@ -356,13 +356,11 @@ impl NodeFactory {
         question_token: Option<Id<Node>>,
         type_: Option<Id<Node>>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_property_signature = node_ref.as_property_signature();
         let modifiers = modifiers.map(Into::into);
         if has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
-            || node_as_property_signature.name() != name
-            || node_as_property_signature.question_token != question_token
-            || node_as_property_signature.maybe_type() != type_
+            || node.ref_(self).as_property_signature().name() != name
+            || node.ref_(self).as_property_signature().question_token != question_token
+            || node.ref_(self).as_property_signature().maybe_type() != type_
         {
             self.update(
                 self.create_property_signature(modifiers, name, question_token, type_),

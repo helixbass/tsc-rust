@@ -1817,9 +1817,9 @@ impl CheckTypeRelatedTo {
                             .ref_(arena)
                             .type_checker
                             .ref_(arena)
-                            .get_permissive_instantiation(
-                                c.ref_(arena).as_conditional_type().check_type,
-                            )?,
+                            .get_permissive_instantiation(released!(
+                                c.ref_(arena).as_conditional_type().check_type
+                            ))?,
                         self_
                             .ref_(arena)
                             .type_checker

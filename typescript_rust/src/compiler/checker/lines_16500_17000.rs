@@ -833,7 +833,7 @@ impl TypeChecker {
                 return Ok(self.get_substitution_type(
                     maybe_variable,
                     self.instantiate_type(
-                        type_.ref_(self).as_substitution_type().substitute,
+                        released!(type_.ref_(self).as_substitution_type().substitute),
                         Some(mapper),
                     )?,
                 ));

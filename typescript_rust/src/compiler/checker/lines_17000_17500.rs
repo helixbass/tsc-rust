@@ -793,12 +793,12 @@ impl TypeChecker {
         name_type: Id<Type>, /*LiteralType*/
         get_invalid_text_diagnostic: &mut impl FnMut() -> io::Result<Cow<'static, DiagnosticMessage>>,
     ) -> io::Result<Option<ElaborationIteratorItem>> {
-        match child.ref_(self).kind() {
+        match released!(child.ref_(self).kind()) {
             SyntaxKind::JsxExpression => {
                 return Ok(Some(ElaborationIteratorItem {
                     error_node: child,
                     inner_expression: child.ref_(self).as_jsx_expression().expression,
-                    name_type: name_type,
+                    name_type,
                     error_message: None,
                 }));
             }
@@ -812,7 +812,7 @@ impl TypeChecker {
                     return Ok(Some(ElaborationIteratorItem {
                         error_node: child,
                         inner_expression: None,
-                        name_type: name_type,
+                        name_type,
                         error_message: Some(get_invalid_text_diagnostic()?),
                     }));
                 }
@@ -823,7 +823,7 @@ impl TypeChecker {
                 return Ok(Some(ElaborationIteratorItem {
                     error_node: child,
                     inner_expression: Some(child),
-                    name_type: name_type,
+                    name_type,
                     error_message: None,
                 }));
             }

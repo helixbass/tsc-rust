@@ -181,9 +181,9 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*JsxFragment*/
     ) -> io::Result<Id<Type>> {
-        self.check_jsx_opening_like_element_or_opening_fragment(
-            node.ref_(self).as_jsx_fragment().opening_fragment,
-        )?;
+        self.check_jsx_opening_like_element_or_opening_fragment(released!(
+            node.ref_(self).as_jsx_fragment().opening_fragment
+        ))?;
 
         let node_source_file = get_source_file_of_node(node, self);
         let node_source_file_ref = node_source_file.ref_(self);
@@ -235,7 +235,9 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         Ok(
-            if let Some(node_initializer) = node.ref_(self).as_jsx_attribute().initializer {
+            if let Some(node_initializer) =
+                released!(node.ref_(self).as_jsx_attribute().initializer)
+            {
                 self.check_expression_for_mutable_location(
                     node_initializer,
                     check_mode,
@@ -273,11 +275,8 @@ impl TypeChecker {
             self.get_jsx_namespace_at(Some(opening_like_element))?,
         )?;
 
-        for &attribute_decl in &*attributes
-            .ref_(self)
-            .as_jsx_attributes()
-            .properties
-            .ref_(self)
+        for &attribute_decl in
+            &*released!(attributes.ref_(self).as_jsx_attributes().properties).ref_(self)
         {
             let member = attribute_decl.ref_(self).maybe_symbol();
             if is_jsx_attribute(&attribute_decl.ref_(self)) {

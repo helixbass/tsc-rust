@@ -556,13 +556,14 @@ impl TransformModule {
                             )),
                         );
                         let updated_variable = self.factory.ref_(self).create_variable_declaration(
-                            Some(variable.ref_(self).as_variable_declaration().name()),
-                            variable
-                                .ref_(self)
-                                .as_variable_declaration()
-                                .exclamation_token
-                                .clone(),
-                            variable.ref_(self).as_variable_declaration().maybe_type(),
+                            released!(Some(variable.ref_(self).as_variable_declaration().name())),
+                            released!(
+                                variable
+                                    .ref_(self)
+                                    .as_variable_declaration()
+                                    .exclamation_token
+                            ),
+                            released!(variable.ref_(self).as_variable_declaration().maybe_type()),
                             Some(try_visit_node(
                                 variable_initializer,
                                 Some(|node: Id<Node>| self.visitor(node)),

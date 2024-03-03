@@ -769,25 +769,25 @@ impl TransformES2015 {
         Ok(self.factory.ref_(self).update_for_statement(
             node,
             try_maybe_visit_node(
-                node.ref_(self).as_for_statement().initializer,
+                released!(node.ref_(self).as_for_statement().initializer),
                 Some(|node: Id<Node>| self.visitor_with_unused_expression_result(node)),
                 Some(|node| is_for_initializer(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_maybe_visit_node(
-                node.ref_(self).as_for_statement().condition,
+                released!(node.ref_(self).as_for_statement().condition),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_maybe_visit_node(
-                node.ref_(self).as_for_statement().incrementor,
+                released!(node.ref_(self).as_for_statement().incrementor),
                 Some(|node: Id<Node>| self.visitor_with_unused_expression_result(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_node(
-                node.ref_(self).as_for_statement().statement,
+                released!(node.ref_(self).as_for_statement().statement),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_statement(node, self)),
                 Some(|nodes: &[Id<Node>]| self.factory.ref_(self).lift_to_block(nodes)),

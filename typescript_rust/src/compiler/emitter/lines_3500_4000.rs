@@ -19,7 +19,10 @@ use crate::{
 
 impl Printer {
     pub(super) fn emit_jsx_element(&self, node: Id<Node> /*JsxElement*/) -> io::Result<()> {
-        self.emit(Some(node.ref_(self).as_jsx_element().opening_element), None)?;
+        self.emit(
+            Some(released!(node.ref_(self).as_jsx_element().opening_element)),
+            None,
+        )?;
         self.emit_list(
             Some(node),
             released!(Some(node.ref_(self).as_jsx_element().children)),
@@ -49,7 +52,9 @@ impl Printer {
         )?;
         self.write_space();
         self.emit(
-            Some(node.ref_(self).as_jsx_self_closing_element().attributes),
+            released!(Some(
+                node.ref_(self).as_jsx_self_closing_element().attributes
+            )),
             None,
         )?;
         self.write_punctuation("/>");
@@ -81,17 +86,22 @@ impl Printer {
         self.write_punctuation("<");
 
         if is_jsx_opening_element(&node.ref_(self)) {
-            let node_ref = node.ref_(self);
-            let node_as_jsx_opening_element = node_ref.as_jsx_opening_element();
             let indented = self.write_line_separators_and_indent_before(
-                node_as_jsx_opening_element.tag_name,
+                node.ref_(self).as_jsx_opening_element().tag_name,
                 node,
             );
-            self.emit_jsx_tag_name(node_as_jsx_opening_element.tag_name)?;
-            self.emit_type_arguments(node, node_as_jsx_opening_element.maybe_type_arguments())?;
+            self.emit_jsx_tag_name(released!(node.ref_(self).as_jsx_opening_element().tag_name))?;
+            self.emit_type_arguments(
+                node,
+                node.ref_(self)
+                    .as_jsx_opening_element()
+                    .maybe_type_arguments(),
+            )?;
             if
             /*node.attributes.properties &&*/
-            !node_as_jsx_opening_element
+            !node
+                .ref_(self)
+                .as_jsx_opening_element()
                 .attributes
                 .ref_(self)
                 .as_jsx_attributes()
@@ -101,8 +111,14 @@ impl Printer {
             {
                 self.write_space();
             }
-            self.emit(Some(node_as_jsx_opening_element.attributes), None)?;
-            self.write_line_separators_after(node_as_jsx_opening_element.attributes, node);
+            self.emit(
+                Some(node.ref_(self).as_jsx_opening_element().attributes),
+                None,
+            )?;
+            self.write_line_separators_after(
+                node.ref_(self).as_jsx_opening_element().attributes,
+                node,
+            );
             self.decrease_indent_if(indented, None);
         }
 
@@ -135,7 +151,7 @@ impl Printer {
     ) -> io::Result<()> {
         self.emit_list(
             Some(node),
-            Some(node.ref_(self).as_jsx_attributes().properties),
+            released!(Some(node.ref_(self).as_jsx_attributes().properties)),
             ListFormat::JsxElementAttributes,
             None,
             None,
@@ -149,13 +165,11 @@ impl Printer {
         &self,
         node: Id<Node>, /*JsxAttribute*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_jsx_attribute = node_ref.as_jsx_attribute();
-        self.emit(Some(node_as_jsx_attribute.name), None)?;
+        self.emit(Some(node.ref_(self).as_jsx_attribute().name), None)?;
         self.try_emit_node_with_prefix(
             "=",
             |text: &str| self.write_punctuation(text),
-            node_as_jsx_attribute.initializer,
+            node.ref_(self).as_jsx_attribute().initializer,
             |node: Id<Node>| self.emit_jsx_attribute_value(node),
         )?;
 
@@ -168,7 +182,7 @@ impl Printer {
     ) -> io::Result<()> {
         self.write_punctuation("{...");
         self.emit_expression(
-            Some(node.ref_(self).as_jsx_spread_attribute().expression),
+            released!(Some(node.ref_(self).as_jsx_spread_attribute().expression)),
             None,
         )?;
         self.write_punctuation("}");

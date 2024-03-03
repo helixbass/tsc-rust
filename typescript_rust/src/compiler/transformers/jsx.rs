@@ -974,9 +974,10 @@ impl TransformJsx {
                 .factory
                 .ref_(self)
                 .create_string_literal(
-                    self.try_decode_entities(&node.ref_(self).as_string_literal().text())
+                    released!(self
+                        .try_decode_entities(&node.ref_(self).as_string_literal().text())
                         .map(Cow::into_owned)
-                        .unwrap_or_else(|| node.ref_(self).as_string_literal().text().clone()),
+                        .unwrap_or_else(|| node.ref_(self).as_string_literal().text().clone())),
                     Some(single_quote),
                     None,
                 )

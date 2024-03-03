@@ -72,7 +72,7 @@ impl TransformDeclarations {
         d: Id<Node>, /*BindingPattern*/
     ) -> io::Result<Vec<Id<Node /*VariableDeclaration*/>>> {
         Ok(flatten(&try_map_defined(
-            Some(&*d.ref_(self).as_has_elements().elements().ref_(self)),
+            Some(&*released!(d.ref_(self).as_has_elements().elements()).ref_(self)),
             |&e: &Id<Node>, _| self.recreate_binding_element(e),
         )?))
     }
@@ -84,8 +84,7 @@ impl TransformDeclarations {
         if e.ref_(self).kind() == SyntaxKind::OmittedExpression {
             return Ok(None);
         }
-        let e_ref = e.ref_(self);
-        let e_name = e_ref.as_binding_element().maybe_name();
+        let e_name = e.ref_(self).as_binding_element().maybe_name();
         e_name.try_and_then(|e_name| {
             if !self.get_binding_name_visible(e) {
                 return Ok(None);

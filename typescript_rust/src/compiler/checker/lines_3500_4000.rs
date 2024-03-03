@@ -331,19 +331,17 @@ impl TypeChecker {
             ));
         }
         let resolved_module_type = self.resolve_structured_type_members(module_type)?;
-        result_links.ref_mut(self).type_ = Some(
-            self.create_anonymous_type(
-                Some(result.clone()),
-                resolved_module_type.ref_(self).as_resolved_type().members(),
-                vec![],
-                vec![],
-                resolved_module_type
+        result_links.ref_mut(self).type_ = Some(self.create_anonymous_type(
+            Some(result.clone()),
+            released!(resolved_module_type.ref_(self).as_resolved_type().members()),
+            vec![],
+            vec![],
+            released!(resolved_module_type
                     .ref_(self)
                     .as_resolved_type()
                     .index_infos()
-                    .clone(),
-            )?,
-        );
+                    .clone()),
+        )?);
         Ok(result)
     }
 

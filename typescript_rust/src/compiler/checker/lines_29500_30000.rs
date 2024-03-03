@@ -1027,9 +1027,9 @@ impl TypeChecker {
                                 BaseDiagnosticRelatedInformation::new(
                                     chain.category,
                                     chain.code,
-                                    diags[0].ref_(self).maybe_file(),
-                                    Some(diags[0].ref_(self).start()),
-                                    Some(diags[0].ref_(self).length()),
+                                    released!(diags[0].ref_(self).maybe_file()),
+                                    released!(Some(diags[0].ref_(self).start())),
+                                    released!(Some(diags[0].ref_(self).length())),
                                     chain,
                                 ),
                                 Some(related),
@@ -1076,9 +1076,10 @@ impl TypeChecker {
                     &released!(node
                         .ref_(self)
                         .as_has_type_arguments()
-                        .maybe_type_arguments())
-                    .unwrap()
-                    .ref_(self),
+                        .maybe_type_arguments()
+                        .unwrap()
+                        .ref_(self)
+                        .clone()),
                     true,
                     fallback_error,
                 )?;
