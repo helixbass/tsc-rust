@@ -892,7 +892,9 @@ impl TypeChecker {
                 )
                 .into()
         } else {
-            unescape_leading_underscores(symbol.ref_(self).escaped_name()).into()
+            unescape_leading_underscores(symbol.ref_(self).escaped_name())
+                .to_owned()
+                .into()
         };
         let reference = get_factory(self).create_property_access_expression(
             get_factory(self).create_this(),
