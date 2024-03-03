@@ -85,10 +85,10 @@ impl TypeChecker {
     ) -> Id<IndexInfo> {
         if info.ref_(self).is_readonly != readonly {
             self.alloc_index_info(self.create_index_info(
-                info.ref_(self).key_type.clone(),
-                info.ref_(self).type_.clone(),
+                released!(info.ref_(self).key_type),
+                released!(info.ref_(self).type_),
                 readonly,
-                info.ref_(self).declaration.clone(),
+                released!(info.ref_(self).declaration),
             ))
         } else {
             info.clone()

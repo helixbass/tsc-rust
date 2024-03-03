@@ -151,7 +151,9 @@ impl TypeChecker {
         if let Some(node_incrementor) = node.ref_(self).as_for_statement().incrementor {
             self.check_expression(node_incrementor, None, None)?;
         }
-        self.check_source_element(Some(node.ref_(self).as_for_statement().statement))?;
+        self.check_source_element(Some(released!(
+            node.ref_(self).as_for_statement().statement
+        )))?;
         if node.ref_(self).maybe_locals().is_some() {
             self.register_for_unused_identifiers_check(node);
         }

@@ -146,9 +146,12 @@ impl TransformModule {
                             .set_original_node(Some(node), self),
                     );
                 }
-                for &specifier in
-                    &*released!(node_export_clause.ref_(self).as_named_exports().elements)
-                        .ref_(self)
+                for &specifier in &*released!(node_export_clause
+                    .ref_(self)
+                    .as_named_exports()
+                    .elements
+                    .ref_(self)
+                    .clone())
                 {
                     if self.language_version == ScriptTarget::ES3 {
                         statements.push(
@@ -174,7 +177,9 @@ impl TransformModule {
                                         )
                                         .map(|_| {
                                             self.factory.ref_(self).create_string_literal_from_node(
-                                                specifier.ref_(self).as_export_specifier().name,
+                                                released!(
+                                                    specifier.ref_(self).as_export_specifier().name
+                                                ),
                                             )
                                         }),
                                     ),
@@ -203,14 +208,13 @@ impl TransformModule {
                                 } else {
                                     generated_name.clone()
                                 },
-                                specifier
+                                released!(specifier
                                     .ref_(self)
                                     .as_export_specifier()
                                     .property_name
-                                    .clone()
                                     .unwrap_or_else(|| {
-                                        specifier.ref_(self).as_export_specifier().name.clone()
-                                    }),
+                                        specifier.ref_(self).as_export_specifier().name
+                                    })),
                             );
                         statements.push(
                             self.factory
@@ -235,35 +239,36 @@ impl TransformModule {
             } else if let Some(node_export_clause) =
                 released!(node.ref_(self).as_export_declaration().export_clause)
             {
-                let node_export_clause_ref = node_export_clause.ref_(self);
-                let node_export_clause_as_namespace_export =
-                    node_export_clause_ref.as_namespace_export();
                 let mut statements: Vec<Id<Node /*Statement*/>> = _d();
                 statements.push(
                     self.factory
                         .ref_(self)
-                        .create_expression_statement(
-                            self.create_export_expression(
-                                self.factory
-                                    .ref_(self)
-                                    .clone_node(node_export_clause_as_namespace_export.name),
-                                self.get_helper_expression_for_export(
-                                    node,
-                                    if self.module_kind != ModuleKind::AMD {
-                                        self.create_require_call(node)?
-                                    } else if is_export_namespace_as_default_declaration(node, self)
-                                    {
-                                        generated_name
-                                    } else {
-                                        self.factory.ref_(self).create_identifier(id_text(
-                                            &node_export_clause_as_namespace_export.name.ref_(self),
-                                        ))
-                                    },
-                                ),
-                                Option::<&Node>::None,
-                                None,
+                        .create_expression_statement(self.create_export_expression(
+                            self.factory.ref_(self).clone_node(released!(
+                                node_export_clause.ref_(self).as_namespace_export().name
+                            )),
+                            self.get_helper_expression_for_export(
+                                node,
+                                if self.module_kind != ModuleKind::AMD {
+                                    self.create_require_call(node)?
+                                } else if is_export_namespace_as_default_declaration(node, self) {
+                                    generated_name
+                                } else {
+                                    self.factory
+                                        .ref_(self)
+                                        .create_identifier(&released!(id_text(
+                                            &node_export_clause
+                                                .ref_(self)
+                                                .as_namespace_export()
+                                                .name
+                                                .ref_(self),
+                                        )
+                                        .to_owned()))
+                                },
                             ),
-                        )
+                            Option::<&Node>::None,
+                            None,
+                        ))
                         .set_text_range(Some(&*node.ref_(self)), self)
                         .set_original_node(Some(node), self),
                 );
@@ -801,9 +806,12 @@ impl TransformModule {
                     self.append_exports_of_declaration(statements, named_bindings, None);
                 }
                 SyntaxKind::NamedImports => {
-                    for &import_binding in
-                        &*released!(named_bindings.ref_(self).as_named_imports().elements)
-                            .ref_(self)
+                    for &import_binding in &*released!(named_bindings
+                        .ref_(self)
+                        .as_named_imports()
+                        .elements
+                        .ref_(self)
+                        .clone())
                     {
                         self.append_exports_of_declaration(statements, import_binding, Some(true));
                     }

@@ -2074,6 +2074,7 @@ impl NodeBuilderContext {
         self.flags.set(flags);
     }
 
+    #[track_caller]
     pub fn tracker_ref(&self) -> debug_cell::Ref<'_, Box<dyn SymbolTracker>> {
         self.tracker.get().ref_(self)
     }

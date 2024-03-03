@@ -276,13 +276,13 @@ impl TypeChecker {
                             )?,
                         );
                     }
-                    let false_type = self.get_type_from_type_node_(
+                    let false_type = self.get_type_from_type_node_(released!(
                         root.ref_(self)
                             .node
                             .ref_(self)
                             .as_conditional_type_node()
-                            .false_type,
-                    )?;
+                            .false_type
+                    ))?;
                     if false_type
                         .ref_(self)
                         .flags()

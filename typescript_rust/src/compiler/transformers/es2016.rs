@@ -116,11 +116,8 @@ impl TransformES2016 {
                 self.factory.ref_(self).create_element_access_expression(
                     set_text_range_id_node(
                         self.factory.ref_(self).create_assignment(
-                            expression_temp.clone(),
-                            left.ref_(self)
-                                .as_element_access_expression()
-                                .expression
-                                .clone(),
+                            expression_temp,
+                            released!(left.ref_(self).as_element_access_expression().expression),
                         ),
                         Some(
                             &*left
@@ -160,23 +157,27 @@ impl TransformES2016 {
                 self,
             );
         } else if is_property_access_expression(&left.ref_(self)) {
-            let left_ref = left.ref_(self);
-            let left_as_property_access_expression = left_ref.as_property_access_expression();
             let expression_temp = self.factory.ref_(self).create_temp_variable(
                 Some(|node: Id<Node>| self.context.ref_(self).hoist_variable_declaration(node)),
                 None,
             );
             target = set_text_range_id_node(
                 self.factory.ref_(self).create_property_access_expression(
-                    set_text_range_id_node(
+                    released!(set_text_range_id_node(
                         self.factory.ref_(self).create_assignment(
                             expression_temp.clone(),
-                            left_as_property_access_expression.expression.clone(),
+                            released!(left.ref_(self).as_property_access_expression().expression),
                         ),
-                        Some(&*left_as_property_access_expression.expression.ref_(self)),
+                        Some(
+                            &*left
+                                .ref_(self)
+                                .as_property_access_expression()
+                                .expression
+                                .ref_(self)
+                        ),
                         self,
-                    ),
-                    left_as_property_access_expression.name,
+                    )),
+                    released!(left.ref_(self).as_property_access_expression().name),
                 ),
                 Some(&*left.ref_(self)),
                 self,
@@ -184,7 +185,7 @@ impl TransformES2016 {
             value = set_text_range_id_node(
                 self.factory.ref_(self).create_property_access_expression(
                     expression_temp,
-                    left_as_property_access_expression.name,
+                    released!(left.ref_(self).as_property_access_expression().name),
                 ),
                 Some(&*left.ref_(self)),
                 self,
@@ -196,7 +197,7 @@ impl TransformES2016 {
         set_text_range_id_node(
             self.factory.ref_(self).create_assignment(
                 target,
-                set_text_range_id_node(
+                released!(set_text_range_id_node(
                     self.factory.ref_(self).create_global_method_call(
                         "Math",
                         "pow",
@@ -204,7 +205,7 @@ impl TransformES2016 {
                     ),
                     Some(&*node.ref_(self)),
                     self,
-                ),
+                )),
             ),
             Some(&*node.ref_(self)),
             self,

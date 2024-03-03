@@ -31,7 +31,10 @@ impl Printer {
             None,
             None,
         )?;
-        self.emit(Some(node.ref_(self).as_jsx_element().closing_element), None)?;
+        self.emit(
+            Some(released!(node.ref_(self).as_jsx_element().closing_element)),
+            None,
+        )?;
 
         Ok(())
     }
@@ -138,7 +141,7 @@ impl Printer {
     ) -> io::Result<()> {
         self.write_punctuation("</");
         if is_jsx_closing_element(&node.ref_(self)) {
-            self.emit_jsx_tag_name(node.ref_(self).as_jsx_closing_element().tag_name)?;
+            self.emit_jsx_tag_name(released!(node.ref_(self).as_jsx_closing_element().tag_name))?;
         }
         self.write_punctuation(">");
 
@@ -507,12 +510,17 @@ impl Printer {
         &self,
         node: Id<Node>, /*ShorthandPropertyAssignment*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_shorthand_property_assignment = node_ref.as_shorthand_property_assignment();
-        self.emit(node_as_shorthand_property_assignment.maybe_name(), None)?;
+        self.emit(
+            node.ref_(self)
+                .as_shorthand_property_assignment()
+                .maybe_name(),
+            None,
+        )?;
         Ok(
-            if let Some(node_object_assignment_initializer) =
-                node_as_shorthand_property_assignment.object_assignment_initializer
+            if let Some(node_object_assignment_initializer) = node
+                .ref_(self)
+                .as_shorthand_property_assignment()
+                .object_assignment_initializer
             {
                 self.write_space();
                 self.write_punctuation("=");

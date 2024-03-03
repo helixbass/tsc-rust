@@ -166,11 +166,12 @@ impl TypeChecker {
 
         for i in 0..parameter_count {
             let parameter = parameters.ref_(self)[i];
-            if let Some(parameter_dot_dot_dot_token) = parameter
-                .ref_(self)
-                .as_parameter_declaration()
-                .dot_dot_dot_token
-            {
+            if let Some(parameter_dot_dot_dot_token) = released!(
+                parameter
+                    .ref_(self)
+                    .as_parameter_declaration()
+                    .dot_dot_dot_token
+            ) {
                 if i != parameter_count - 1 {
                     return Ok(self.grammar_error_on_node(
                         parameter_dot_dot_dot_token,
@@ -360,9 +361,10 @@ impl TypeChecker {
                     .maybe_type_parameters(),
                 file,
             )
-            || self.check_grammar_parameter_list(
-                node.ref_(self).as_signature_declaration().parameters(),
-            )?
+            || self.check_grammar_parameter_list(released!(node
+                .ref_(self)
+                .as_signature_declaration()
+                .parameters()))?
             || self.check_grammar_arrow_function(node, file)
             || is_function_like_declaration(&node.ref_(self))
                 && self.check_grammar_for_use_strict_simple_parameter_list(node))

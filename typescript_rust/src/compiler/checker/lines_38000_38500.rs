@@ -372,26 +372,26 @@ impl TypeChecker {
         if let Some(type_declaration) =
             type_declaration.filter(|type_declaration| is_class_like(&type_declaration.ref_(self)))
         {
-            for &member in &*type_declaration
+            for &member in &*released!(type_declaration
                 .ref_(self)
                 .as_class_like_declaration()
-                .members()
-                .ref_(self)
+                .members())
+            .ref_(self)
             {
                 if !is_static(member, self) && !self.has_bindable_name(member)? {
                     let symbol = self.get_symbol_of_node(member)?.unwrap();
                     self.check_index_constraint_for_property(
                         type_,
                         symbol,
-                        self.get_type_of_expression(
+                        self.get_type_of_expression(released!(
                             member
                                 .ref_(self)
                                 .as_named_declaration()
                                 .name()
                                 .ref_(self)
                                 .as_computed_property_name()
-                                .expression,
-                        )?,
+                                .expression
+                        ))?,
                         self.get_non_missing_type_of_symbol(symbol)?,
                     )?;
                 }

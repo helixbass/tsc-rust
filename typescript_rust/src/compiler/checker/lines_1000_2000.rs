@@ -47,21 +47,22 @@ impl TypeChecker {
         if let Some(location) = location {
             let file = maybe_get_source_file_of_node(Some(location), self);
             if let Some(file) = file {
-                let file_ref = file.ref_(self);
-                let file_as_source_file = file_ref.as_source_file();
                 if is_jsx_opening_fragment(&location.ref_(self)) {
-                    if let Some(file_local_jsx_fragment_namespace) = file_as_source_file
+                    if let Some(file_local_jsx_fragment_namespace) = file
+                        .ref_(self)
+                        .as_source_file()
                         .maybe_local_jsx_fragment_namespace()
                         .as_ref()
                     {
                         return file_local_jsx_fragment_namespace.clone();
                     }
-                    let file_pragmas = file_as_source_file.pragmas();
+                    let file_pragmas = file.ref_(self).as_source_file().pragmas();
                     let jsx_fragment_pragma = file_pragmas.get(&PragmaName::Jsxfrag);
                     if let Some(jsx_fragment_pragma) = jsx_fragment_pragma {
                         let chosen_pragma = &jsx_fragment_pragma[0];
-                        file_as_source_file.set_local_jsx_fragment_factory(
-                            parse_isolated_entity_name(
+                        file.ref_(self)
+                            .as_source_file()
+                            .set_local_jsx_fragment_factory(parse_isolated_entity_name(
                                 chosen_pragma
                                     .arguments
                                     .get(&PragmaArgumentName::Factory)
@@ -70,43 +71,52 @@ impl TypeChecker {
                                     .clone(),
                                 self.language_version,
                                 self,
-                            ),
-                        );
+                            ));
                         maybe_visit_node(
-                            file_as_source_file.maybe_local_jsx_fragment_factory(),
+                            file.ref_(self)
+                                .as_source_file()
+                                .maybe_local_jsx_fragment_factory(),
                             Some(|node: Id<Node>| self.mark_as_synthetic(node)),
                             Option::<fn(Id<Node>) -> bool>::None,
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         );
-                        if let Some(file_local_jsx_fragment_factory) =
-                            file_as_source_file.maybe_local_jsx_fragment_factory()
+                        if let Some(file_local_jsx_fragment_factory) = file
+                            .ref_(self)
+                            .as_source_file()
+                            .maybe_local_jsx_fragment_factory()
                         {
                             let ret = get_first_identifier(file_local_jsx_fragment_factory, self)
                                 .ref_(self)
                                 .as_identifier()
                                 .escaped_text
                                 .clone();
-                            *file_as_source_file.maybe_local_jsx_fragment_namespace() =
-                                Some(ret.clone());
+                            *file
+                                .ref_(self)
+                                .as_source_file()
+                                .maybe_local_jsx_fragment_namespace() = Some(ret.clone());
                             return ret;
                         }
                     }
                     let entity = self.get_jsx_fragment_factory_entity(location);
                     if let Some(entity) = entity {
-                        file_as_source_file.set_local_jsx_fragment_factory(Some(entity.clone()));
+                        file.ref_(self)
+                            .as_source_file()
+                            .set_local_jsx_fragment_factory(Some(entity.clone()));
                         let ret = get_first_identifier(entity, self)
                             .ref_(self)
                             .as_identifier()
                             .escaped_text
                             .clone();
-                        *file_as_source_file.maybe_local_jsx_fragment_namespace() =
-                            Some(ret.clone());
+                        *file
+                            .ref_(self)
+                            .as_source_file()
+                            .maybe_local_jsx_fragment_namespace() = Some(ret.clone());
                         return ret;
                     }
                 } else {
                     let local_jsx_namespace = self.get_local_jsx_namespace(file);
                     if let Some(local_jsx_namespace) = local_jsx_namespace {
-                        *file_as_source_file.maybe_local_jsx_namespace() =
+                        *file.ref_(self).as_source_file().maybe_local_jsx_namespace() =
                             Some(local_jsx_namespace.clone());
                         return local_jsx_namespace;
                     }
@@ -164,40 +174,45 @@ impl TypeChecker {
         &self,
         file: Id<Node>, /*SourceFile*/
     ) -> Option<__String> {
-        let file_ref = file.ref_(self);
-        let file_as_source_file = file_ref.as_source_file();
-        if let Some(file_local_jsx_namespace) =
-            file_as_source_file.maybe_local_jsx_namespace().as_ref()
+        if let Some(file_local_jsx_namespace) = file
+            .ref_(self)
+            .as_source_file()
+            .maybe_local_jsx_namespace()
+            .as_ref()
         {
             return Some(file_local_jsx_namespace.clone());
         }
-        let file_pragmas = file_as_source_file.pragmas();
+        let file_pragmas = file.ref_(self).as_source_file().pragmas();
         let jsx_pragma = file_pragmas.get(&PragmaName::Jsx);
         if let Some(jsx_pragma) = jsx_pragma {
             let chosen_pragma = &jsx_pragma[0];
-            file_as_source_file.set_local_jsx_factory(parse_isolated_entity_name(
-                chosen_pragma
-                    .arguments
-                    .get(&PragmaArgumentName::Factory)
-                    .unwrap()
-                    .as_without_captured_span()
-                    .clone(),
-                self.language_version,
-                self,
-            ));
+            file.ref_(self)
+                .as_source_file()
+                .set_local_jsx_factory(parse_isolated_entity_name(
+                    chosen_pragma
+                        .arguments
+                        .get(&PragmaArgumentName::Factory)
+                        .unwrap()
+                        .as_without_captured_span()
+                        .clone(),
+                    self.language_version,
+                    self,
+                ));
             maybe_visit_node(
-                file_as_source_file.maybe_local_jsx_factory(),
+                file.ref_(self).as_source_file().maybe_local_jsx_factory(),
                 Some(|node: Id<Node>| self.mark_as_synthetic(node)),
                 Option::<fn(Id<Node>) -> bool>::None,
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             );
-            if let Some(file_local_jsx_factory) = file_as_source_file.maybe_local_jsx_factory() {
+            if let Some(file_local_jsx_factory) =
+                file.ref_(self).as_source_file().maybe_local_jsx_factory()
+            {
                 let ret = get_first_identifier(file_local_jsx_factory, self)
                     .ref_(self)
                     .as_identifier()
                     .escaped_text
                     .clone();
-                *file_as_source_file.maybe_local_jsx_namespace() = Some(ret.clone());
+                *file.ref_(self).as_source_file().maybe_local_jsx_namespace() = Some(ret.clone());
                 return Some(ret);
             }
         }

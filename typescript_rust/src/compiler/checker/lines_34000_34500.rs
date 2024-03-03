@@ -268,7 +268,7 @@ impl TypeChecker {
                             self.get_type_of_symbol(released!(
                                 signature.ref_(self).parameters()[type_predicate_parameter_index]
                             ))?,
-                            node.ref_(self).as_type_predicate_node().type_,
+                            released!(node.ref_(self).as_type_predicate_node().type_),
                             None,
                             Some(leading_error),
                             None,

@@ -101,15 +101,26 @@ impl ParserType {
                     self,
                 )
             }) {
-                let last_child_ref = last_child.ref_(self);
-                let last_child_as_jsx_element = last_child_ref.as_jsx_element();
-                let end = last_child_as_jsx_element.children.ref_(self).end();
-                let last_child_opening_element_pos =
-                    last_child_as_jsx_element.opening_element.ref_(self).pos();
+                let end = last_child
+                    .ref_(self)
+                    .as_jsx_element()
+                    .children
+                    .ref_(self)
+                    .end();
+                let last_child_opening_element_pos = last_child
+                    .ref_(self)
+                    .as_jsx_element()
+                    .opening_element
+                    .ref_(self)
+                    .pos();
                 let new_last = self.finish_node(
                     self.factory().ref_(self).create_jsx_element_raw(
-                        last_child_as_jsx_element.opening_element.clone(),
-                        last_child_as_jsx_element.children.clone(),
+                        last_child
+                            .ref_(self)
+                            .as_jsx_element()
+                            .opening_element
+                            .clone(),
+                        last_child.ref_(self).as_jsx_element().children.clone(),
                         self.finish_node(
                             self.factory().ref_(self).create_jsx_closing_element_raw(
                                 self.finish_node(
@@ -137,7 +148,11 @@ impl ParserType {
                 let children_len = children.ref_(self).len();
                 children_vec[children_len - 1] = new_last.alloc(self.arena());
                 children = self.create_node_array(children_vec, children_pos, Some(end), None);
-                closing_element = last_child_as_jsx_element.closing_element.clone();
+                closing_element = last_child
+                    .ref_(self)
+                    .as_jsx_element()
+                    .closing_element
+                    .clone();
             } else {
                 closing_element = self
                     .parse_jsx_closing_element(&opening, in_expression_context)

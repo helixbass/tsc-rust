@@ -467,7 +467,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let root = type_.ref_(self).as_conditional_type().root.clone();
         if let Some(root_outer_type_parameters) =
-            root.ref_(self).outer_type_parameters.clone().as_deref()
+            released!(root.ref_(self).outer_type_parameters.clone()).as_deref()
         {
             let type_arguments = try_map(root_outer_type_parameters, |&t: &Id<Type>, _| {
                 self.get_mapped_type(t, mapper)

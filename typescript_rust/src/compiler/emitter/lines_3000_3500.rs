@@ -13,7 +13,8 @@ use crate::{
     is_var_const, node_is_synthesized, range_is_on_single_line, released, EmitFlags, HasArena,
     HasInitializerInterface, HasTypeInterface, HasTypeParametersInterface, InArena,
     InterfaceOrClassLikeDeclarationInterface, ListFormat, NamedDeclarationInterface, Node,
-    NodeFlags, NodeInterface, Printer, ReadonlyTextRange, SyntaxKind, TextRange,
+    NodeFlags, NodeInterface, Printer, ReadonlyTextRange, ReadonlyTextRangeConcrete, SyntaxKind,
+    TextRange,
 };
 
 impl Printer {
@@ -128,7 +129,9 @@ impl Printer {
             self.emit(Some(node_catch_clause), None)?;
         }
         Ok(
-            if let Some(node_finally_block) = node.ref_(self).as_try_statement().finally_block {
+            if let Some(node_finally_block) =
+                released!(node.ref_(self).as_try_statement().finally_block)
+            {
                 self.write_line_or_space(
                     node,
                     node.ref_(self)
@@ -392,7 +395,9 @@ impl Printer {
         // if (emitBodyWithDetachedComments) {
         self.try_emit_body_with_detached_comments(
             body,
-            &*released!(body.ref_(self).as_block().statements).ref_(self),
+            &released!(ReadonlyTextRangeConcrete::from(
+                &*body.ref_(self).as_block().statements.ref_(self)
+            )),
             |node: Id<Node>| {
                 Ok(if should_emit_block_function_body_on_single_line {
                     self.emit_block_function_body_on_single_line(node)?;

@@ -182,11 +182,9 @@ impl NodeFactory {
         constraint: Option<Id<Node /*TypeNode*/>>,
         default_type: Option<Id<Node /*TypeNode*/>>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_type_parameter_declaration = node_ref.as_type_parameter_declaration();
-        if node_as_type_parameter_declaration.name() != name
-            || node_as_type_parameter_declaration.constraint != constraint
-            || node_as_type_parameter_declaration.default != default_type
+        if node.ref_(self).as_type_parameter_declaration().name() != name
+            || node.ref_(self).as_type_parameter_declaration().constraint != constraint
+            || node.ref_(self).as_type_parameter_declaration().default != default_type
         {
             self.update(
                 self.create_type_parameter_declaration(name, constraint, default_type),
@@ -1422,11 +1420,12 @@ impl NodeFactory {
         node: Id<Node>, /*UnionOrIntersectionTypeNode*/
         types: Id<NodeArray /*<TypeNode>*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_union_or_intersection_type = node_ref.as_union_or_intersection_type_node();
-        if node_as_union_or_intersection_type.types() != types {
+        if node.ref_(self).as_union_or_intersection_type_node().types() != types {
             self.update(
-                self.create_union_or_intersection_type_node(node.ref_(self).kind(), types),
+                self.create_union_or_intersection_type_node(
+                    released!(node.ref_(self).kind()),
+                    types,
+                ),
                 node,
             )
         } else {

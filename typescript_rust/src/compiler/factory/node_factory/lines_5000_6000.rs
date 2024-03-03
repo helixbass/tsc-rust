@@ -212,9 +212,7 @@ impl NodeFactory {
         node: Id<Node>, /*SpreadAssignment*/
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_spread_assignment = node_ref.as_spread_assignment();
-        if node_as_spread_assignment.expression != expression {
+        if node.ref_(self).as_spread_assignment().expression != expression {
             self.update(self.create_spread_assignment(expression), node)
         } else {
             node

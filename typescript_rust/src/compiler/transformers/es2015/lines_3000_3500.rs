@@ -676,7 +676,7 @@ impl TransformES2015 {
         start: usize,
     ) -> io::Result<()> {
         let properties = node.ref_(self).as_object_literal_expression().properties;
-        for &property in properties.ref_(self).iter().skip(start) {
+        for &property in released!(properties.ref_(self).clone()).iter().skip(start) {
             match released!(property.ref_(self).kind()) {
                 SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
                     let accessors = get_all_accessor_declarations(
@@ -703,7 +703,7 @@ impl TransformES2015 {
                             property,
                             receiver,
                             node,
-                            node.ref_(self).as_object_literal_expression().multi_line,
+                            released!(node.ref_(self).as_object_literal_expression().multi_line),
                         )?,
                     );
                 }

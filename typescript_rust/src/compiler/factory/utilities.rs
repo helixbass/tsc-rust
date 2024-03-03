@@ -313,20 +313,27 @@ pub fn create_expression_for_property_name(
     if is_identifier(&member_name.ref_(factory)) {
         factory.create_string_literal_from_node(member_name)
     } else if is_computed_property_name(&member_name.ref_(factory)) {
-        let member_name_ref = member_name.ref_(factory);
-        let member_name_as_computed_property_name = member_name_ref.as_computed_property_name();
         factory
-            .clone_node(member_name_as_computed_property_name.expression)
+            .clone_node(released!(
+                member_name
+                    .ref_(factory)
+                    .as_computed_property_name()
+                    .expression
+            ))
             .set_text_range(
                 Some(
-                    &*member_name_as_computed_property_name
+                    &*member_name
+                        .ref_(factory)
+                        .as_computed_property_name()
                         .expression
                         .ref_(factory),
                 ),
                 factory,
             )
             .and_set_parent(
-                member_name_as_computed_property_name
+                member_name
+                    .ref_(factory)
+                    .as_computed_property_name()
                     .expression
                     .ref_(factory)
                     .maybe_parent(),

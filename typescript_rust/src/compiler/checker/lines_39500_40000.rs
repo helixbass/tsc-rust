@@ -885,9 +885,9 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*ExportAssignment*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_export_assignment = node_ref.as_export_assignment();
-        let illegal_context_message = if node_as_export_assignment.is_export_equals == Some(true) {
+        let illegal_context_message = if node.ref_(self).as_export_assignment().is_export_equals
+            == Some(true)
+        {
             &*Diagnostics::An_export_assignment_must_be_at_the_top_level_of_a_file_or_module_declaration
         } else {
             &*Diagnostics::A_default_export_must_be_at_the_top_level_of_a_file_or_module_declaration
@@ -904,7 +904,7 @@ impl TypeChecker {
         if container.ref_(self).kind() == SyntaxKind::ModuleDeclaration
             && !is_ambient_module(container, self)
         {
-            if node_as_export_assignment.is_export_equals == Some(true) {
+            if node.ref_(self).as_export_assignment().is_export_equals == Some(true) {
                 self.error(
                     Some(node),
                     &Diagnostics::An_export_assignment_cannot_be_used_in_a_namespace,
@@ -932,17 +932,27 @@ impl TypeChecker {
         let type_annotation_node = get_effective_type_annotation_node(node, self);
         if let Some(type_annotation_node) = type_annotation_node {
             self.check_type_assignable_to(
-                self.check_expression_cached(node_as_export_assignment.expression, None)?,
+                self.check_expression_cached(
+                    node.ref_(self).as_export_assignment().expression,
+                    None,
+                )?,
                 self.get_type_from_type_node_(type_annotation_node)?,
-                Some(node_as_export_assignment.expression),
+                Some(node.ref_(self).as_export_assignment().expression),
                 None,
                 None,
                 None,
             )?;
         }
 
-        if node_as_export_assignment.expression.ref_(self).kind() == SyntaxKind::Identifier {
-            let id = node_as_export_assignment.expression;
+        if node
+            .ref_(self)
+            .as_export_assignment()
+            .expression
+            .ref_(self)
+            .kind()
+            == SyntaxKind::Identifier
+        {
+            let id = node.ref_(self).as_export_assignment().expression;
             let sym =
                 self.resolve_entity_name(id, SymbolFlags::All, Some(true), Some(true), Some(node))?;
             if let Some(sym) = sym {
@@ -955,32 +965,41 @@ impl TypeChecker {
                 if target == self.unknown_symbol()
                     || target.ref_(self).flags().intersects(SymbolFlags::Value)
                 {
-                    self.check_expression_cached(node_as_export_assignment.expression, None)?;
+                    self.check_expression_cached(
+                        node.ref_(self).as_export_assignment().expression,
+                        None,
+                    )?;
                 }
             } else {
-                self.check_expression_cached(node_as_export_assignment.expression, None)?;
+                self.check_expression_cached(
+                    node.ref_(self).as_export_assignment().expression,
+                    None,
+                )?;
             }
 
             if get_emit_declarations(&self.compiler_options.ref_(self)) {
-                self.collect_linked_aliases(node_as_export_assignment.expression, Some(true))?;
+                self.collect_linked_aliases(
+                    node.ref_(self).as_export_assignment().expression,
+                    Some(true),
+                )?;
             }
         } else {
-            self.check_expression_cached(node_as_export_assignment.expression, None)?;
+            self.check_expression_cached(node.ref_(self).as_export_assignment().expression, None)?;
         }
 
         self.check_external_module_exports(container)?;
 
         if node.ref_(self).flags().intersects(NodeFlags::Ambient)
-            && !is_entity_name_expression(node_as_export_assignment.expression, self)
+            && !is_entity_name_expression(node.ref_(self).as_export_assignment().expression, self)
         {
             self.grammar_error_on_node(
-                node_as_export_assignment.expression,
+                node.ref_(self).as_export_assignment().expression,
                 &Diagnostics::The_expression_of_an_export_assignment_must_be_an_identifier_or_qualified_name_in_an_ambient_context,
                 None,
             );
         }
 
-        if node_as_export_assignment.is_export_equals == Some(true)
+        if node.ref_(self).as_export_assignment().is_export_equals == Some(true)
             && !node.ref_(self).flags().intersects(NodeFlags::Ambient)
         {
             if self.module_kind >= ModuleKind::ES2015

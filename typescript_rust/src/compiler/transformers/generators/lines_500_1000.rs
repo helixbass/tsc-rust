@@ -72,7 +72,7 @@ impl TransformGenerators {
         self.context.ref_(self).resume_lexical_environment();
 
         let statement_offset = self.factory.ref_(self).copy_prologue(
-            &body.ref_(self).as_block().statements.ref_(self),
+            &released!(body.ref_(self).as_block().statements).ref_(self),
             &mut statements,
             Some(false),
             Some(|node: Id<Node>| self.visitor(node)),
@@ -133,18 +133,22 @@ impl TransformGenerators {
                 return Some(node);
             }
 
-            for &variable in &*node
-                .ref_(self)
-                .as_variable_statement()
-                .declaration_list
-                .ref_(self)
-                .as_variable_declaration_list()
-                .declarations
-                .ref_(self)
+            for &variable in &*released!(
+                node.ref_(self)
+                    .as_variable_statement()
+                    .declaration_list
+                    .ref_(self)
+                    .as_variable_declaration_list()
+                    .declarations
+            )
+            .ref_(self)
             {
-                self.context.ref_(self).hoist_variable_declaration(
-                    variable.ref_(self).as_variable_declaration().name(),
-                );
+                self.context
+                    .ref_(self)
+                    .hoist_variable_declaration(released!(variable
+                        .ref_(self)
+                        .as_variable_declaration()
+                        .name()));
             }
 
             let variables = get_initialized_variables(

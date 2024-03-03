@@ -1575,7 +1575,8 @@ impl TransformES2018 {
                             .ref_(self)
                             .create_variable_declaration_list(
                                 vec![
-                                    self.factory
+                                    released!(self
+                                        .factory
                                         .ref_(self)
                                         .create_variable_declaration(
                                             Some(iterator.clone()),
@@ -1592,7 +1593,7 @@ impl TransformES2018 {
                                                     .ref_(self),
                                             ),
                                             self,
-                                        ),
+                                        )),
                                     self.factory.ref_(self).create_variable_declaration(
                                         Some(result.clone()),
                                         None,

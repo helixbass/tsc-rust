@@ -689,7 +689,10 @@ impl TypeChecker {
                     |p: &Id<Node>| -> io::Result<_> {
                         Ok(p.ref_(self).maybe_symbol().is_some() &&
                             p.ref_(self).kind() == SyntaxKind::JsxAttribute &&
-                            self.is_discriminant_property(Some(contextual_type), p.ref_(self).symbol().ref_(self).escaped_name())? &&
+                            self.is_discriminant_property(
+                                Some(contextual_type),
+                                &released!(p.ref_(self).symbol().ref_(self).escaped_name().to_owned()),
+                            )? &&
                             match p.ref_(self).as_jsx_attribute().initializer {
                                 None => true,
                                 Some(p_initializer) => self.is_possibly_discriminant_value(p_initializer)
@@ -1145,16 +1148,18 @@ impl TypeChecker {
         &self,
         context: Id<Node>, /*JsxOpeningLikeElement*/
     ) -> io::Result<Id<Type>> {
-        let context_ref = context.ref_(self);
-        let context_as_jsx_opening_like_element = context_ref.as_jsx_opening_like_element();
-        if self.is_jsx_intrinsic_identifier(context_as_jsx_opening_like_element.tag_name()) {
+        if self.is_jsx_intrinsic_identifier(
+            context.ref_(self).as_jsx_opening_like_element().tag_name(),
+        ) {
             let result =
                 self.get_intrinsic_attributes_type_from_jsx_opening_like_element(context)?;
             let fake_signature = self.create_signature_for_jsx_intrinsic(context, result)?;
             return Ok(self.get_or_create_type_from_signature(fake_signature));
         }
-        let tag_type =
-            self.check_expression_cached(context_as_jsx_opening_like_element.tag_name(), None)?;
+        let tag_type = self.check_expression_cached(
+            context.ref_(self).as_jsx_opening_like_element().tag_name(),
+            None,
+        )?;
         if tag_type
             .ref_(self)
             .flags()

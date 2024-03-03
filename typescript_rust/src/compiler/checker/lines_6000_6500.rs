@@ -611,7 +611,7 @@ impl NodeBuilder {
         {
             return Ok(Some(get_factory(self).create_computed_property_name(
                 self.symbol_to_expression_(
-                    name_type.ref_(self).symbol(),
+                    released!(name_type.ref_(self).symbol()),
                     context,
                     Some(SymbolFlags::Value),
                 )?,
@@ -1058,7 +1058,7 @@ impl NodeBuilder {
                 get_factory(self)
                     .create_union_type_node(vec![
                         try_visit_node(
-                            node.ref_(self).as_base_jsdoc_unary_type().type_.unwrap(),
+                            released!(node.ref_(self).as_base_jsdoc_unary_type().type_.unwrap()),
                             Some(|node: Id<Node>| {
                                 self.visit_existing_node_tree_symbols(
                                     context,
@@ -1119,16 +1119,14 @@ impl NodeBuilder {
             return Ok(Some(
                 get_factory(self).create_type_literal_node(
                     try_maybe_map(
-                        node.ref_(self).as_jsdoc_type_literal().js_doc_property_tags.refed(self).as_deref(),
+                        released!(node.ref_(self).as_jsdoc_type_literal().js_doc_property_tags).refed(self).as_deref(),
                         |t: &Id<Node>, _| -> io::Result<Id<Node>> {
-                            let t_ref = t.ref_(self);
-                            let t_as_jsdoc_property_like_tag = t_ref.as_jsdoc_property_like_tag();
                             let name = if is_identifier(
-                                &t_as_jsdoc_property_like_tag.name.ref_(self)
+                                &t.ref_(self).as_jsdoc_property_like_tag().name.ref_(self)
                             ) {
-                                t_as_jsdoc_property_like_tag.name
+                                t.ref_(self).as_jsdoc_property_like_tag().name
                             } else {
-                                t_as_jsdoc_property_like_tag.name.ref_(self).as_qualified_name().right
+                                t.ref_(self).as_jsdoc_property_like_tag().name.ref_(self).as_qualified_name().right
                             };
                             let type_via_parent = self.type_checker.ref_(self).get_type_of_property_of_type_(
                                 self.type_checker.ref_(self).get_type_from_type_node_(
@@ -1138,7 +1136,7 @@ impl NodeBuilder {
                             )?;
                             let override_type_node = type_via_parent.try_filter(|&type_via_parent| -> io::Result<_> {
                                 Ok(matches!(
-                                    t_as_jsdoc_property_like_tag.type_expression.as_ref(),
+                                    t.ref_(self).as_jsdoc_property_like_tag().type_expression.as_ref(),
                                     Some(t_type_expression) if self.type_checker.ref_(self).get_type_from_type_node_(
                                         t_type_expression.ref_(self).as_jsdoc_type_expression().type_
                                     )? != type_via_parent
@@ -1153,9 +1151,9 @@ impl NodeBuilder {
                             Ok(get_factory(self).create_property_signature(
                                 Option::<Id<NodeArray>>::None,
                                 name,
-                                if t_as_jsdoc_property_like_tag.is_bracketed ||
+                                if t.ref_(self).as_jsdoc_property_like_tag().is_bracketed ||
                                     matches!(
-                                        t_as_jsdoc_property_like_tag.type_expression,
+                                        t.ref_(self).as_jsdoc_property_like_tag().type_expression,
                                         Some(t_type_expression) if is_jsdoc_optional_type(&t_type_expression.ref_(self))
                                     ) {
                                     Some(get_factory(self).create_token(
@@ -1165,7 +1163,7 @@ impl NodeBuilder {
                                     None
                                 },
                                 Some(override_type_node.try_or_else(|| {
-                                    t_as_jsdoc_property_like_tag.type_expression.as_ref().try_and_then(|t_type_expression| {
+                                    t.ref_(self).as_jsdoc_property_like_tag().type_expression.as_ref().try_and_then(|t_type_expression| {
                                         try_maybe_visit_node(
                                             Some(t_type_expression.ref_(self).as_jsdoc_type_expression().type_),
                                             Some(|node: Id<Node>| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, node)),

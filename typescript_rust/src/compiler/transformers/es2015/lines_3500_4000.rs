@@ -28,8 +28,6 @@ impl TransformES2015 {
         container: Id<Node>,
         starts_on_new_line: Option<bool>,
     ) -> io::Result<Id<Node>> {
-        let method_ref = method.ref_(self);
-        let method_as_method_declaration = method_ref.as_method_declaration();
         let expression = self
             .factory
             .ref_(self)
@@ -38,7 +36,7 @@ impl TransformES2015 {
                     &self.factory.ref_(self),
                     receiver,
                     try_visit_node(
-                        method_as_method_declaration.name(),
+                        released!(method.ref_(self).as_method_declaration().name()),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node: Id<Node>| is_property_name(&node.ref_(self))),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -800,8 +798,8 @@ impl TransformES2015 {
                     this_arg,
                     self.transform_and_spread_elements(
                         self.factory.ref_(self).create_node_array(
-                            Some(
-                                vec![self.factory.ref_(self).create_void_zero()].and_extend(
+                            Some(released!(vec![self.factory.ref_(self).create_void_zero()]
+                                .and_extend(
                                     node.ref_(self)
                                         .as_new_expression()
                                         .arguments
@@ -810,8 +808,7 @@ impl TransformES2015 {
                                         .ref_(self)
                                         .iter()
                                         .copied(),
-                                ),
-                            ),
+                                ))),
                             None,
                         ),
                         true,

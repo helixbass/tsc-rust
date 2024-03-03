@@ -270,7 +270,10 @@ impl Printer {
             "set"
         });
         self.write_space();
-        self.emit(node.ref_(self).as_named_declaration().maybe_name(), None)?;
+        self.emit(
+            released!(node.ref_(self).as_named_declaration().maybe_name()),
+            None,
+        )?;
         self.emit_signature_and_body(node, |node: Id<Node>| self.emit_signature_head(node))?;
 
         Ok(())

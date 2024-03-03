@@ -467,7 +467,7 @@ impl TransformGenerators {
             .create_assignment(
                 self.factory
                     .ref_(self)
-                    .clone_node(node.ref_(self).as_variable_declaration().name())
+                    .clone_node(released!(node.ref_(self).as_variable_declaration().name()))
                     .set_source_map_range(
                         Some(self.alloc_source_map_range(
                             (&*node.ref_(self).as_variable_declaration().name().ref_(self)).into(),
@@ -728,25 +728,28 @@ impl TransformGenerators {
         &self,
         mut node: Id<Node>, /*ForStatement*/
     ) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_for_statement = node_ref.as_for_statement();
         if self.maybe_in_statement_containing_yield() == Some(true) {
             self.begin_script_loop_block();
         }
 
-        let initializer = node_as_for_statement.initializer;
+        let initializer = node.ref_(self).as_for_statement().initializer;
         if let Some(initializer) =
             initializer.filter(|initializer| is_variable_declaration_list(&initializer.ref_(self)))
         {
-            for variable in &*initializer
-                .ref_(self)
-                .as_variable_declaration_list()
-                .declarations
-                .ref_(self)
+            for variable in &*released!(
+                initializer
+                    .ref_(self)
+                    .as_variable_declaration_list()
+                    .declarations
+            )
+            .ref_(self)
             {
-                self.context.ref_(self).hoist_variable_declaration(
-                    variable.ref_(self).as_variable_declaration().name(),
-                );
+                self.context
+                    .ref_(self)
+                    .hoist_variable_declaration(released!(variable
+                        .ref_(self)
+                        .as_variable_declaration()
+                        .name()));
             }
 
             let variables = get_initialized_variables(initializer, self);
@@ -760,19 +763,19 @@ impl TransformGenerators {
                         }))
                 }),
                 maybe_visit_node(
-                    node_as_for_statement.condition,
+                    released!(node.ref_(self).as_for_statement().condition),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
                 maybe_visit_node(
-                    node_as_for_statement.incrementor,
+                    released!(node.ref_(self).as_for_statement().incrementor),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
                 visit_iteration_body(
-                    node_as_for_statement.statement,
+                    released!(node.ref_(self).as_for_statement().statement),
                     |node: Id<Node>| self.visitor(node),
                     &*self.context.ref_(self),
                     self,

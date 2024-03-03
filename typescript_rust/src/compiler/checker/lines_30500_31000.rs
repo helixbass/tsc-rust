@@ -450,7 +450,7 @@ impl TypeChecker {
             return Ok(fake_signature);
         }
         let expr_types = self.check_expression(
-            node.ref_(self).as_jsx_opening_like_element().tag_name(),
+            released!(node.ref_(self).as_jsx_opening_like_element().tag_name()),
             None,
             None,
         )?;

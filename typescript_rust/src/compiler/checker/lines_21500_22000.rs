@@ -754,10 +754,11 @@ impl InferTypes {
                 .flags()
                 .intersects(TypeFlags::UnionOrIntersection)
         {
-            for &t in source
+            for &t in &released!(source
                 .ref_(self)
                 .as_union_or_intersection_type_interface()
                 .types()
+                .to_owned())
             {
                 self.infer_from_types(t, t)?;
             }

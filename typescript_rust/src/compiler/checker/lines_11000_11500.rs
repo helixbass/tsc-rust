@@ -298,7 +298,7 @@ impl TypeChecker {
             },
         )?)?;
         let construct_signatures = self.get_union_signatures(&try_map(
-            type_.ref_(self).as_union_type().types(),
+            &released!(type_.ref_(self).as_union_type().types().to_owned()),
             |&t: &Id<Type>, _| -> io::Result<_> {
                 self.get_signatures_of_type(t, SignatureKind::Construct)
             },

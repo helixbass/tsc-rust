@@ -547,7 +547,9 @@ impl SymbolTableToDeclarationStatements {
                                         .to_vec()
                                     },
                                 ))),
-                                group[0].ref_(self).as_export_declaration().module_specifier,
+                                released!(
+                                    group[0].ref_(self).as_export_declaration().module_specifier
+                                ),
                                 None,
                             ));
                             statements
@@ -795,8 +797,8 @@ impl SymbolTableToDeclarationStatements {
         mut is_private: bool,
         property_as_alias: bool,
     ) -> io::Result<()> {
-        let symbol_ref = symbol.ref_(self);
-        let symbol_name = unescape_leading_underscores(symbol_ref.escaped_name());
+        let ref symbol_name =
+            unescape_leading_underscores(symbol.ref_(self).escaped_name()).to_owned();
         let is_default = symbol.ref_(self).escaped_name() == InternalSymbolName::Default;
         if is_private
             && self
@@ -1164,7 +1166,7 @@ impl SymbolTableToDeclarationStatements {
                         get_factory(self).create_export_specifier(
                             false,
                             Some(&*self.get_internal_symbol_name(symbol, symbol_name)),
-                            symbol_name,
+                            &**symbol_name,
                         ),
                     ])),
                     None,

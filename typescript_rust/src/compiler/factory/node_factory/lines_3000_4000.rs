@@ -779,10 +779,8 @@ impl NodeFactory {
         expression: Id<Node /*Expression*/>,
         case_block: Id<Node /*CaseBlock*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_switch_statement = node_ref.as_switch_statement();
-        if node_as_switch_statement.expression != expression
-            || node_as_switch_statement.case_block != case_block
+        if node.ref_(self).as_switch_statement().expression != expression
+            || node.ref_(self).as_switch_statement().case_block != case_block
         {
             self.update(self.create_switch_statement(expression, case_block), node)
         } else {

@@ -1068,8 +1068,12 @@ impl TypeChecker {
         }
 
         let mut offset = 0;
-        for &member_decl in
-            &*released!(node.ref_(self).as_object_literal_expression().properties).ref_(self)
+        for &member_decl in &*released!(node
+            .ref_(self)
+            .as_object_literal_expression()
+            .properties
+            .ref_(self)
+            .clone())
         {
             let mut member = self.get_symbol_of_node(member_decl)?;
             let computed_name_type = member_decl

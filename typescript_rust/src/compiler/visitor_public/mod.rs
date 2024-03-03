@@ -622,7 +622,7 @@ fn add_default_value_assignments_if_needed(
     arena: &impl HasArena,
 ) -> Id<NodeArray /*<ParameterDeclaration>*/> {
     let mut result: Option<Vec<Id<Node /*ParameterDeclaration*/>>> = _d();
-    for (i, parameter) in parameters.ref_(arena).iter().enumerate() {
+    for (i, parameter) in released!(parameters.ref_(arena).clone()).iter().enumerate() {
         let parameter = *parameter;
         let updated = add_default_value_assignment_if_needed(parameter, context, arena);
         if result.is_some() || updated != parameter {

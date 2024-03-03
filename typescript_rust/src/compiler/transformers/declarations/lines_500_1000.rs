@@ -1095,9 +1095,13 @@ impl TransformDeclarations {
                     )?
                 }
                 SyntaxKind::SetAccessor => {
-                    let input_ref = input.ref_(self);
-                    let input_as_set_accessor_declaration = input_ref.as_set_accessor_declaration();
-                    if is_private_identifier(&input_as_set_accessor_declaration.name().ref_(self)) {
+                    if is_private_identifier(
+                        &input
+                            .ref_(self)
+                            .as_set_accessor_declaration()
+                            .name()
+                            .ref_(self),
+                    ) {
                         return self.visit_declaration_subtree_cleanup(
                             input,
                             can_produce_diagnostic,
@@ -1119,7 +1123,7 @@ impl TransformDeclarations {
                             input,
                             Option::<Id<NodeArray>>::None,
                             self.ensure_modifiers(input),
-                            input_as_set_accessor_declaration.name(),
+                            input.ref_(self).as_set_accessor_declaration().name(),
                             self.update_accessor_params_list(
                                 input,
                                 has_effective_modifier(input, ModifierFlags::Private, self),

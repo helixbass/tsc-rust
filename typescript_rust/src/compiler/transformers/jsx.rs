@@ -477,7 +477,12 @@ impl TransformJsx {
                 &released!(ReadonlyTextRangeConcrete::from(&*node.ref_(self))),
             )
         } else {
-            self.visit_jsx_opening_like_element_jsx(node, None, is_child, &*node.ref_(self))
+            self.visit_jsx_opening_like_element_jsx(
+                node,
+                None,
+                is_child,
+                &released!(ReadonlyTextRangeConcrete::from(&*node.ref_(self))),
+            )
         }
     }
 

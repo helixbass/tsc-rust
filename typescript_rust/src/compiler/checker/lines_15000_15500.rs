@@ -1141,10 +1141,11 @@ impl TypeChecker {
             .intersects(TypeFlags::UnionOrIntersection)
         {
             let types = try_map(
-                object_type
+                &released!(object_type
                     .ref_(self)
                     .as_union_or_intersection_type_interface()
-                    .types(),
+                    .types()
+                    .to_owned()),
                 |&t: &Id<Type>, _| {
                     self.get_simplified_type(
                         self.get_indexed_access_type(

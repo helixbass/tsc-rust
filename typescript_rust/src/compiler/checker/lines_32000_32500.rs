@@ -452,7 +452,7 @@ impl TypeChecker {
         node: Id<Node>, /*DeleteExpression*/
     ) -> io::Result<Id<Type>> {
         self.check_expression(
-            node.ref_(self).as_delete_expression().expression,
+            released!(node.ref_(self).as_delete_expression().expression),
             None,
             None,
         )?;

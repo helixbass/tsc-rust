@@ -1134,7 +1134,7 @@ impl TypeChecker {
         context: Id<InferenceContext>,
     ) -> io::Result<Vec<Id<Type>>> {
         let mut result: Vec<Id<Type>> = vec![];
-        for i in 0..context.ref_(self).inferences().len() {
+        for i in 0..released!(context.ref_(self).inferences().len()) {
             result.push(self.get_inferred_type(context, i)?);
         }
         Ok(result)

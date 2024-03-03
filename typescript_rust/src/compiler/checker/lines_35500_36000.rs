@@ -587,11 +587,10 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*JSDocTypeTag*/
     ) -> io::Result<()> {
-        self.check_source_element(
-            node.ref_(self)
-                .as_jsdoc_type_like_tag()
-                .maybe_type_expression(),
-        )?;
+        self.check_source_element(released!(node
+            .ref_(self)
+            .as_jsdoc_type_like_tag()
+            .maybe_type_expression()))?;
 
         Ok(())
     }
@@ -600,7 +599,9 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*JSDocParameterTag*/
     ) -> io::Result<()> {
-        self.check_source_element(node.ref_(self).as_jsdoc_property_like_tag().type_expression)?;
+        self.check_source_element(released!(
+            node.ref_(self).as_jsdoc_property_like_tag().type_expression
+        ))?;
         if get_parameter_symbol_from_jsdoc(node, self).is_none() {
             let decl = get_host_signature_from_jsdoc(node, self);
             if let Some(decl) = decl {

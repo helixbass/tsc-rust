@@ -15,8 +15,8 @@ use crate::{
     is_identifier_text, is_property_access_expression, is_property_declaration,
     is_property_signature, is_prototype_property_assignment, is_set_accessor,
     is_single_or_double_quote, is_string_a_non_contextual_keyword, is_variable_declaration, length,
-    maybe_get_source_file_of_node, set_text_range_id_node, some, strip_quotes, symbol_name,
-    unescape_leading_underscores, AllArenas, BoolExt, Debug_, HasArena, InArena,
+    maybe_get_source_file_of_node, released, set_text_range_id_node, some, strip_quotes,
+    symbol_name, unescape_leading_underscores, AllArenas, BoolExt, Debug_, HasArena, InArena,
     InternalSymbolName, IteratorExt, Matches, ModifierFlags, Node, NodeArray, NodeArrayOrVec,
     NodeBuilder, NodeBuilderFlags, NodeFlags, NodeInterface, ObjectFlags, OptionInArena, OptionTry,
     SignatureKind, StrOrRcNode, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type,
@@ -129,7 +129,11 @@ impl SymbolTableToDeclarationStatements {
                         ));
                 } else {
                     if let Some(first) = first.filter(|&first| expr == Some(first)) {
-                        self.serialize_export_specifier(name, id_text(&first.ref_(self)), None);
+                        self.serialize_export_specifier(
+                            name,
+                            &released!(id_text(&first.ref_(self)).to_owned()),
+                            None,
+                        );
                     } else if expr.matches(|expr| is_class_expression(&expr.ref_(self))) {
                         self.serialize_export_specifier(
                             name,

@@ -489,7 +489,7 @@ impl TransformTypeScript {
             None
         };
         let named_bindings = try_maybe_visit_node(
-            node.ref_(self).as_import_clause().named_bindings,
+            released!(node.ref_(self).as_import_clause().named_bindings),
             Some(|node: Id<Node>| self.visit_named_import_bindings(node)),
             Some(|node: Id<Node>| is_named_import_bindings(&node.ref_(self))),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -573,26 +573,30 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*ExportDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_ref = node.ref_(self);
-        let node_as_export_declaration = node_ref.as_export_declaration();
-        if node_as_export_declaration.is_type_only {
+        if node.ref_(self).as_export_declaration().is_type_only {
             return Ok(None);
         }
 
-        if !node_as_export_declaration
+        if !node
+            .ref_(self)
+            .as_export_declaration()
             .export_clause
             .matches(|node_export_clause| !is_namespace_export(&node_export_clause.ref_(self)))
         {
             return Ok(Some(node.into()));
         }
 
-        let allow_empty = node_as_export_declaration.module_specifier.is_some()
+        let allow_empty = node
+            .ref_(self)
+            .as_export_declaration()
+            .module_specifier
+            .is_some()
             && matches!(
                 self.compiler_options.ref_(self).imports_not_used_as_values,
                 Some(ImportsNotUsedAsValues::Preserve) | Some(ImportsNotUsedAsValues::Error)
             );
         let export_clause = try_maybe_visit_node(
-            node_as_export_declaration.export_clause,
+            node.ref_(self).as_export_declaration().export_clause,
             Some(|bindings: Id<Node> /*NamedExportBindings*/| {
                 self.visit_named_export_bindings(bindings, allow_empty)
             }),
@@ -606,10 +610,18 @@ impl TransformTypeScript {
                     node,
                     Option::<Id<NodeArray>>::None,
                     Option::<Id<NodeArray>>::None,
-                    node_as_export_declaration.is_type_only,
+                    released!(node.ref_(self).as_export_declaration().is_type_only),
                     Some(export_clause),
-                    node_as_export_declaration.module_specifier.clone(),
-                    node_as_export_declaration.assert_clause.clone(),
+                    released!(node
+                        .ref_(self)
+                        .as_export_declaration()
+                        .module_specifier
+                        .clone()),
+                    released!(node
+                        .ref_(self)
+                        .as_export_declaration()
+                        .assert_clause
+                        .clone()),
                 )
                 .into()
         }))
@@ -620,10 +632,8 @@ impl TransformTypeScript {
         node: Id<Node>, /*NamedExports*/
         allow_empty: bool,
     ) -> io::Result<VisitResult> /*<NamedExports>*/ {
-        let node_ref = node.ref_(self);
-        let node_as_named_exports = node_ref.as_named_exports();
         let elements = try_visit_nodes(
-            node_as_named_exports.elements,
+            node.ref_(self).as_named_exports().elements,
             Some(|node: Id<Node>| self.visit_export_specifier(node)),
             Some(|node: Id<Node>| is_export_specifier(&node.ref_(self))),
             None,
@@ -788,9 +798,11 @@ impl TransformTypeScript {
                     .into()
             } else {
                 self.create_namespace_export(
-                    node.ref_(self).as_import_equals_declaration().name(),
+                    released!(node.ref_(self).as_import_equals_declaration().name()),
                     module_reference,
-                    Some(&*node.ref_(self)),
+                    Some(&released!(ReadonlyTextRangeConcrete::from(
+                        &*node.ref_(self)
+                    ))),
                 )
                 .set_original_node(Some(node), self)
                 .into()

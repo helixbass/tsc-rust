@@ -743,22 +743,19 @@ impl TypeChecker {
             )? {
                 evolving_array_type
             } else {
-                self.get_evolving_array_type(
-                    self.get_union_type(
-                        &[
-                            evolving_array_type
+                self.get_evolving_array_type(self.get_union_type(
+                    &[
+                        released!(evolving_array_type
                                 .ref_(self)
                                 .as_evolving_array_type()
-                                .element_type
-                                .clone(),
-                            element_type,
-                        ],
-                        None,
-                        Option::<Id<Symbol>>::None,
-                        None,
-                        None,
-                    )?,
-                )
+                                .element_type),
+                        element_type,
+                    ],
+                    None,
+                    Option::<Id<Symbol>>::None,
+                    None,
+                    None,
+                )?)
             },
         )
     }
@@ -1038,15 +1035,12 @@ impl TypeChecker {
                     return Ok(Some(self.check_super_expression(node)?));
                 }
                 SyntaxKind::PropertyAccessExpression => {
-                    let node_ref = node.ref_(self);
-                    let node_as_property_access_expression =
-                        node_ref.as_property_access_expression();
                     let type_ = self.get_type_of_dotted_name(
-                        node_as_property_access_expression.expression,
+                        node.ref_(self).as_property_access_expression().expression,
                         diagnostic,
                     )?;
                     if let Some(type_) = type_ {
-                        let name = &node_as_property_access_expression.name;
+                        let name = node.ref_(self).as_property_access_expression().name;
                         let prop: Option<Id<Symbol>>;
                         if is_private_identifier(&name.ref_(self)) {
                             if type_.ref_(self).maybe_symbol().is_none() {
@@ -1095,7 +1089,7 @@ impl TypeChecker {
             let mut func_type: Option<Id<Type>> = None;
             if node.ref_(self).parent().ref_(self).kind() == SyntaxKind::ExpressionStatement {
                 func_type = self.get_type_of_dotted_name(
-                    node.ref_(self).as_call_expression().expression,
+                    released!(node.ref_(self).as_call_expression().expression),
                     None,
                 )?;
             } else if node

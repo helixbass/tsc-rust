@@ -112,9 +112,7 @@ impl CheckTypeRelatedTo {
             }
         }
         if report_errors {
-            let best_matching_type = self_
-                .ref_(arena)
-                .type_checker
+            let best_matching_type = released!(self_.ref_(arena).type_checker)
                 .ref_(arena)
                 .get_best_matching_type(
                     source,

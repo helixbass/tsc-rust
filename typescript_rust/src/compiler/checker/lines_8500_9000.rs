@@ -21,8 +21,8 @@ use crate::{
     walk_up_binding_elements_and_patterns, AccessFlags, AssignmentDeclarationKind, Debug_,
     Diagnostics, HasArena, HasInitializerInterface, HasTypeInterface, InArena, InternalSymbolName,
     LiteralType, ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, Number,
-    ObjectFlags, ObjectFlagsTypeInterface, OptionInArena, OptionTry, StrOrRcNode, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
+    ObjectFlags, ObjectFlagsTypeInterface, OptionInArena, OptionTry, StrOrRcNode, StringOrRcNode,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
     TypeFlags, TypeInterface, UnionReduction,
 };
 
@@ -882,8 +882,7 @@ impl TypeChecker {
         symbol: Id<Symbol>,
         constructor: Id<Node>, /*ConstructorDeclaration*/
     ) -> io::Result<Option<Id<Type>>> {
-        let symbol_ref = symbol.ref_(self);
-        let access_name: StrOrRcNode<'_> = if starts_with(symbol.ref_(self).escaped_name(), "__#") {
+        let access_name: StringOrRcNode = if starts_with(symbol.ref_(self).escaped_name(), "__#") {
             get_factory(self)
                 .create_private_identifier(
                     (&*symbol.ref_(self).escaped_name())
@@ -893,10 +892,12 @@ impl TypeChecker {
                 )
                 .into()
         } else {
-            unescape_leading_underscores(symbol_ref.escaped_name()).into()
+            unescape_leading_underscores(symbol.ref_(self).escaped_name()).into()
         };
-        let reference = get_factory(self)
-            .create_property_access_expression(get_factory(self).create_this(), access_name);
+        let reference = get_factory(self).create_property_access_expression(
+            get_factory(self).create_this(),
+            access_name.as_ref(),
+        );
         set_parent(
             &reference
                 .ref_(self)

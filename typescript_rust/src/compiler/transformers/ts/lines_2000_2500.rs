@@ -621,22 +621,20 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*TaggedTemplateExpression*/
     ) -> io::Result<VisitResult> {
-        let node_ref = node.ref_(self);
-        let node_as_tagged_template_expression = node_ref.as_tagged_template_expression();
         Ok(Some(
             self.factory
                 .ref_(self)
                 .update_tagged_template_expression(
                     node,
                     try_visit_node(
-                        node_as_tagged_template_expression.tag,
+                        released!(node.ref_(self).as_tagged_template_expression().tag),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     Option::<Id<NodeArray>>::None,
                     try_visit_node(
-                        node_as_tagged_template_expression.template,
+                        released!(node.ref_(self).as_tagged_template_expression().template),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -677,22 +675,20 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*JsxOpeningElement*/
     ) -> io::Result<VisitResult> {
-        let node_ref = node.ref_(self);
-        let node_as_jsx_opening_element = node_ref.as_jsx_opening_element();
         Ok(Some(
             self.factory
                 .ref_(self)
                 .update_jsx_opening_element(
                     node,
                     try_visit_node(
-                        node_as_jsx_opening_element.tag_name,
+                        released!(node.ref_(self).as_jsx_opening_element().tag_name),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node: Id<Node>| is_jsx_tag_name_expression(&node.ref_(self))),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     Option::<Id<NodeArray>>::None,
                     try_visit_node(
-                        node_as_jsx_opening_element.attributes,
+                        released!(node.ref_(self).as_jsx_opening_element().attributes),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node: Id<Node>| is_jsx_attributes(&node.ref_(self))),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

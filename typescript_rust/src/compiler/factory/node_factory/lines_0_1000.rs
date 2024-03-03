@@ -1328,6 +1328,15 @@ pub enum StringOrRcNode {
     RcNode(Id<Node>),
 }
 
+impl StringOrRcNode {
+    pub fn as_ref(&self) -> StrOrRcNode<'_> {
+        match self {
+            StringOrRcNode::String(value) => StrOrRcNode::Str(value),
+            StringOrRcNode::RcNode(value) => StrOrRcNode::RcNode(*value),
+        }
+    }
+}
+
 impl From<String> for StringOrRcNode {
     fn from(value: String) -> Self {
         Self::String(value)

@@ -562,7 +562,7 @@ impl GetFlowTypeOfReference {
                             self.type_checker.ref_(self).get_accessed_property_name(
                                 self.reference
                             )?.as_ref(),
-                            Some(accessed_property_name) if accessed_property_name == &name
+                            Some(accessed_property_name) if accessed_property_name == name
                         )
                     {
                         return self.type_checker.ref_(self).get_type_with_facts(

@@ -1064,7 +1064,9 @@ impl Printer {
             node,
             None,
         );
-        self.emit_for_binding(Some(node.ref_(self).as_for_of_statement().initializer))?;
+        self.emit_for_binding(Some(released!(
+            node.ref_(self).as_for_of_statement().initializer
+        )))?;
         self.write_space();
         self.emit_token_with_comment(
             SyntaxKind::OfKeyword,
@@ -1078,7 +1080,10 @@ impl Printer {
             None,
         );
         self.write_space();
-        self.emit_expression(Some(node.ref_(self).as_for_of_statement().expression), None)?;
+        self.emit_expression(
+            Some(released!(node.ref_(self).as_for_of_statement().expression)),
+            None,
+        )?;
         self.emit_token_with_comment(
             SyntaxKind::CloseParenToken,
             node.ref_(self)
@@ -1243,17 +1248,19 @@ impl Printer {
             node,
             None,
         );
-        let node_ref = node.ref_(self);
-        let node_as_with_statement = node_ref.as_with_statement();
-        self.emit_expression(Some(node_as_with_statement.expression), None)?;
+        self.emit_expression(Some(node.ref_(self).as_with_statement().expression), None)?;
         self.emit_token_with_comment(
             SyntaxKind::CloseParenToken,
-            node_as_with_statement.expression.ref_(self).end(),
+            node.ref_(self)
+                .as_with_statement()
+                .expression
+                .ref_(self)
+                .end(),
             |text: &str| self.write_punctuation(text),
             node,
             None,
         );
-        self.emit_embedded_statement(node, node_as_with_statement.statement)?;
+        self.emit_embedded_statement(node, node.ref_(self).as_with_statement().statement)?;
 
         Ok(())
     }

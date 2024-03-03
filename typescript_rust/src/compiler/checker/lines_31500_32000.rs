@@ -865,8 +865,8 @@ impl TypeChecker {
         func: Id<Node>, /*FunctionLikeDeclaration*/
     ) -> io::Result<bool> {
         Ok(matches!(
-            func.ref_(self).as_function_like_declaration().maybe_end_flow_node().as_ref(),
-            Some(func_end_flow_node) if self.is_reachable_flow_node(func_end_flow_node.clone())?
+            released!(func.ref_(self).as_function_like_declaration().maybe_end_flow_node()),
+            Some(func_end_flow_node) if self.is_reachable_flow_node(func_end_flow_node)?
         ))
     }
 

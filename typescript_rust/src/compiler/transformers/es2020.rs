@@ -158,22 +158,25 @@ impl TransformES2020 {
             is_delete,
         );
         if is_synthetic_reference(&expression.ref_(self)) {
-            let expression_ref = expression.ref_(self);
-            let expression_as_synthetic_reference_expression =
-                expression_ref.as_synthetic_reference_expression();
             return self
                 .factory
                 .ref_(self)
                 .create_synthetic_reference_expression(
                     self.factory.ref_(self).update_parenthesized_expression(
                         node,
-                        expression_as_synthetic_reference_expression
-                            .expression
-                            .clone(),
+                        released!(
+                            expression
+                                .ref_(self)
+                                .as_synthetic_reference_expression()
+                                .expression
+                        ),
                     ),
-                    expression_as_synthetic_reference_expression
-                        .this_arg
-                        .clone(),
+                    released!(
+                        expression
+                            .ref_(self)
+                            .as_synthetic_reference_expression()
+                            .this_arg
+                    ),
                 );
         }
         self.factory

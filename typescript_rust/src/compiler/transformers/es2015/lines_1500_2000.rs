@@ -264,7 +264,7 @@ impl TransformES2015 {
             Some(container),
         )?;
         let property_name = try_visit_node(
-            member.ref_(self).as_method_declaration().name(),
+            released!(member.ref_(self).as_method_declaration().name()),
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node: Id<Node>| is_property_name(&node.ref_(self))),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

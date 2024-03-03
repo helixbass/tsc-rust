@@ -1089,10 +1089,11 @@ impl NodeBuilder {
                 Option::<SignatureToSignatureDeclarationOptions<fn(Id<Symbol>)>>::None,
             )?);
         }
-        for signature in &*resolved_type
+        for signature in &released!(resolved_type
             .ref_(self)
             .as_resolved_type()
             .construct_signatures()
+            .clone())
         {
             if signature
                 .ref_(self)

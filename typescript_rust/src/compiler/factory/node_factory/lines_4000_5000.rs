@@ -923,15 +923,15 @@ impl NodeFactory {
         type_arguments: Option<impl Into<NodeArrayOrVec>>,
         attributes: Id<Node /*JsxAttributes*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_jsx_opening_element = node_ref.as_jsx_opening_element();
         let type_arguments = type_arguments.map(Into::into);
-        if node_as_jsx_opening_element.tag_name != tag_name
+        if node.ref_(self).as_jsx_opening_element().tag_name != tag_name
             || has_option_node_array_changed(
-                node_as_jsx_opening_element.maybe_type_arguments(),
+                node.ref_(self)
+                    .as_jsx_opening_element()
+                    .maybe_type_arguments(),
                 type_arguments.as_ref(),
             )
-            || node_as_jsx_opening_element.attributes != attributes
+            || node.ref_(self).as_jsx_opening_element().attributes != attributes
         {
             self.update(
                 self.create_jsx_opening_element(tag_name, type_arguments, attributes),

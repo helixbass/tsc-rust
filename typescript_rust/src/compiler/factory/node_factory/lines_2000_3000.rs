@@ -854,10 +854,7 @@ impl NodeFactory {
             return self.update_call_chain(
                 node,
                 expression,
-                node.ref_(self)
-                    .as_call_expression()
-                    .question_dot_token
-                    .clone(),
+                released!(node.ref_(self).as_call_expression().question_dot_token),
                 type_arguments,
                 arguments_array,
             );
@@ -940,21 +937,22 @@ impl NodeFactory {
         arguments_array: impl Into<NodeArrayOrVec>,
         /*<Expression>*/
     ) -> Id<Node /*CallExpression*/> {
-        let node_ref = node.ref_(self);
-        let node_as_call_expression = node_ref.as_call_expression();
         let type_arguments = type_arguments.map(Into::into);
         let arguments_array = arguments_array.into();
         Debug_.assert(
             node.ref_(self).flags().intersects(NodeFlags::OptionalChain),
             Some("Cannot update a CallExpression using updateCallChain. Use updateCall instead."),
         );
-        if node_as_call_expression.expression != expression
-            || node_as_call_expression.question_dot_token != question_dot_token
+        if node.ref_(self).as_call_expression().expression != expression
+            || node.ref_(self).as_call_expression().question_dot_token != question_dot_token
             || has_option_node_array_changed(
-                node_as_call_expression.maybe_type_arguments(),
+                node.ref_(self).as_call_expression().maybe_type_arguments(),
                 type_arguments.as_ref(),
             )
-            || has_node_array_changed(node_as_call_expression.arguments, &arguments_array)
+            || has_node_array_changed(
+                node.ref_(self).as_call_expression().arguments,
+                &arguments_array,
+            )
         {
             self.update(
                 self.create_call_chain(
@@ -1757,11 +1755,12 @@ impl NodeFactory {
         head: Id<Node /*TemplateHead*/>,
         template_spans: impl Into<NodeArrayOrVec>, /*<TemplateSpan>*/
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_template_expression = node_ref.as_template_expression();
         let template_spans = template_spans.into();
-        if node_as_template_expression.head != head
-            || has_node_array_changed(node_as_template_expression.template_spans, &template_spans)
+        if node.ref_(self).as_template_expression().head != head
+            || has_node_array_changed(
+                node.ref_(self).as_template_expression().template_spans,
+                &template_spans,
+            )
         {
             self.update(self.create_template_expression(head, template_spans), node)
         } else {
@@ -1970,9 +1969,7 @@ impl NodeFactory {
         node: Id<Node>, /*SpreadElement*/
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_spread_element = node_ref.as_spread_element();
-        if node_as_spread_element.expression != expression {
+        if node.ref_(self).as_spread_element().expression != expression {
             self.update(self.create_spread_element(expression), node)
         } else {
             node

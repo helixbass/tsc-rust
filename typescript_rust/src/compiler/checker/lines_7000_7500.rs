@@ -762,7 +762,7 @@ impl SymbolTableToDeclarationStatements {
                         Some(get_factory(self).create_named_exports(vec![
                             get_factory(self).create_export_specifier(
                                 false,
-                                Some(d.ref_(self).as_export_assignment().expression),
+                                released!(Some(d.ref_(self).as_export_assignment().expression)),
                                 get_factory(self).create_identifier(InternalSymbolName::Default),
                             ),
                         ])),
