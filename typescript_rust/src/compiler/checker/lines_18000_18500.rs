@@ -1613,8 +1613,11 @@ impl CheckTypeRelatedTo {
                     .flags()
                     .intersects(TypeFlags::Intersection)
             {
-                let target_ref = target.ref_(arena);
-                let target_types = target_ref.as_union_or_intersection_type_interface().types();
+                let ref target_types = target
+                    .ref_(arena)
+                    .as_union_or_intersection_type_interface()
+                    .types()
+                    .to_owned();
                 let intrinsic_attributes =
                     self_.ref_(arena).type_checker.ref_(arena).get_jsx_type(
                         &JsxNames::IntrinsicAttributes,

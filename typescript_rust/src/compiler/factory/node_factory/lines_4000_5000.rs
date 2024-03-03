@@ -1152,9 +1152,7 @@ impl NodeFactory {
         node: Id<Node>, /*JsxSpreadAttribute*/
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_jsx_spread_attribute = node_ref.as_jsx_spread_attribute();
-        if node_as_jsx_spread_attribute.expression != expression {
+        if node.ref_(self).as_jsx_spread_attribute().expression != expression {
             self.update(self.create_jsx_spread_attribute(expression), node)
         } else {
             node
@@ -1182,12 +1180,10 @@ impl NodeFactory {
         node: Id<Node>, /*JsxExpression*/
         expression: Option<Id<Node /*Expression*/>>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_jsx_expression = node_ref.as_jsx_expression();
-        if node_as_jsx_expression.expression != expression {
+        if node.ref_(self).as_jsx_expression().expression != expression {
             self.update(
                 self.create_jsx_expression(
-                    node_as_jsx_expression.dot_dot_dot_token.clone(),
+                    released!(node.ref_(self).as_jsx_expression().dot_dot_dot_token),
                     expression,
                 ),
                 node,

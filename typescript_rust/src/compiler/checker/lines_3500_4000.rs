@@ -293,8 +293,8 @@ impl TypeChecker {
     ) -> io::Result<Id<Symbol>> {
         let result = self.alloc_symbol(
             self.create_symbol(
-                symbol.ref_(self).flags(),
-                symbol.ref_(self).escaped_name().to_owned(),
+                released!(symbol.ref_(self).flags()),
+                released!(symbol.ref_(self).escaped_name().to_owned()),
                 None,
             )
             .into(),
@@ -310,9 +310,8 @@ impl TypeChecker {
             .ref_(self)
             .set_parent(symbol.ref_(self).maybe_parent());
         let result_links = result.ref_(self).as_transient_symbol().symbol_links();
-        let mut result_links = result_links.ref_mut(self);
-        result_links.target = Some(symbol);
-        result_links.originating_import = Some(reference_parent);
+        result_links.ref_mut(self).target = Some(symbol);
+        result_links.ref_mut(self).originating_import = Some(reference_parent);
         if let Some(symbol_value_declaration) = symbol.ref_(self).maybe_value_declaration() {
             result
                 .ref_(self)
@@ -332,7 +331,7 @@ impl TypeChecker {
             ));
         }
         let resolved_module_type = self.resolve_structured_type_members(module_type)?;
-        result_links.type_ = Some(
+        result_links.ref_mut(self).type_ = Some(
             self.create_anonymous_type(
                 Some(result.clone()),
                 resolved_module_type.ref_(self).as_resolved_type().members(),

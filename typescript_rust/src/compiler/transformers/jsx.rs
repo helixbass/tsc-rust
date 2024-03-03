@@ -832,10 +832,8 @@ impl TransformJsx {
         &self,
         node: Id<Node>, /*JsxSpreadAttribute*/
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_jsx_spread_attribute = node_ref.as_jsx_spread_attribute();
         self.factory.ref_(self).create_spread_assignment(visit_node(
-            node_as_jsx_spread_attribute.expression,
+            released!(node.ref_(self).as_jsx_spread_attribute().expression),
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -949,8 +947,9 @@ impl TransformJsx {
         node: Id<Node>, /*JsxAttribute*/
     ) -> Id<Node> {
         let name = self.get_attribute_name(node);
-        let expression = self
-            .transform_jsx_attribute_initializer(node.ref_(self).as_jsx_attribute().initializer);
+        let expression = self.transform_jsx_attribute_initializer(released!(
+            node.ref_(self).as_jsx_attribute().initializer
+        ));
         self.factory
             .ref_(self)
             .create_property_assignment(name, expression)
@@ -964,18 +963,20 @@ impl TransformJsx {
             return self.factory.ref_(self).create_true();
         };
         if node.ref_(self).kind() == SyntaxKind::StringLiteral {
-            let node_ref = node.ref_(self);
-            let node_as_string_literal = node_ref.as_string_literal();
-            let single_quote = node_as_string_literal.single_quote.unwrap_or_else(|| {
-                !is_string_double_quoted(node, self.current_source_file(), self)
-            });
+            let single_quote = node
+                .ref_(self)
+                .as_string_literal()
+                .single_quote
+                .unwrap_or_else(|| {
+                    !is_string_double_quoted(node, self.current_source_file(), self)
+                });
             let ret = self
                 .factory
                 .ref_(self)
                 .create_string_literal(
-                    self.try_decode_entities(&node_as_string_literal.text())
+                    self.try_decode_entities(&node.ref_(self).as_string_literal().text())
                         .map(Cow::into_owned)
-                        .unwrap_or_else(|| node_as_string_literal.text().clone()),
+                        .unwrap_or_else(|| node.ref_(self).as_string_literal().text().clone()),
                     Some(single_quote),
                     None,
                 )

@@ -181,10 +181,8 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*JsxFragment*/
     ) -> io::Result<Id<Type>> {
-        let node_ref = node.ref_(self);
-        let node_as_jsx_fragment = node_ref.as_jsx_fragment();
         self.check_jsx_opening_like_element_or_opening_fragment(
-            node_as_jsx_fragment.opening_fragment,
+            node.ref_(self).as_jsx_fragment().opening_fragment,
         )?;
 
         let node_source_file = get_source_file_of_node(node, self);

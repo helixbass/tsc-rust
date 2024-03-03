@@ -1155,8 +1155,7 @@ impl TypeChecker {
                 return Ok(right);
             }
             if left.ref_(self).flags().intersects(TypeFlags::Intersection) {
-                let left_ref = left.ref_(self);
-                let types = left_ref.as_intersection_type().types();
+                let types = left.ref_(self).as_intersection_type().types().to_owned();
                 let last_left = types[types.len() - 1];
                 if self.is_non_generic_object_type(last_left)?
                     && self.is_non_generic_object_type(right)?
@@ -1255,7 +1254,7 @@ impl TypeChecker {
                 }
             } else {
                 members.insert(
-                    left_prop.ref_(self).escaped_name().to_owned(),
+                    released!(left_prop.ref_(self).escaped_name().to_owned()),
                     self.get_spread_symbol(left_prop, readonly)?,
                 );
             }

@@ -19,18 +19,16 @@ use crate::{
 
 impl Printer {
     pub(super) fn emit_jsx_element(&self, node: Id<Node> /*JsxElement*/) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_jsx_element = node_ref.as_jsx_element();
-        self.emit(Some(node_as_jsx_element.opening_element), None)?;
+        self.emit(Some(node.ref_(self).as_jsx_element().opening_element), None)?;
         self.emit_list(
             Some(node),
-            Some(node_as_jsx_element.children),
+            released!(Some(node.ref_(self).as_jsx_element().children)),
             ListFormat::JsxElementOrFragmentChildren,
             None,
             None,
             None,
         )?;
-        self.emit(Some(node_as_jsx_element.closing_element), None)?;
+        self.emit(Some(node.ref_(self).as_jsx_element().closing_element), None)?;
 
         Ok(())
     }
@@ -244,10 +242,8 @@ impl Printer {
         &self,
         node: Id<Node>, /*JsxExpression*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_jsx_expression = node_ref.as_jsx_expression();
         Ok(
-            if node_as_jsx_expression.expression.is_some()
+            if node.ref_(self).as_jsx_expression().expression.is_some()
                 || !self.comments_disabled()
                     && !node_is_synthesized(&*node.ref_(self))
                     && self.has_comments_at_position(node.ref_(self).pos())
@@ -274,11 +270,15 @@ impl Printer {
                     node,
                     None,
                 );
-                self.emit(node_as_jsx_expression.dot_dot_dot_token, None)?;
-                self.emit_expression(node_as_jsx_expression.expression, None)?;
+                self.emit(node.ref_(self).as_jsx_expression().dot_dot_dot_token, None)?;
+                self.emit_expression(
+                    released!(node.ref_(self).as_jsx_expression().expression),
+                    None,
+                )?;
                 self.emit_token_with_comment(
                     SyntaxKind::CloseBraceToken,
-                    node_as_jsx_expression
+                    node.ref_(self)
+                        .as_jsx_expression()
                         .expression
                         .map_or(end, |node_expression| node_expression.ref_(self).end()),
                     |text: &str| self.write_punctuation(text),

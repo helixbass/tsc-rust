@@ -51,7 +51,7 @@ impl TypeChecker {
         let result = self.alloc_symbol(
             self.create_symbol(
                 flags,
-                prop.ref_(self).escaped_name().to_owned(),
+                released!(prop.ref_(self).escaped_name().to_owned()),
                 Some(
                     self.get_is_late_check_flag(prop)
                         | if readonly {
@@ -64,8 +64,7 @@ impl TypeChecker {
             .into(),
         );
         let result_links = result.ref_(self).as_transient_symbol().symbol_links();
-        let mut result_links = result_links.ref_mut(self);
-        result_links.type_ = Some(if is_setonly_accessor {
+        result_links.ref_mut(self).type_ = Some(if is_setonly_accessor {
             self.undefined_type()
         } else {
             self.get_type_of_symbol(prop)?
@@ -73,8 +72,8 @@ impl TypeChecker {
         if let Some(prop_declarations) = prop.ref_(self).maybe_declarations().clone() {
             result.ref_(self).set_declarations(prop_declarations);
         }
-        result_links.name_type = self.get_symbol_links(prop).ref_(self).name_type;
-        result_links.synthetic_origin = Some(prop);
+        result_links.ref_mut(self).name_type = self.get_symbol_links(prop).ref_(self).name_type;
+        result_links.ref_mut(self).synthetic_origin = Some(prop);
         Ok(result)
     }
 

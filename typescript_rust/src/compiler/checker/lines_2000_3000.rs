@@ -1219,7 +1219,7 @@ impl TypeChecker {
             );
         } else {
             let diagnostic = self.error(
-                node.ref_(self).as_import_clause().name,
+                released!(node.ref_(self).as_import_clause().name),
                 &Diagnostics::Module_0_has_no_default_export,
                 Some(vec![self.symbol_to_string_(
                     module_symbol,

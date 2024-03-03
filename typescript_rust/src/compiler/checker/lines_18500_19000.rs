@@ -178,8 +178,11 @@ impl CheckTypeRelatedTo {
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> io::Result<Ternary> {
-        let source_ref = source.ref_(arena);
-        let source_types = source_ref.as_union_or_intersection_type_interface().types();
+        let ref source_types = source
+            .ref_(arena)
+            .as_union_or_intersection_type_interface()
+            .types()
+            .to_owned();
         if source.ref_(arena).flags().intersects(TypeFlags::Union)
             && self_
                 .ref_(arena)

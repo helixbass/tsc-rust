@@ -858,10 +858,11 @@ impl InferTypes {
                     } else {
                         vec![source.clone()]
                     },
-                    target
+                    &released!(target
                         .ref_(self)
                         .as_union_or_intersection_type_interface()
-                        .types(),
+                        .types()
+                        .to_owned()),
                     |s: Id<Type>, t: Id<Type>| {
                         self.type_checker.ref_(self).is_type_identical_to(s, t)
                     },
