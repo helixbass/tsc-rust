@@ -313,7 +313,7 @@ impl NodeBuilder {
                     && get_check_flags(&p.ref_(self)).intersects(CheckFlags::RestParameter)
             }),
         ) {
-            signature.ref_(self).parameters().clone()
+            signature.ref_(self).parameters().to_owned()
         } else {
             expanded_params.clone()
         }
