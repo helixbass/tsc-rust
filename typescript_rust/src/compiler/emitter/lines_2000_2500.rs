@@ -390,14 +390,17 @@ impl Printer {
         node: Id<Node>, /*FunctionTypeNode*/
     ) -> io::Result<()> {
         self.push_name_generation_scope(Some(node));
-        let node_ref = node.ref_(self);
-        let node_as_function_type_node = node_ref.as_function_type_node();
-        self.emit_type_parameters(node, node_as_function_type_node.maybe_type_parameters())?;
-        self.emit_parameters_for_arrow(node, node_as_function_type_node.parameters())?;
+        self.emit_type_parameters(
+            node,
+            node.ref_(self)
+                .as_function_type_node()
+                .maybe_type_parameters(),
+        )?;
+        self.emit_parameters_for_arrow(node, node.ref_(self).as_function_type_node().parameters())?;
         self.write_space();
         self.write_punctuation("=>");
         self.write_space();
-        self.emit(node_as_function_type_node.maybe_type(), None)?;
+        self.emit(node.ref_(self).as_function_type_node().maybe_type(), None)?;
         self.pop_name_generation_scope(Some(node));
 
         Ok(())

@@ -237,11 +237,9 @@ impl TypeChecker {
         let type_predicate =
             return_ok_default_if_none!(self.get_type_predicate_of_signature(signature)?);
 
-        let node_ref = node.ref_(self);
-        let node_as_type_predicate_node = node_ref.as_type_predicate_node();
-        self.check_source_element(node_as_type_predicate_node.type_)?;
+        self.check_source_element(node.ref_(self).as_type_predicate_node().type_)?;
 
-        let parameter_name = node_as_type_predicate_node.parameter_name;
+        let parameter_name = node.ref_(self).as_type_predicate_node().parameter_name;
         if matches!(
             type_predicate.ref_(self).kind,
             TypePredicateKind::This | TypePredicateKind::AssertsThis
@@ -267,10 +265,10 @@ impl TypeChecker {
                             ));
                         self.check_type_assignable_to(
                             type_predicate_type,
-                            self.get_type_of_symbol(
-                                signature.ref_(self).parameters()[type_predicate_parameter_index],
-                            )?,
-                            node_as_type_predicate_node.type_,
+                            self.get_type_of_symbol(released!(
+                                signature.ref_(self).parameters()[type_predicate_parameter_index]
+                            ))?,
+                            node.ref_(self).as_type_predicate_node().type_,
                             None,
                             Some(leading_error),
                             None,
@@ -301,7 +299,7 @@ impl TypeChecker {
                 }
                 if !has_reported_error {
                     self.error(
-                        Some(node_as_type_predicate_node.parameter_name),
+                        Some(node.ref_(self).as_type_predicate_node().parameter_name),
                         &Diagnostics::Cannot_find_parameter_0,
                         Some(vec![type_predicate
                             .ref_(self)

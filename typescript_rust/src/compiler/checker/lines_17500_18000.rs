@@ -8,7 +8,7 @@ use super::{
     ErrorReporter, IntersectionState,
 };
 use crate::{
-    get_object_flags, get_symbol_id, symbol_name, try_every, try_some, DiagnosticMessage,
+    get_object_flags, get_symbol_id, released, symbol_name, try_every, try_some, DiagnosticMessage,
     Diagnostics, InArena, IntrinsicType, LiteralTypeInterface, Node, ObjectFlags,
     ObjectTypeInterface, RelationComparisonResult, Signature, Symbol, SymbolFlags, SymbolInterface,
     Ternary, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypePredicate,
@@ -92,8 +92,8 @@ impl TypeChecker {
             Ternary::True
         } else if source.ref_(self).type_.is_some() && target.ref_(self).type_.is_some() {
             compare_types(
-                source.ref_(self).type_.unwrap(),
-                target.ref_(self).type_.unwrap(),
+                released!(source.ref_(self).type_.unwrap()),
+                released!(target.ref_(self).type_.unwrap()),
                 Some(report_errors),
             )?
         } else {

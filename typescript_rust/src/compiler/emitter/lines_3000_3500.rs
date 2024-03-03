@@ -64,18 +64,20 @@ impl Printer {
         &self,
         node: Id<Node>, /*LabeledStatement*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_labeled_statement = node_ref.as_labeled_statement();
-        self.emit(Some(node_as_labeled_statement.label), None)?;
+        self.emit(Some(node.ref_(self).as_labeled_statement().label), None)?;
         self.emit_token_with_comment(
             SyntaxKind::ColonToken,
-            node_as_labeled_statement.label.ref_(self).end(),
+            node.ref_(self)
+                .as_labeled_statement()
+                .label
+                .ref_(self)
+                .end(),
             |text: &str| self.write_punctuation(text),
             node,
             None,
         );
         self.write_space();
-        self.emit(Some(node_as_labeled_statement.statement), None)?;
+        self.emit(Some(node.ref_(self).as_labeled_statement().statement), None)?;
 
         Ok(())
     }
@@ -112,8 +114,12 @@ impl Printer {
             None,
         );
         self.write_space();
-        self.emit(Some(node.ref_(self).as_try_statement().try_block), None)?;
-        if let Some(node_catch_clause) = node.ref_(self).as_try_statement().catch_clause {
+        self.emit(
+            Some(released!(node.ref_(self).as_try_statement().try_block)),
+            None,
+        )?;
+        if let Some(node_catch_clause) = released!(node.ref_(self).as_try_statement().catch_clause)
+        {
             self.write_line_or_space(
                 node,
                 node.ref_(self).as_try_statement().try_block,

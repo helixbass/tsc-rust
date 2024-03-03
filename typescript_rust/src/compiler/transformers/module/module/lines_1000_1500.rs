@@ -158,13 +158,13 @@ impl TransformModule {
                                     self.emit_helpers().create_create_binding_helper(
                                         generated_name.clone(),
                                         self.factory.ref_(self).create_string_literal_from_node(
-                                            specifier
+                                            released!(specifier
                                                 .ref_(self)
                                                 .as_export_specifier()
                                                 .property_name
                                                 .unwrap_or(
                                                     specifier.ref_(self).as_export_specifier().name,
-                                                ),
+                                                )),
                                         ),
                                         specifier
                                             .ref_(self)

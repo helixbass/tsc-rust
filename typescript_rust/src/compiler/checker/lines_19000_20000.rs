@@ -1581,9 +1581,7 @@ impl CheckTypeRelatedTo {
                 .type_checker
                 .ref_(arena)
                 .get_property_of_object_type(target, source_prop.ref_(arena).escaped_name())?);
-            let related = self_
-                .ref_(arena)
-                .type_checker
+            let related = released!(self_.ref_(arena).type_checker)
                 .ref_(arena)
                 .compare_properties(source_prop, target_prop, |source, target| {
                     Self::is_related_to(self_, arena, source, target, None, None, None, None)
@@ -2062,9 +2060,7 @@ impl CheckTypeRelatedTo {
         }
         let mut result = Ternary::True;
         for i in 0..source_signatures.len() {
-            let related = self_
-                .ref_(arena)
-                .type_checker
+            let related = released!(self_.ref_(arena).type_checker)
                 .ref_(arena)
                 .compare_signatures_identical(
                     source_signatures[i].clone(),

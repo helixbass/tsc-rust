@@ -289,13 +289,13 @@ impl TransformSystemModule {
                 node.ref_(self).as_for_in_statement().initializer
             ))?,
             try_visit_node(
-                node.ref_(self).as_for_in_statement().expression,
+                released!(node.ref_(self).as_for_in_statement().expression),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_iteration_body(
-                node.ref_(self).as_for_in_statement().statement,
+                released!(node.ref_(self).as_for_in_statement().statement),
                 |node: Id<Node>| self.top_level_nested_visitor(node),
                 &*self.context.ref_(self),
                 self,

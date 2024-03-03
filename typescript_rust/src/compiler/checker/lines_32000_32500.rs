@@ -451,10 +451,16 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*DeleteExpression*/
     ) -> io::Result<Id<Type>> {
-        let node_ref = node.ref_(self);
-        let node_as_delete_expression = node_ref.as_delete_expression();
-        self.check_expression(node_as_delete_expression.expression, None, None)?;
-        let expr = skip_parentheses(node_as_delete_expression.expression, None, self);
+        self.check_expression(
+            node.ref_(self).as_delete_expression().expression,
+            None,
+            None,
+        )?;
+        let expr = skip_parentheses(
+            node.ref_(self).as_delete_expression().expression,
+            None,
+            self,
+        );
         if !is_access_expression(&expr.ref_(self)) {
             self.error(
                 Some(expr),
@@ -526,7 +532,7 @@ impl TypeChecker {
         node: Id<Node>, /*TypeOfExpression*/
     ) -> io::Result<Id<Type>> {
         self.check_expression(
-            node.ref_(self).as_type_of_expression().expression,
+            released!(node.ref_(self).as_type_of_expression().expression),
             None,
             None,
         )?;
@@ -537,7 +543,11 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*VoidExpression*/
     ) -> io::Result<Id<Type>> {
-        self.check_expression(node.ref_(self).as_void_expression().expression, None, None)?;
+        self.check_expression(
+            released!(node.ref_(self).as_void_expression().expression),
+            None,
+            None,
+        )?;
         Ok(self.undefined_widening_type())
     }
 
@@ -762,7 +772,7 @@ impl TypeChecker {
             _ => (),
         }
         Ok(
-            match node.ref_(self).as_prefix_unary_expression().operator {
+            match released!(node.ref_(self).as_prefix_unary_expression().operator) {
                 SyntaxKind::PlusToken | SyntaxKind::MinusToken | SyntaxKind::TildeToken => {
                     self.check_non_null_type(
                         operand_type,
@@ -807,7 +817,7 @@ impl TypeChecker {
                 }
                 SyntaxKind::ExclamationToken => {
                     self.check_truthiness_expression(
-                        node.ref_(self).as_prefix_unary_expression().operand,
+                        released!(node.ref_(self).as_prefix_unary_expression().operand),
                         None,
                     )?;
                     let facts = self.get_type_facts(operand_type, None)?
@@ -844,7 +854,7 @@ impl TypeChecker {
         node: Id<Node>, /*PostfixUnaryExpression*/
     ) -> io::Result<Id<Type>> {
         let operand_type = self.check_expression(
-            node.ref_(self).as_postfix_unary_expression().operand,
+            released!(node.ref_(self).as_postfix_unary_expression().operand),
             None,
             None,
         )?;

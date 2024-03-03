@@ -785,7 +785,7 @@ impl TypeChecker {
         self.check_indexed_access_index_type(
             self.get_flow_type_of_access_expression(
                 node,
-                self.get_node_links(node).ref_(self).resolved_symbol,
+                released!(self.get_node_links(node).ref_(self).resolved_symbol),
                 indexed_access_type,
                 index_expression,
                 check_mode,

@@ -1197,7 +1197,7 @@ impl TypeChecker {
                 skipped_private_members.insert(right_prop.ref_(self).escaped_name().to_owned());
             } else if self.is_spreadable_property(right_prop) {
                 members.insert(
-                    right_prop.ref_(self).escaped_name().to_owned(),
+                    released!(right_prop.ref_(self).escaped_name().to_owned()),
                     self.get_spread_symbol(right_prop, readonly)?,
                 );
             }

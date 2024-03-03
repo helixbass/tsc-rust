@@ -594,7 +594,7 @@ impl TransformDeclarations {
             let mut bundle =
                 self.factory.ref_(self).create_bundle_raw(
                     try_map(
-                        &node.ref_(self).as_bundle().source_files,
+                        &released!(node.ref_(self).as_bundle().source_files.clone()),
                         |source_file: &Option<Id<Node>>, _| -> io::Result<Option<Id<Node>>> {
                             let source_file = source_file.unwrap();
                             if source_file.ref_(self).as_source_file().is_declaration_file() {
@@ -636,7 +636,7 @@ impl TransformDeclarations {
                                     )
                                 } else {
                                     try_visit_nodes(
-                                        source_file.ref_(self).as_source_file().statements(),
+                                        released!(source_file.ref_(self).as_source_file().statements()),
                                         Some(|node: Id<Node>| self.visit_declaration_statements(node)),
                                         Option::<fn(Id<Node>) -> bool>::None,
                                         None,

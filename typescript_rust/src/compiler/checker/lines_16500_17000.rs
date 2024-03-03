@@ -884,7 +884,7 @@ impl TypeChecker {
         }
         let instantiated = self.infer_type_for_homomorphic_mapped_type(
             self.instantiate_type(
-                type_.ref_(self).as_reverse_mapped_type().source,
+                released!(type_.ref_(self).as_reverse_mapped_type().source),
                 Some(mapper),
             )?,
             inner_mapped_type,

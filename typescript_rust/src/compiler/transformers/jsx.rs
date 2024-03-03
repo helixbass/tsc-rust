@@ -495,8 +495,8 @@ impl TransformJsx {
             )
         } else {
             self.visit_jsx_opening_fragment_jsx(
-                node.ref_(self).as_jsx_fragment().opening_fragment,
-                &node.ref_(self).as_jsx_fragment().children.ref_(self),
+                released!(node.ref_(self).as_jsx_fragment().opening_fragment),
+                &released!(node.ref_(self).as_jsx_fragment().children).ref_(self),
                 is_child,
                 &released!(ReadonlyTextRangeConcrete::from(&*node.ref_(self))),
             )

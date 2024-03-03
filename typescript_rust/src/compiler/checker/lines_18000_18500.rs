@@ -1866,9 +1866,7 @@ impl CheckTypeRelatedTo {
         let mut reduced_target = target;
         let mut check_types: Option<Vec<Id<Type>>> = None;
         if target.ref_(arena).flags().intersects(TypeFlags::Union) {
-            reduced_target = self_
-                .ref_(arena)
-                .type_checker
+            reduced_target = released!(self_.ref_(arena).type_checker)
                 .ref_(arena)
                 .find_matching_discriminant_type(
                     source,

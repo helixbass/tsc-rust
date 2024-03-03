@@ -320,12 +320,12 @@ impl TypeChecker {
                         get_assignment_target_kind(access_expression, self),
                     )? {
                         self.error(
-                            Some(
+                            Some(released!(
                                 access_expression
                                     .ref_(self)
                                     .as_element_access_expression()
-                                    .argument_expression,
-                            ),
+                                    .argument_expression
+                            )),
                             &Diagnostics::Cannot_assign_to_0_because_it_is_a_read_only_property,
                             Some(vec![self.symbol_to_string_(
                                 prop,
@@ -1024,25 +1024,28 @@ impl TypeChecker {
                 .object_flags()
                 .intersects(ObjectFlags::IsGenericTypeComputed)
             {
+                let object_flags = released!(type_
+                    .ref_(self)
+                    .as_union_or_intersection_type()
+                    .object_flags())
+                    | ObjectFlags::IsGenericTypeComputed
+                    | try_reduce_left(
+                        &released!(type_
+                            .ref_(self)
+                            .as_union_or_intersection_type()
+                            .types()
+                            .to_owned()),
+                        |flags, &t: &Id<Type>, _| -> io::Result<_> {
+                            Ok(flags | self.get_generic_object_flags(t)?)
+                        },
+                        ObjectFlags::None,
+                        None,
+                        None,
+                    )?;
                 type_
                     .ref_(self)
                     .as_union_or_intersection_type()
-                    .set_object_flags(
-                        type_
-                            .ref_(self)
-                            .as_union_or_intersection_type()
-                            .object_flags()
-                            | ObjectFlags::IsGenericTypeComputed
-                            | try_reduce_left(
-                                type_.ref_(self).as_union_or_intersection_type().types(),
-                                |flags, &t: &Id<Type>, _| -> io::Result<_> {
-                                    Ok(flags | self.get_generic_object_flags(t)?)
-                                },
-                                ObjectFlags::None,
-                                None,
-                                None,
-                            )?,
-                    );
+                    .set_object_flags(object_flags);
             }
             return Ok(type_
                 .ref_(self)

@@ -777,15 +777,21 @@ impl NodeFactory {
         question_dot_token: Option<Id<Node /*QuestionDotToken*/>>,
         argument_expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_element_access_expression = node_ref.as_element_access_expression();
         Debug_.assert(
             node.ref_(self).flags().intersects(NodeFlags::OptionalChain),
             Some("Cannot update a ElementAccessExpression using updateElementAccessChain. Use updateElementAccess instead.")
         );
-        if node_as_element_access_expression.expression != expression
-            || node_as_element_access_expression.question_dot_token != question_dot_token
-            || node_as_element_access_expression.argument_expression != argument_expression
+        if node.ref_(self).as_element_access_expression().expression != expression
+            || node
+                .ref_(self)
+                .as_element_access_expression()
+                .question_dot_token
+                != question_dot_token
+            || node
+                .ref_(self)
+                .as_element_access_expression()
+                .argument_expression
+                != argument_expression
         {
             self.update(
                 self.create_element_access_chain(
@@ -1538,7 +1544,7 @@ impl NodeFactory {
             self.update(
                 self.create_postfix_unary_expression(
                     operand,
-                    node.ref_(self).as_postfix_unary_expression().operator,
+                    released!(node.ref_(self).as_postfix_unary_expression().operator),
                 ),
                 node,
             )

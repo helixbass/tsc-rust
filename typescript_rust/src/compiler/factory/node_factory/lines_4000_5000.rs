@@ -330,10 +330,8 @@ impl NodeFactory {
         node: Id<Node>, /*NamedExports*/
         elements: impl Into<NodeArrayOrVec>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_named_exports = node_ref.as_named_exports();
         let elements = elements.into();
-        if has_node_array_changed(node_as_named_exports.elements, &elements) {
+        if has_node_array_changed(node.ref_(self).as_named_exports().elements, &elements) {
             self.update(self.create_named_exports(elements), node)
         } else {
             node

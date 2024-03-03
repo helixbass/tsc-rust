@@ -153,7 +153,7 @@ impl TransformES2015 {
                 self.factory
                     .ref_(self)
                     .create_numeric_literal(
-                        node.ref_(self).as_numeric_literal().text().clone(),
+                        released!(node.ref_(self).as_numeric_literal().text().clone()),
                         None,
                     )
                     .set_text_range(Some(&*node.ref_(self)), self)
@@ -220,19 +220,17 @@ impl TransformES2015 {
                 .text()
                 .is_empty()
             {
-                args.push(
-                    self.factory.ref_(self).create_string_literal(
-                        span.ref_(self)
+                args.push(self.factory.ref_(self).create_string_literal(
+                    released!(span.ref_(self)
                             .as_template_span()
                             .literal
                             .ref_(self)
                             .as_template_literal_like_node()
                             .text()
-                            .clone(),
-                        None,
-                        None,
-                    ),
-                );
+                            .clone()),
+                    None,
+                    None,
+                ));
             }
 
             expression = self.factory.ref_(self).create_call_expression(

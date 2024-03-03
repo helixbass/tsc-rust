@@ -153,7 +153,7 @@ impl TransformES2020 {
         is_delete: bool,
     ) -> Id<Node /*Expression*/> {
         let expression = self.visit_non_optional_expression(
-            node.ref_(self).as_parenthesized_expression().expression,
+            released!(node.ref_(self).as_parenthesized_expression().expression),
             capture_this_arg,
             is_delete,
         );
@@ -270,7 +270,7 @@ impl TransformES2020 {
             )
         {
             let expression = self.visit_non_optional_parenthesized_expression(
-                node.ref_(self).as_call_expression().expression,
+                released!(node.ref_(self).as_call_expression().expression),
                 true,
                 false,
             );
@@ -439,7 +439,7 @@ impl TransformES2020 {
                                 left_this_arg.clone()
                             },
                             visit_nodes(
-                                segment.ref_(self).as_call_expression().arguments,
+                                released!(segment.ref_(self).as_call_expression().arguments),
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 None,
@@ -589,7 +589,7 @@ impl TransformES2020 {
                 .ref_(self),
             ) {
                 self.visit_non_optional_expression(
-                    node.ref_(self).as_delete_expression().expression,
+                    released!(node.ref_(self).as_delete_expression().expression),
                     false,
                     true,
                 )

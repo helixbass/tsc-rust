@@ -212,11 +212,11 @@ impl TransformES2015 {
         if node.ref_(self).kind() == SyntaxKind::GetAccessor {
             updated = self.factory.ref_(self).update_get_accessor_declaration(
                 node,
-                node.ref_(self).maybe_decorators(),
-                node.ref_(self).maybe_modifiers(),
+                released!(node.ref_(self).maybe_decorators()),
+                released!(node.ref_(self).maybe_modifiers()),
                 node_name,
                 parameters,
-                node.ref_(self).as_has_type().maybe_type(),
+                released!(node.ref_(self).as_has_type().maybe_type()),
                 Some(body),
             );
         } else {
@@ -682,7 +682,7 @@ impl TransformES2015 {
                         )?
                     },
                     self.transform_and_spread_elements(
-                        node.ref_(self).as_call_expression().arguments,
+                        released!(node.ref_(self).as_call_expression().arguments),
                         true,
                         false,
                         false,
@@ -780,7 +780,7 @@ impl TransformES2015 {
         ) {
             let CallBinding { target, this_arg } = self.factory.ref_(self).create_call_binding(
                 self.factory.ref_(self).create_property_access_expression(
-                    node.ref_(self).as_new_expression().expression.clone(),
+                    released!(node.ref_(self).as_new_expression().expression),
                     "bind",
                 ),
                 |node: Id<Node>| {

@@ -692,7 +692,7 @@ impl TypeChecker {
         }
 
         self.invocation_error(
-            node.ref_(self).as_new_expression().expression,
+            released!(node.ref_(self).as_new_expression().expression),
             expression_type,
             SignatureKind::Construct,
             None,

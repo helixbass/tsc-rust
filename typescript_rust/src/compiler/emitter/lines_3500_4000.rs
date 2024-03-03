@@ -463,7 +463,10 @@ impl Printer {
             );
             self.write_space();
         }
-        self.emit(Some(node.ref_(self).as_catch_clause().block), None)?;
+        self.emit(
+            Some(released!(node.ref_(self).as_catch_clause().block)),
+            None,
+        )?;
 
         Ok(())
     }

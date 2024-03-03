@@ -581,26 +581,29 @@ impl SymbolTableToDeclarationStatements {
         );
         if let Some(index) = index {
             let export_decl = statements[index];
-            let export_decl_ref = export_decl.ref_(self);
-            let export_decl_as_export_declaration = export_decl_ref.as_export_declaration();
             let replacements = map_defined(
                 Some(
-                    &*export_decl_as_export_declaration
-                        .export_clause
-                        .as_ref()
-                        .unwrap()
-                        .ref_(self)
-                        .as_named_exports()
-                        .elements
-                        .ref_(self),
+                    &*released!(
+                        export_decl
+                            .ref_(self)
+                            .as_export_declaration()
+                            .export_clause
+                            .unwrap()
+                            .ref_(self)
+                            .as_named_exports()
+                            .elements
+                    )
+                    .ref_(self),
                 ),
                 |e: &Id<Node>, _| {
-                    let e_ref = e.ref_(self);
-                    let e_as_export_specifier = e_ref.as_export_specifier();
-                    if e_as_export_specifier.property_name.is_none() {
+                    if e.ref_(self).as_export_specifier().property_name.is_none() {
                         let indices = indices_of(&statements);
                         let associated_indices = filter(&indices, |&i: &usize| {
-                            node_has_name(statements[i], e_as_export_specifier.name, self)
+                            node_has_name(
+                                statements[i],
+                                e.ref_(self).as_export_specifier().name,
+                                self,
+                            )
                         });
                         if length(Some(&associated_indices)) > 0
                             && every(&associated_indices, |&i: &usize, _| {
@@ -621,15 +624,24 @@ impl SymbolTableToDeclarationStatements {
             } else {
                 statements[index] = get_factory(self).update_export_declaration(
                     export_decl,
-                    export_decl.ref_(self).maybe_decorators(),
-                    export_decl.ref_(self).maybe_modifiers(),
-                    export_decl_as_export_declaration.is_type_only,
+                    released!(export_decl.ref_(self).maybe_decorators()),
+                    released!(export_decl.ref_(self).maybe_modifiers()),
+                    released!(export_decl.ref_(self).as_export_declaration().is_type_only),
                     Some(get_factory(self).update_named_exports(
-                        export_decl_as_export_declaration.export_clause.unwrap(),
+                        released!(export_decl
+                                .ref_(self)
+                                .as_export_declaration()
+                                .export_clause
+                                .unwrap()),
                         replacements,
                     )),
-                    export_decl_as_export_declaration.module_specifier.clone(),
-                    export_decl_as_export_declaration.assert_clause.clone(),
+                    released!(
+                        export_decl
+                            .ref_(self)
+                            .as_export_declaration()
+                            .module_specifier
+                    ),
+                    released!(export_decl.ref_(self).as_export_declaration().assert_clause),
                 );
             }
         }

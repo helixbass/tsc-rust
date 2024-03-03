@@ -246,10 +246,8 @@ impl NodeFactory {
         expression: Id<Node /*Expression*/>,
         literal: Id<Node /*TemplateMiddle | TemplateTail*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_template_span = node_ref.as_template_span();
-        if node_as_template_span.expression != expression
-            || node_as_template_span.literal != literal
+        if node.ref_(self).as_template_span().expression != expression
+            || node.ref_(self).as_template_span().literal != literal
         {
             self.update(self.create_template_span(expression, literal), node)
         } else {
@@ -745,10 +743,8 @@ impl NodeFactory {
         expression: Id<Node /*Expression*/>,
         statement: Id<Node /*Statement*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_with_statement = node_ref.as_with_statement();
-        if node_as_with_statement.expression != expression
-            || node_as_with_statement.statement != statement
+        if node.ref_(self).as_with_statement().expression != expression
+            || node.ref_(self).as_with_statement().statement != statement
         {
             self.update(self.create_with_statement(expression, statement), node)
         } else {

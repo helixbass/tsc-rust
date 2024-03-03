@@ -2,7 +2,7 @@ target
 test-out*
 .vscode/
 out
-out-release
+out-release*
 typescript_rust/typescript_src/tests/baselines/local/
 rusty-tags.vi
 NOTES

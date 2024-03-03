@@ -1336,14 +1336,17 @@ impl CheckTypeRelatedTo {
                         self_,
                         arena,
                         source,
-                        self_.ref_(arena).type_checker.ref_(arena).get_index_type(
-                            constraint,
-                            Some({
-                                let strings_only = target.ref_(arena).as_index_type().strings_only;
-                                strings_only
-                            }),
-                            None,
-                        )?,
+                        released!(self_.ref_(arena).type_checker)
+                            .ref_(arena)
+                            .get_index_type(
+                                constraint,
+                                Some({
+                                    let strings_only =
+                                        target.ref_(arena).as_index_type().strings_only;
+                                    strings_only
+                                }),
+                                None,
+                            )?,
                         Some(RecursionFlags::Target),
                         Some(report_errors),
                         None,

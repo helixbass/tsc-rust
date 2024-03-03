@@ -691,12 +691,12 @@ fn add_default_value_assignment_for_binding_pattern(
         Option::<Id<NodeArray>>::None,
         factory.ref_(arena).create_variable_declaration_list(
             vec![factory.ref_(arena).create_variable_declaration(
-                    parameter.ref_(arena).as_parameter_declaration().maybe_name(),
+                    released!(parameter.ref_(arena).as_parameter_declaration().maybe_name()),
                     None,
-                    parameter.ref_(arena).as_parameter_declaration().maybe_type(),
+                    released!(parameter.ref_(arena).as_parameter_declaration().maybe_type()),
                     Some(
-                        parameter.ref_(arena).as_parameter_declaration()
-                            .maybe_initializer()
+                        released!(parameter.ref_(arena).as_parameter_declaration()
+                            .maybe_initializer())
                             .map_or_else(
                                 || {
                                     factory
@@ -766,8 +766,9 @@ fn add_default_value_assignment_for_initializer(
             factory
                 .ref_(arena)
                 .create_block(
-                    vec![factory.ref_(arena).create_expression_statement(
-                        factory
+                    vec![factory
+                        .ref_(arena)
+                        .create_expression_statement(released!(factory
                             .ref_(arena)
                             .create_assignment(
                                 factory
@@ -782,8 +783,7 @@ fn add_default_value_assignment_for_initializer(
                                 ),
                             )
                             .set_text_range(Some(&*parameter.ref_(arena)), arena)
-                            .set_emit_flags(EmitFlags::NoComments, arena),
-                    )],
+                            .set_emit_flags(EmitFlags::NoComments, arena)))],
                     None,
                 )
                 .set_text_range(Some(&*parameter.ref_(arena)), arena)

@@ -185,7 +185,7 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let left_type = self.check_expression(
-            node.ref_(self).as_property_access_expression().expression,
+            released!(node.ref_(self).as_property_access_expression().expression),
             None,
             None,
         )?;

@@ -614,11 +614,11 @@ impl NodeFactory {
                 }
 
                 let array = NodeArray::new(
-                    elements.ref_(self).to_vec(),
-                    elements.ref_(self).pos(),
-                    elements.ref_(self).end(),
+                    released!(elements.ref_(self).to_vec()),
+                    released!(elements.ref_(self).pos()),
+                    released!(elements.ref_(self).end()),
                     has_trailing_comma.unwrap(),
-                    elements.ref_(self).maybe_transform_flags(),
+                    released!(elements.ref_(self).maybe_transform_flags()),
                     self,
                 );
                 Debug_.attach_node_array_debug_info(array);
