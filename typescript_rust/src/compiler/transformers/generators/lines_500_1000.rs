@@ -8,8 +8,8 @@ use crate::{
     is_binary_expression, is_compound_assignment, is_expression, is_left_hand_side_expression,
     is_logical_operator, map, maybe_visit_node, reduce_left, released, visit_node, visit_nodes,
     Associativity, CoreTransformationContext, EmitFlags, HasArena, InArena, IntoA,
-    NamedDeclarationInterface, NodeArray, NodeArrayOrVec, ReadonlyTextRange, SyntaxKind,
-    TransformFlags, VecExt,
+    NamedDeclarationInterface, NodeArray, NodeArrayOrVec, ReadonlyTextRange,
+    ReadonlyTextRangeConcrete, SyntaxKind, TransformFlags, VecExt,
 };
 
 impl TransformGenerators {
@@ -581,7 +581,9 @@ impl TransformGenerators {
         }
 
         self.mark_label(resume_label);
-        self.create_generator_resume(Some(&*node.ref_(self)))
+        self.create_generator_resume(Some(&released!(ReadonlyTextRangeConcrete::from(
+            &*node.ref_(self)
+        ))))
     }
 
     pub(super) fn visit_array_literal_expression(

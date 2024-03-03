@@ -1667,7 +1667,7 @@ impl EmitResolver for EmitResolverCreateResolver {
                     )?,
             });
         };
-        let ret = match sym.ref_(self).maybe_exports().as_ref() {
+        let ret = match released!(sym.ref_(self).maybe_exports()) {
             None => Some(vec![]),
             Some(sym_exports) => self
                 .type_checker

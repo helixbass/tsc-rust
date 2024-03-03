@@ -678,7 +678,7 @@ impl TypeChecker {
                         IterationUse::Spread,
                         spread_type,
                         self.undefined_type(),
-                        Some(e.ref_(self).as_spread_element().expression),
+                        released!(Some(e.ref_(self).as_spread_element().expression)),
                     )?);
                     element_flags.push(ElementFlags::Rest);
                 }

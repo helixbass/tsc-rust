@@ -166,10 +166,10 @@ impl TypeChecker {
 
         for i in 0..parameter_count {
             let parameter = parameters.ref_(self)[i];
-            let parameter_ref = parameter.ref_(self);
-            let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
-            if let Some(parameter_dot_dot_dot_token) =
-                parameter_as_parameter_declaration.dot_dot_dot_token
+            if let Some(parameter_dot_dot_dot_token) = parameter
+                .ref_(self)
+                .as_parameter_declaration()
+                .dot_dot_dot_token
             {
                 if i != parameter_count - 1 {
                     return Ok(self.grammar_error_on_node(
@@ -185,8 +185,10 @@ impl TypeChecker {
                     );
                 }
 
-                if let Some(parameter_question_token) =
-                    parameter_as_parameter_declaration.question_token
+                if let Some(parameter_question_token) = parameter
+                    .ref_(self)
+                    .as_parameter_declaration()
+                    .question_token
                 {
                     return Ok(self.grammar_error_on_node(
                         parameter_question_token,
@@ -195,36 +197,46 @@ impl TypeChecker {
                     ));
                 }
 
-                if parameter_as_parameter_declaration
+                if parameter
+                    .ref_(self)
+                    .as_parameter_declaration()
                     .maybe_initializer()
                     .is_some()
                 {
                     return Ok(self.grammar_error_on_node(
-                        parameter_as_parameter_declaration.name(),
+                        parameter.ref_(self).as_parameter_declaration().name(),
                         &Diagnostics::A_rest_parameter_cannot_have_an_initializer,
                         None,
                     ));
                 }
             } else if self.is_optional_parameter_(parameter)? {
                 seen_optional_parameter = true;
-                if parameter_as_parameter_declaration.question_token.is_some()
-                    && parameter_as_parameter_declaration
+                if parameter
+                    .ref_(self)
+                    .as_parameter_declaration()
+                    .question_token
+                    .is_some()
+                    && parameter
+                        .ref_(self)
+                        .as_parameter_declaration()
                         .maybe_initializer()
                         .is_some()
                 {
                     return Ok(self.grammar_error_on_node(
-                        parameter_as_parameter_declaration.name(),
+                        parameter.ref_(self).as_parameter_declaration().name(),
                         &Diagnostics::Parameter_cannot_have_question_mark_and_initializer,
                         None,
                     ));
                 }
             } else if seen_optional_parameter
-                && parameter_as_parameter_declaration
+                && parameter
+                    .ref_(self)
+                    .as_parameter_declaration()
                     .maybe_initializer()
                     .is_none()
             {
                 return Ok(self.grammar_error_on_node(
-                    parameter_as_parameter_declaration.name(),
+                    parameter.ref_(self).as_parameter_declaration().name(),
                     &Diagnostics::A_required_parameter_cannot_follow_an_optional_parameter,
                     None,
                 ));
@@ -341,14 +353,16 @@ impl TypeChecker {
         node: Id<Node>, /*FunctionLikeDeclaration | MethodSignature*/
     ) -> io::Result<bool> {
         let file = get_source_file_of_node(node, self);
-        let node_ref = node.ref_(self);
-        let node_as_signature_declaration = node_ref.as_signature_declaration();
         Ok(self.check_grammar_decorators_and_modifiers(node)
             || self.check_grammar_type_parameter_list(
-                node_as_signature_declaration.maybe_type_parameters(),
+                node.ref_(self)
+                    .as_signature_declaration()
+                    .maybe_type_parameters(),
                 file,
             )
-            || self.check_grammar_parameter_list(node_as_signature_declaration.parameters())?
+            || self.check_grammar_parameter_list(
+                node.ref_(self).as_signature_declaration().parameters(),
+            )?
             || self.check_grammar_arrow_function(node, file)
             || is_function_like_declaration(&node.ref_(self))
                 && self.check_grammar_for_use_strict_simple_parameter_list(node))

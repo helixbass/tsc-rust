@@ -1393,10 +1393,13 @@ impl NodeBuilder {
                 context
                     .ref_(self)
                     .increment_approximate_length_by(id_text(&name.ref_(self)).len());
-                return Ok(Some(get_factory(self).create_type_reference_node(
-                    get_factory(self).create_identifier(&id_text(&name.ref_(self))),
-                    Option::<Id<NodeArray>>::None,
-                )));
+                return Ok(Some(
+                    get_factory(self).create_type_reference_node(
+                        get_factory(self)
+                            .create_identifier(&released!(id_text(&name.ref_(self)).to_owned())),
+                        Option::<Id<NodeArray>>::None,
+                    ),
+                ));
             }
             return Ok(Some(
                 if let Some(type_symbol) = type_.ref_(self).maybe_symbol() {

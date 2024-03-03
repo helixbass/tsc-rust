@@ -968,19 +968,20 @@ impl TypeChecker {
 
     pub(super) fn get_covariant_inference(
         &self,
-        inference: &InferenceInfo,
+        inference: Id<InferenceInfo>,
         signature: Id<Signature>,
     ) -> io::Result<Id<Type>> {
-        let inference_candidates = inference.maybe_candidates();
-        let candidates = self
-            .union_object_and_array_literal_candidates(inference_candidates.as_deref().unwrap())?;
-        let primitive_constraint = self.has_primitive_constraint(inference.type_parameter)?;
+        let candidates = self.union_object_and_array_literal_candidates(
+            inference.ref_(self).maybe_candidates().as_deref().unwrap(),
+        )?;
+        let primitive_constraint =
+            self.has_primitive_constraint(inference.ref_(self).type_parameter)?;
         let widen_literal_types = !primitive_constraint
-            && inference.top_level()
-            && (inference.is_fixed()
+            && inference.ref_(self).top_level()
+            && (inference.ref_(self).is_fixed()
                 || !self.is_type_parameter_at_top_level(
                     self.get_return_type_of_signature(signature)?,
-                    inference.type_parameter,
+                    inference.ref_(self).type_parameter,
                 )?);
         let base_candidates: Vec<_> = if primitive_constraint {
             candidates
@@ -996,7 +997,7 @@ impl TypeChecker {
             candidates
         };
         let unwidened_type = if matches!(
-            inference.maybe_priority(),
+            inference.ref_(self).maybe_priority(),
             Some(inference_priority) if inference_priority.intersects(InferencePriority::PriorityImpliesCombination)
         ) {
             self.get_union_type(
@@ -1023,7 +1024,7 @@ impl TypeChecker {
             let signature = context.ref_(self).signature;
             if let Some(signature) = signature {
                 let inferred_covariant_type = if inference.ref_(self).maybe_candidates().is_some() {
-                    Some(self.get_covariant_inference(&inference.ref_(self), signature.clone())?)
+                    Some(self.get_covariant_inference(inference, signature.clone())?)
                 } else {
                     None
                 };

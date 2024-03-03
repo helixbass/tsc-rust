@@ -1558,7 +1558,11 @@ impl SymbolTableToDeclarationStatements {
                         .filter(|specifier| is_string_literal_like(&specifier.ref_(self)))
                         .map(|specifier| {
                             get_factory(self).create_string_literal(
-                                specifier.ref_(self).as_literal_like_node().text().clone(),
+                                released!(specifier
+                                    .ref_(self)
+                                    .as_literal_like_node()
+                                    .text()
+                                    .clone()),
                                 None,
                                 None,
                             )

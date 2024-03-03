@@ -1287,13 +1287,13 @@ impl TransformES2018 {
         mut node: Id<Node>, /*ForOfStatement*/
         outermost_labeled_statement: Option<Id<Node /*LabeledStatement*/>>,
     ) -> VisitResult /*<Statement>*/ {
-        let node_ref = node.ref_(self);
-        let node_as_for_of_statement = node_ref.as_for_of_statement();
         let ancestor_facts = self.enter_subtree(
             HierarchyFacts::IterationStatementExcludes,
             HierarchyFacts::IterationStatementIncludes,
         );
-        if node_as_for_of_statement
+        if node
+            .ref_(self)
+            .as_for_of_statement()
             .initializer
             .ref_(self)
             .transform_flags()
@@ -1301,7 +1301,12 @@ impl TransformES2018 {
         {
             node = self.transform_for_of_statement_with_object_rest(node);
         }
-        let result = if node_as_for_of_statement.await_modifier.is_some() {
+        let result = if node
+            .ref_(self)
+            .as_for_of_statement()
+            .await_modifier
+            .is_some()
+        {
             self.transform_for_await_of_statement(node, outermost_labeled_statement, ancestor_facts)
         } else {
             Some(
@@ -1481,10 +1486,8 @@ impl TransformES2018 {
         outermost_labeled_statement: Option<Id<Node /*LabeledStatement*/>>,
         ancestor_facts: HierarchyFacts,
     ) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_for_of_statement = node_ref.as_for_of_statement();
         let expression = visit_node(
-            node_as_for_of_statement.expression,
+            node.ref_(self).as_for_of_statement().expression,
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -1519,7 +1522,10 @@ impl TransformES2018 {
         let call_values = self
             .emit_helpers()
             .create_async_values_helper(expression)
-            .set_text_range(Some(&*node_as_for_of_statement.expression.ref_(self)), self);
+            .set_text_range(
+                Some(&*node.ref_(self).as_for_of_statement().expression.ref_(self)),
+                self,
+            );
         let call_next = self.factory.ref_(self).create_call_expression(
             self.factory
                 .ref_(self)
@@ -1578,7 +1584,13 @@ impl TransformES2018 {
                                             Some(initializer),
                                         )
                                         .set_text_range(
-                                            Some(&*node_as_for_of_statement.expression.ref_(self)),
+                                            Some(
+                                                &*node
+                                                    .ref_(self)
+                                                    .as_for_of_statement()
+                                                    .expression
+                                                    .ref_(self),
+                                            ),
                                             self,
                                         ),
                                     self.factory.ref_(self).create_variable_declaration(
@@ -1591,7 +1603,7 @@ impl TransformES2018 {
                                 None,
                             )
                             .set_text_range(
-                                Some(&*node_as_for_of_statement.expression.ref_(self)),
+                                Some(&*node.ref_(self).as_for_of_statement().expression.ref_(self)),
                                 self,
                             )
                             .set_emit_flags(EmitFlags::NoHoisting, self),

@@ -404,12 +404,13 @@ impl TypeChecker {
         } else {
             signature_next_type
         };
-        let yield_expression_type =
-            if let Some(node_expression) = node.ref_(self).as_yield_expression().expression {
-                self.check_expression(node_expression, None, None)?
-            } else {
-                self.undefined_widening_type()
-            };
+        let yield_expression_type = if let Some(node_expression) =
+            released!(node.ref_(self).as_yield_expression().expression)
+        {
+            self.check_expression(node_expression, None, None)?
+        } else {
+            self.undefined_widening_type()
+        };
         let yielded_type = self.get_yielded_type_of_yield_expression(
             node,
             yield_expression_type,
@@ -421,13 +422,12 @@ impl TypeChecker {
                 self.check_type_assignable_to_and_optionally_elaborate(
                     yielded_type,
                     signature_yield_type,
-                    Some(
-                        node.ref_(self)
-                            .as_yield_expression()
-                            .expression
-                            .unwrap_or(node),
-                    ),
-                    node.ref_(self).as_yield_expression().expression,
+                    Some(released!(node
+                        .ref_(self)
+                        .as_yield_expression()
+                        .expression
+                        .unwrap_or(node))),
+                    released!(node.ref_(self).as_yield_expression().expression),
                     None,
                     None,
                 )?;

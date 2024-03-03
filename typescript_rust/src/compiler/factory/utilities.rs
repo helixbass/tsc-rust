@@ -750,15 +750,17 @@ pub fn create_external_helpers_import_declaration_if_needed(
     has_import_star: Option<bool>,
     has_import_default: Option<bool>,
 ) -> Option<Id<Node>> {
-    let source_file_ref = source_file.ref_(node_factory);
-    let source_file_as_source_file = source_file_ref.as_source_file();
     if compiler_options.import_helpers == Some(true)
         && is_effective_external_module(&source_file.ref_(node_factory), compiler_options)
     {
         let mut named_bindings: Option<Id<Node /*NamedImportBindings*/>> = _d();
         let module_kind = get_emit_module_kind(compiler_options);
         if module_kind >= ModuleKind::ES2015 && module_kind <= ModuleKind::ESNext
-            || source_file_as_source_file.maybe_implied_node_format() == Some(ModuleKind::ESNext)
+            || source_file
+                .ref_(node_factory)
+                .as_source_file()
+                .maybe_implied_node_format()
+                == Some(ModuleKind::ESNext)
         {
             let helpers = get_emit_helpers(source_file, node_factory);
             if let Some(helpers) = helpers {
@@ -851,8 +853,6 @@ pub fn get_or_create_external_helpers_module_name_if_needed(
     has_export_stars_to_export_values: Option<bool>,
     has_import_star_or_import_default: Option<bool>,
 ) -> Option<Id<Node>> {
-    let node_ref = node.ref_(factory);
-    let node_as_source_file = node_ref.as_source_file();
     if compiler_options.import_helpers == Some(true)
         && is_effective_external_module(&node.ref_(factory), compiler_options)
     {
@@ -867,7 +867,11 @@ pub fn get_or_create_external_helpers_module_name_if_needed(
                 && has_import_star_or_import_default == Some(true))
             && module_kind != ModuleKind::System
             && (module_kind < ModuleKind::ES2015
-                || node_as_source_file.maybe_implied_node_format() == Some(ModuleKind::CommonJS));
+                || node
+                    .ref_(factory)
+                    .as_source_file()
+                    .maybe_implied_node_format()
+                    == Some(ModuleKind::CommonJS));
         if !create {
             let helpers = get_emit_helpers(node, factory);
             if let Some(helpers) = helpers {

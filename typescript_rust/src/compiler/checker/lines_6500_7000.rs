@@ -582,19 +582,16 @@ impl SymbolTableToDeclarationStatements {
         if let Some(index) = index {
             let export_decl = statements[index];
             let replacements = map_defined(
-                Some(
-                    &*released!(
-                        export_decl
-                            .ref_(self)
-                            .as_export_declaration()
-                            .export_clause
-                            .unwrap()
-                            .ref_(self)
-                            .as_named_exports()
-                            .elements
-                    )
-                    .ref_(self),
-                ),
+                Some(&*released!(export_decl
+                    .ref_(self)
+                    .as_export_declaration()
+                    .export_clause
+                    .unwrap()
+                    .ref_(self)
+                    .as_named_exports()
+                    .elements
+                    .ref_(self)
+                    .clone())),
                 |e: &Id<Node>, _| {
                     if e.ref_(self).as_export_specifier().property_name.is_none() {
                         let indices = indices_of(&statements);

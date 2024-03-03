@@ -97,45 +97,44 @@ impl TransformES2015 {
             .factory
             .ref_(self)
             .create_for_statement(
-                Some(
-                    self.factory
-                        .ref_(self)
-                        .create_variable_declaration_list(
-                            vec![
-                                released!(self
-                                    .factory
-                                    .ref_(self)
-                                    .create_variable_declaration(
-                                        Some(iterator.clone()),
-                                        None,
-                                        None,
-                                        Some(initializer),
-                                    )
-                                    .set_text_range(
-                                        Some(
-                                            &*node
-                                                .ref_(self)
-                                                .as_for_of_statement()
-                                                .expression
-                                                .ref_(self),
-                                        ),
-                                        self,
-                                    )),
-                                self.factory.ref_(self).create_variable_declaration(
-                                    Some(result.clone()),
+                Some(released!(self
+                    .factory
+                    .ref_(self)
+                    .create_variable_declaration_list(
+                        vec![
+                            released!(self
+                                .factory
+                                .ref_(self)
+                                .create_variable_declaration(
+                                    Some(iterator.clone()),
                                     None,
                                     None,
-                                    Some(next.clone()),
-                                ),
-                            ],
-                            None,
-                        )
-                        .set_text_range(
-                            Some(&*node.ref_(self).as_for_of_statement().expression.ref_(self)),
-                            self,
-                        )
-                        .set_emit_flags(EmitFlags::NoHoisting, self),
-                ),
+                                    Some(initializer),
+                                )
+                                .set_text_range(
+                                    Some(
+                                        &*node
+                                            .ref_(self)
+                                            .as_for_of_statement()
+                                            .expression
+                                            .ref_(self),
+                                    ),
+                                    self,
+                                )),
+                            self.factory.ref_(self).create_variable_declaration(
+                                Some(result.clone()),
+                                None,
+                                None,
+                                Some(next.clone()),
+                            ),
+                        ],
+                        None,
+                    )
+                    .set_text_range(
+                        Some(&*node.ref_(self).as_for_of_statement().expression.ref_(self)),
+                        self,
+                    )
+                    .set_emit_flags(EmitFlags::NoHoisting, self))),
                 Some(
                     self.factory.ref_(self).create_logical_not(
                         self.factory

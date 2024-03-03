@@ -429,10 +429,12 @@ impl TransformGenerators {
                 .skip(variables_written)
                 .take(num_variables - variables_written)
             {
-                let variable_ref = variable.ref_(self);
-                let variable_as_variable_declaration = variable_ref.as_variable_declaration();
-                if self.contains_yield(variable_as_variable_declaration.maybe_initializer())
-                    && !pending_expressions.is_empty()
+                if self.contains_yield(
+                    variable
+                        .ref_(self)
+                        .as_variable_declaration()
+                        .maybe_initializer(),
+                ) && !pending_expressions.is_empty()
                 {
                     break;
                 }
@@ -460,22 +462,23 @@ impl TransformGenerators {
         &self,
         node: Id<Node>, /*InitializedVariableDeclaration*/
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_variable_declaration = node_ref.as_variable_declaration();
         self.factory
             .ref_(self)
             .create_assignment(
                 self.factory
                     .ref_(self)
-                    .clone_node(node_as_variable_declaration.name())
+                    .clone_node(node.ref_(self).as_variable_declaration().name())
                     .set_source_map_range(
                         Some(self.alloc_source_map_range(
-                            (&*node_as_variable_declaration.name().ref_(self)).into(),
+                            (&*node.ref_(self).as_variable_declaration().name().ref_(self)).into(),
                         )),
                         self,
                     ),
                 visit_node(
-                    node_as_variable_declaration.maybe_initializer().unwrap(),
+                    node.ref_(self)
+                        .as_variable_declaration()
+                        .maybe_initializer()
+                        .unwrap(),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

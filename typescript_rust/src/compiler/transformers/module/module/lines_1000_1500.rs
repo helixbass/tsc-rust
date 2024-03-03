@@ -36,7 +36,7 @@ impl TransformModule {
                     self.factory
                         .ref_(self)
                         .create_expression_statement(self.create_export_expression(
-                            node.ref_(self).as_import_equals_declaration().name(),
+                            released!(node.ref_(self).as_import_equals_declaration().name()),
                             self.create_require_call(node)?,
                             Option::<&Node>::None,
                             None,
@@ -166,20 +166,17 @@ impl TransformModule {
                                                     specifier.ref_(self).as_export_specifier().name,
                                                 )),
                                         ),
-                                        specifier
-                                            .ref_(self)
-                                            .as_export_specifier()
-                                            .property_name
-                                            .map(|_| {
-                                                self.factory
-                                                    .ref_(self)
-                                                    .create_string_literal_from_node(
-                                                        specifier
-                                                            .ref_(self)
-                                                            .as_export_specifier()
-                                                            .name,
-                                                    )
-                                            }),
+                                        released!(
+                                            specifier
+                                                .ref_(self)
+                                                .as_export_specifier()
+                                                .property_name
+                                        )
+                                        .map(|_| {
+                                            self.factory.ref_(self).create_string_literal_from_node(
+                                                specifier.ref_(self).as_export_specifier().name,
+                                            )
+                                        }),
                                     ),
                                 )
                                 .set_text_range(Some(&*specifier.ref_(self)), self)

@@ -921,9 +921,12 @@ impl TypeChecker {
             return Ok(true);
         }
 
-        let node_ref = node.ref_(self);
-        let node_as_parameter_declaration = node_ref.as_parameter_declaration();
-        if node_as_parameter_declaration.maybe_initializer().is_some() {
+        if node
+            .ref_(self)
+            .as_parameter_declaration()
+            .maybe_initializer()
+            .is_some()
+        {
             let signature = self.get_signature_from_declaration_(node.ref_(self).parent())?;
             let parameter_index = index_of_eq(
                 &node
@@ -948,8 +951,16 @@ impl TypeChecker {
         }
         let iife = get_immediately_invoked_function_expression(node.ref_(self).parent(), self);
         if let Some(iife) = iife {
-            return Ok(node_as_parameter_declaration.maybe_type().is_none()
-                && node_as_parameter_declaration.dot_dot_dot_token.is_none()
+            return Ok(node
+                .ref_(self)
+                .as_parameter_declaration()
+                .maybe_type()
+                .is_none()
+                && node
+                    .ref_(self)
+                    .as_parameter_declaration()
+                    .dot_dot_dot_token
+                    .is_none()
                 && index_of_eq(
                     &node
                         .ref_(self)
