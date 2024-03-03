@@ -893,9 +893,11 @@ impl TypeChecker {
                         .into(),
                 );
                 type_.ref_(self).set_alias_symbol(alias_symbol);
-                type_.ref_(self).set_alias_type_arguments(
-                    self.get_type_arguments_for_alias_symbol(alias_symbol)?,
-                );
+                let alias_type_arguments =
+                    self.get_type_arguments_for_alias_symbol(alias_symbol)?;
+                type_
+                    .ref_(self)
+                    .set_alias_type_arguments(alias_type_arguments);
                 if is_jsdoc_type_literal(&node.ref_(self))
                     && node.ref_(self).as_jsdoc_type_literal().is_array_type
                 {

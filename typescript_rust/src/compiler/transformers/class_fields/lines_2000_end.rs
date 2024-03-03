@@ -3,7 +3,7 @@ use id_arena::Id;
 use super::TransformClassFields;
 use crate::{
     get_factory, is_array_literal_expression, is_expression, is_object_literal_element_like,
-    visit_nodes, HasArena, InArena, Node, NodeArray, VisitResult,
+    released, visit_nodes, HasArena, InArena, Node, NodeArray, VisitResult,
 };
 
 impl TransformClassFields {
@@ -31,15 +31,13 @@ impl TransformClassFields {
                     .into(),
             )
         } else {
-            let node_ref = node.ref_(self);
-            let node_as_object_literal_expression = node_ref.as_object_literal_expression();
             Some(
                 self.factory
                     .ref_(self)
                     .update_object_literal_expression(
                         node,
                         visit_nodes(
-                            node_as_object_literal_expression.properties,
+                            released!(node.ref_(self).as_object_literal_expression().properties),
                             Some(|node: Id<Node>| self.visit_object_assignment_target(node)),
                             Some(|node: Id<Node>| is_object_literal_element_like(&node.ref_(self))),
                             None,

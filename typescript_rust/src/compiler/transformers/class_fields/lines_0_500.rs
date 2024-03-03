@@ -727,7 +727,7 @@ impl TransformClassFields {
     }
 
     pub(super) fn visitor_destructuring_target(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
-        match node.ref_(self).kind() {
+        match released!(node.ref_(self).kind()) {
             SyntaxKind::ObjectLiteralExpression | SyntaxKind::ArrayLiteralExpression => {
                 self.visit_assignment_pattern(node)
             }
@@ -921,25 +921,27 @@ impl TransformClassFields {
                                 .as_double_deref(),
                             |m: &Id<Node>| !is_static_modifier(&m.ref_(self)),
                         ),
-                        node.ref_(self)
+                        released!(node
+                            .ref_(self)
                             .as_function_like_declaration()
-                            .maybe_asterisk_token(),
+                            .maybe_asterisk_token()),
                         Some(function_name),
                         Option::<Id<NodeArray>>::None,
                         visit_parameter_list(
-                            Some(node.ref_(self).as_function_like_declaration().parameters()),
+                            released!(Some(
+                                node.ref_(self).as_function_like_declaration().parameters()
+                            )),
                             |node: Id<Node>| self.class_element_visitor(node),
                             &*self.context.ref_(self),
                             self,
                         ),
                         None,
                         visit_function_body(
-                            Some(
-                                node.ref_(self)
-                                    .as_function_like_declaration()
-                                    .maybe_body()
-                                    .unwrap(),
-                            ),
+                            Some(released!(node
+                                .ref_(self)
+                                .as_function_like_declaration()
+                                .maybe_body()
+                                .unwrap())),
                             |node: Id<Node>| self.class_element_visitor(node),
                             &*self.context.ref_(self),
                             self,

@@ -289,16 +289,14 @@ impl NodeFactory {
         module_specifier: Option<Id<Node /*Expression*/>>,
         assert_clause: Option<Id<Node /*AssertClause*/>>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_export_declaration = node_ref.as_export_declaration();
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
         if has_option_node_array_changed(node.ref_(self).maybe_decorators(), decorators.as_ref())
             || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
-            || node_as_export_declaration.is_type_only != is_type_only
-            || node_as_export_declaration.export_clause != export_clause
-            || node_as_export_declaration.module_specifier != module_specifier
-            || node_as_export_declaration.assert_clause != assert_clause
+            || node.ref_(self).as_export_declaration().is_type_only != is_type_only
+            || node.ref_(self).as_export_declaration().export_clause != export_clause
+            || node.ref_(self).as_export_declaration().module_specifier != module_specifier
+            || node.ref_(self).as_export_declaration().assert_clause != assert_clause
         {
             self.update(
                 self.create_export_declaration(

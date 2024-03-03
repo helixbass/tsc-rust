@@ -1128,11 +1128,8 @@ impl TransformJsx {
         &self,
         node: Id<Node>, /*JsxAttribute*/
     ) -> Id<Node /*StringLiteral | Identifier*/> {
-        let node_ref = node.ref_(self);
-        let node_as_jsx_attribute = node_ref.as_jsx_attribute();
-        let name = node_as_jsx_attribute.name;
-        let name_ref = name.ref_(self);
-        let text = id_text(&name_ref);
+        let name = node.ref_(self).as_jsx_attribute().name;
+        let ref text = id_text(&name.ref_(self)).to_owned();
         if regex!(r#"^[A-Za-z_]\w*$"#).is_match(text) {
             name
         } else {

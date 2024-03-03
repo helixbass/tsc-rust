@@ -756,14 +756,14 @@ impl TransformClassFields {
             node = self.factory.ref_(self).update_binary_expression(
                 node,
                 visit_node(
-                    node.ref_(self).as_binary_expression().left,
+                    released!(node.ref_(self).as_binary_expression().left),
                     Some(|node: Id<Node>| self.visitor_destructuring_target(node)),
                     Option::<fn(Id<Node>) -> bool>::None,
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
-                node.ref_(self).as_binary_expression().operator_token,
+                released!(node.ref_(self).as_binary_expression().operator_token),
                 visit_node(
-                    node.ref_(self).as_binary_expression().right,
+                    released!(node.ref_(self).as_binary_expression().right),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Option::<fn(Id<Node>) -> bool>::None,
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

@@ -358,15 +358,13 @@ impl TypeChecker {
                     *attributes_table.ref_mut(self) =
                         create_symbol_table(Option::<&[Id<Symbol>]>::None, self);
                 }
-                let expr_type = self.get_reduced_type(
-                    self.check_expression_cached(
-                        attribute_decl
+                let expr_type = self.get_reduced_type(self.check_expression_cached(
+                    released!(attribute_decl
                             .ref_(self)
                             .as_jsx_spread_attribute()
-                            .expression,
-                        check_mode,
-                    )?,
-                )?;
+                            .expression),
+                    check_mode,
+                )?)?;
                 if self.is_type_any(Some(expr_type)) {
                     has_spread_any_type = true;
                 }

@@ -477,13 +477,12 @@ impl TransformClassFields {
         &self,
         node: Id<Node>, /*PrivateIdentifierPropertyAccessExpression*/
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_property_access_expression = node_ref.as_property_access_expression();
         let parameter = self
             .factory
             .ref_(self)
             .get_generated_name_for_node(Some(node), None);
-        let Some(info) = self.access_private_identifier(node_as_property_access_expression.name())
+        let Some(info) =
+            self.access_private_identifier(node.ref_(self).as_property_access_expression().name())
         else {
             return visit_each_child(
                 node,
@@ -492,11 +491,15 @@ impl TransformClassFields {
                 self,
             );
         };
-        let mut receiver = node_as_property_access_expression.expression;
+        let mut receiver = node.ref_(self).as_property_access_expression().expression;
         if is_this_property(node, self)
             || is_super_property(node, self)
             || !is_simple_copiable_expression(
-                &node_as_property_access_expression.expression.ref_(self),
+                &node
+                    .ref_(self)
+                    .as_property_access_expression()
+                    .expression
+                    .ref_(self),
             )
         {
             receiver = self.factory.ref_(self).create_temp_variable(
@@ -510,7 +513,7 @@ impl TransformClassFields {
                     receiver.clone(),
                     SyntaxKind::EqualsToken,
                     visit_node(
-                        node_as_property_access_expression.expression,
+                        released!(node.ref_(self).as_property_access_expression().expression),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

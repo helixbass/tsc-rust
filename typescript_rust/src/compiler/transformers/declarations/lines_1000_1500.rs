@@ -79,10 +79,8 @@ impl TransformDeclarations {
             return Ok(None);
         }
 
-        match input.ref_(self).kind() {
+        match released!(input.ref_(self).kind()) {
             SyntaxKind::ExportDeclaration => {
-                let input_ref = input.ref_(self);
-                let input_as_export_declaration = input_ref.as_export_declaration();
                 if is_source_file(&input.ref_(self).parent().ref_(self)) {
                     self.set_result_has_external_module_indicator(true);
                 }
@@ -93,12 +91,18 @@ impl TransformDeclarations {
                         .update_export_declaration(
                             input,
                             Option::<Id<NodeArray>>::None,
-                            input.ref_(self).maybe_modifiers(),
-                            input_as_export_declaration.is_type_only,
-                            input_as_export_declaration.export_clause.clone(),
+                            released!(input.ref_(self).maybe_modifiers()),
+                            released!(input.ref_(self).as_export_declaration().is_type_only),
+                            released!(input
+                                .ref_(self)
+                                .as_export_declaration()
+                                .export_clause
+                                .clone()),
                             self.rewrite_module_specifier(
                                 input,
-                                input_as_export_declaration.module_specifier,
+                                released!(
+                                    input.ref_(self).as_export_declaration().module_specifier
+                                ),
                             )?,
                             None,
                         )
@@ -1004,52 +1008,47 @@ impl TransformDeclarations {
                                 .create_node_array(self.ensure_modifiers(input), None),
                         ),
                         released!(input.ref_(self).as_enum_declaration().name()),
-                        Some(
-                            self.factory.ref_(self).create_node_array(
-                                Some(try_map_defined(
-                                    Some(&*released!(input
+                        Some(self.factory.ref_(self).create_node_array(
+                            Some(try_map_defined(
+                                Some(&*released!(input
                                         .ref_(self)
                                         .as_enum_declaration()
                                         .members
                                         .ref_(self)
                                         .clone())),
-                                    |&m: &Id<Node>, _| -> io::Result<_> {
-                                        if self.should_strip_internal(m) {
-                                            return Ok(None);
-                                        }
-                                        let const_value =
-                                            self.resolver.ref_(self).get_constant_value(m)?;
-                                        Ok(Some(self.preserve_js_doc(
-                                            self.factory.ref_(self).update_enum_member(
-                                                m,
-                                                released!(m.ref_(self).as_enum_member().name()),
-                                                const_value.map(|const_value| {
-                                                    match const_value {
-                                                        StringOrNumber::String(const_value) => self
-                                                            .factory
-                                                            .ref_(self)
-                                                            .create_string_literal(
-                                                                const_value,
-                                                                None,
-                                                                None,
-                                                            ),
-                                                        StringOrNumber::Number(const_value) => self
-                                                            .factory
-                                                            .ref_(self)
-                                                            .create_numeric_literal(
-                                                                const_value,
-                                                                None,
-                                                            ),
-                                                    }
-                                                }),
-                                            ),
+                                |&m: &Id<Node>, _| -> io::Result<_> {
+                                    if self.should_strip_internal(m) {
+                                        return Ok(None);
+                                    }
+                                    let const_value =
+                                        self.resolver.ref_(self).get_constant_value(m)?;
+                                    Ok(Some(self.preserve_js_doc(
+                                        self.factory.ref_(self).update_enum_member(
                                             m,
-                                        )))
-                                    },
-                                )?),
-                                None,
-                            ),
-                        ),
+                                            released!(m.ref_(self).as_enum_member().name()),
+                                            const_value.map(|const_value| {
+                                                match const_value {
+                                                    StringOrNumber::String(const_value) => self
+                                                        .factory
+                                                        .ref_(self)
+                                                        .create_string_literal(
+                                                            const_value,
+                                                            None,
+                                                            None,
+                                                        ),
+                                                    StringOrNumber::Number(const_value) => self
+                                                        .factory
+                                                        .ref_(self)
+                                                        .create_numeric_literal(const_value, None),
+                                                }
+                                            }),
+                                        ),
+                                        m,
+                                    )))
+                                },
+                            )?),
+                            None,
+                        )),
                     ),
                 ),
             ),

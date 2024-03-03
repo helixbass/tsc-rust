@@ -887,11 +887,13 @@ impl NodeFactory {
         parameters: Id<NodeArray /*<ParameterDeclaration>*/>,
         type_: Option<Id<Node /*TypeNode*/>>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_call_signature_declaration = node_ref.as_call_signature_declaration();
-        if node_as_call_signature_declaration.maybe_type_parameters() != type_parameters
-            || node_as_call_signature_declaration.parameters() != parameters
-            || node_as_call_signature_declaration.maybe_type() != type_
+        if node
+            .ref_(self)
+            .as_call_signature_declaration()
+            .maybe_type_parameters()
+            != type_parameters
+            || node.ref_(self).as_call_signature_declaration().parameters() != parameters
+            || node.ref_(self).as_call_signature_declaration().maybe_type() != type_
         {
             self.update_base_signature_declaration(
                 self.create_call_signature(type_parameters, parameters, type_),
