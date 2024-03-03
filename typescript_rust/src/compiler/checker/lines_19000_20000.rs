@@ -479,15 +479,15 @@ impl CheckTypeRelatedTo {
             .ref_(arena)
             .strict_null_checks
             && get_check_flags(&target_prop.ref_(arena)).intersects(CheckFlags::Partial);
-        let effective_target = self_.ref_(arena).type_checker.ref_(arena).add_optionality(
-            self_
-                .ref_(arena)
-                .type_checker
-                .ref_(arena)
-                .get_non_missing_type_of_symbol(target_prop)?,
-            Some(false),
-            Some(target_is_optional),
-        )?;
+        let effective_target = released!(self_.ref_(arena).type_checker)
+            .ref_(arena)
+            .add_optionality(
+                released!(self_.ref_(arena).type_checker)
+                    .ref_(arena)
+                    .get_non_missing_type_of_symbol(target_prop)?,
+                Some(false),
+                Some(target_is_optional),
+            )?;
         let effective_source = get_type_of_source_property(source_prop)?;
         Self::is_related_to(
             self_,

@@ -1287,7 +1287,7 @@ impl TypeChecker {
             self.get_type_of_symbol(resolved_symbol)?
         } else {
             self.get_widened_literal_type(self.check_expression_cached(
-                expression.ref_(self).as_binary_expression().right,
+                released!(expression.ref_(self).as_binary_expression().right),
                 None,
             )?)?
         };
