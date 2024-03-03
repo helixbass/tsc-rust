@@ -467,7 +467,7 @@ impl TypeChecker {
                                     Ok(self
                                         .get_property_of_object_type(
                                             base,
-                                            prop.ref_(self).escaped_name(),
+                                            &released!(prop.ref_(self).escaped_name().to_owned()),
                                         )?
                                         .is_some()
                                         && self
@@ -571,8 +571,10 @@ impl TypeChecker {
                         })
                 })?;
             if error_node.is_some()
-                && !self
-                    .is_type_assignable_to(check_info.ref_(self).type_, info.ref_(self).type_)?
+                && !self.is_type_assignable_to(
+                    released!(check_info.ref_(self).type_),
+                    released!(info.ref_(self).type_),
+                )?
             {
                 self.error(
                     error_node,
@@ -774,10 +776,12 @@ impl TypeChecker {
             let type_ = self.get_declared_type_of_symbol(symbol)?;
             if !self.are_type_parameters_identical(
                 &declarations,
-                type_
+                released!(type_
                     .ref_(self)
                     .as_interface_type()
-                    .maybe_local_type_parameters(),
+                    .maybe_local_type_parameters()
+                    .map(ToOwned::to_owned))
+                .as_deref(),
             )? {
                 let name =
                     self.symbol_to_string_(symbol, Option::<Id<Node>>::None, None, None, None)?;

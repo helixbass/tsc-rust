@@ -920,10 +920,12 @@ impl TransformModule {
             self.current_module_info().ref_(self).export_equals.as_ref()
         {
             let expression_result = try_visit_node(
-                current_module_info_export_equals
-                    .ref_(self)
-                    .as_export_assignment()
-                    .expression,
+                released!(
+                    current_module_info_export_equals
+                        .ref_(self)
+                        .as_export_assignment()
+                        .expression
+                ),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Option::<fn(Id<Node>) -> bool>::None,
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

@@ -429,10 +429,11 @@ impl TransformES2017 {
         node: Id<Node>, /*CatchClause*/
     ) -> io::Result<Id<Node>> {
         let mut catch_clause_names: HashSet<__String> = Default::default();
-        let node_ref = node.ref_(self);
-        let node_as_catch_clause = node_ref.as_catch_clause();
         self.record_declaration_name(
-            node_as_catch_clause.variable_declaration.unwrap(),
+            node.ref_(self)
+                .as_catch_clause()
+                .variable_declaration
+                .unwrap(),
             &mut catch_clause_names,
         );
 

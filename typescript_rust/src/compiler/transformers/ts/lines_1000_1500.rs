@@ -703,12 +703,12 @@ impl TransformTypeScript {
 
             SyntaxKind::LiteralType => {
                 return Ok(
-                    match node
+                    match released!(node
                         .ref_(self)
                         .as_literal_type_node()
                         .literal
                         .ref_(self)
-                        .kind()
+                        .kind())
                     {
                         SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral => {
                             self.factory.ref_(self).create_identifier("String")

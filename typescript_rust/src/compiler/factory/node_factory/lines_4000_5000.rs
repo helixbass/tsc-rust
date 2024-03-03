@@ -1238,10 +1238,8 @@ impl NodeFactory {
         node: Id<Node>, /*DefaultClause*/
         statements: impl Into<NodeArrayOrVec>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_default_clause = node_ref.as_default_clause();
         let statements = statements.into();
-        if has_node_array_changed(node_as_default_clause.statements, &statements) {
+        if has_node_array_changed(node.ref_(self).as_default_clause().statements, &statements) {
             self.update(self.create_default_clause(statements), node)
         } else {
             node

@@ -656,7 +656,7 @@ impl TypeChecker {
                 if let Some(signature_target) = released!(signature.ref_(self).target) {
                     self.instantiate_type(
                         self.get_return_type_of_signature(signature_target.clone())?,
-                        signature.ref_(self).mapper.clone(),
+                        released!(signature.ref_(self).mapper),
                     )?
                 } else if let Some(signature_composite_signatures) =
                     released!(signature.ref_(self).composite_signatures.clone()).as_deref()
@@ -669,7 +669,7 @@ impl TypeChecker {
                                     self.get_return_type_of_signature(signature.clone())
                                 },
                             )?,
-                            signature.ref_(self).composite_kind,
+                            released!(signature.ref_(self).composite_kind),
                             Some(UnionReduction::Subtype),
                         )?,
                         signature.ref_(self).mapper.clone(),

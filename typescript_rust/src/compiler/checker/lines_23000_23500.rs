@@ -61,9 +61,7 @@ impl TypeChecker {
         node: Id<Node>, /*Expression*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
-        let ret = links
-            .ref_(self)
-            .resolved_type
+        let ret = released!(links.ref_(self).resolved_type)
             .try_unwrap_or_else(|| self.get_type_of_expression(node))?;
         Ok(ret)
     }

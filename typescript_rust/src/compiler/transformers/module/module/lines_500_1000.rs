@@ -245,7 +245,7 @@ impl TransformModule {
                 .update_expression_statement(
                     node,
                     try_visit_node(
-                        node.ref_(self).as_expression_statement().expression,
+                        released!(node.ref_(self).as_expression_statement().expression),
                         Some(|node: Id<Node>| self.discarded_value_visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -260,15 +260,13 @@ impl TransformModule {
         node: Id<Node>, /*ParenthesizedExpression*/
         value_is_discarded: bool,
     ) -> io::Result<VisitResult> {
-        let node_ref = node.ref_(self);
-        let node_as_parenthesized_expression = node_ref.as_parenthesized_expression();
         Ok(Some(
             self.factory
                 .ref_(self)
                 .update_parenthesized_expression(
                     node,
                     try_visit_node(
-                        node_as_parenthesized_expression.expression,
+                        node.ref_(self).as_parenthesized_expression().expression,
                         Some(|node: Id<Node>| {
                             if value_is_discarded {
                                 self.discarded_value_visitor(node)
@@ -412,7 +410,10 @@ impl TransformModule {
             &self.compiler_options.ref_(self),
         )?;
         let first_argument = try_maybe_visit_node(
-            first_or_undefined(&node.ref_(self).as_call_expression().arguments.ref_(self)).cloned(),
+            released!(first_or_undefined(
+                &node.ref_(self).as_call_expression().arguments.ref_(self)
+            )
+            .cloned()),
             Some(|node: Id<Node>| self.visitor(node)),
             Option::<fn(Id<Node>) -> bool>::None,
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

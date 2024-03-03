@@ -1248,7 +1248,7 @@ impl TypeChecker {
         }
         write_cache(self.circular_constraint_type());
         let object_type = self.get_simplified_type(
-            type_.ref_(self).as_indexed_access_type().object_type,
+            released!(type_.ref_(self).as_indexed_access_type().object_type),
             writing,
         )?;
         let index_type = self.get_simplified_type(

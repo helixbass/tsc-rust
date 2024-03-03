@@ -319,16 +319,16 @@ impl TransformGenerators {
     }
 
     pub(super) fn transform_and_emit_with_statement(&self, node: Id<Node> /*WithStatement*/) {
-        let node_ref = node.ref_(self);
-        let node_as_with_statement = node_ref.as_with_statement();
         if self.contains_yield(Some(node)) {
             self.begin_with_block(self.cache_expression(visit_node(
-                node_as_with_statement.expression,
+                node.ref_(self).as_with_statement().expression,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )));
-            self.transform_and_emit_embedded_statement(node_as_with_statement.statement);
+            self.transform_and_emit_embedded_statement(
+                node.ref_(self).as_with_statement().statement,
+            );
             self.end_with_block();
         } else {
             self.emit_statement(visit_node(

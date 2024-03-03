@@ -190,9 +190,9 @@ impl TypeChecker {
         new_symbol.ref_(self).set_parent(Some(original_symbol));
         {
             let new_symbol_links = new_symbol.ref_(self).as_transient_symbol().symbol_links();
-            let mut new_symbol_links = new_symbol_links.ref_mut(self);
-            new_symbol_links.name_type = Some(self.get_string_literal_type("default"));
-            new_symbol_links.target = self.resolve_symbol(Some(symbol), None)?;
+            new_symbol_links.ref_mut(self).name_type =
+                Some(self.get_string_literal_type("default"));
+            new_symbol_links.ref_mut(self).target = self.resolve_symbol(Some(symbol), None)?;
         }
         member_table.insert(InternalSymbolName::Default.to_owned(), new_symbol);
         self.create_anonymous_type(

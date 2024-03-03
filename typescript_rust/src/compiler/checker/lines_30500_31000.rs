@@ -955,7 +955,7 @@ impl TypeChecker {
                     None,
                 );
                 self.get_type_of_dotted_name(
-                    node.ref_(self).as_call_expression().expression,
+                    released!(node.ref_(self).as_call_expression().expression),
                     Some(&diagnostic.ref_(self)),
                 )?;
             }

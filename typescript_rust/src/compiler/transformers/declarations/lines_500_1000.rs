@@ -945,19 +945,17 @@ impl TransformDeclarations {
                             input,
                             self.ensure_type_params(
                                 input,
-                                input
+                                released!(input
                                     .ref_(self)
                                     .as_construct_signature_declaration()
-                                    .maybe_type_parameters(),
+                                    .maybe_type_parameters()),
                             )?,
                             self.update_params_list(
                                 input,
-                                Some(
-                                    input
-                                        .ref_(self)
-                                        .as_construct_signature_declaration()
-                                        .parameters(),
-                                ),
+                                Some(released!(input
+                                    .ref_(self)
+                                    .as_construct_signature_declaration()
+                                    .parameters())),
                                 None,
                             )?
                             .unwrap(),
@@ -1172,9 +1170,9 @@ impl TransformDeclarations {
                     )?
                 }
                 SyntaxKind::PropertySignature => {
-                    let input_ref = input.ref_(self);
-                    let input_as_property_signature = input_ref.as_property_signature();
-                    if is_private_identifier(&input_as_property_signature.name().ref_(self)) {
+                    if is_private_identifier(
+                        &input.ref_(self).as_property_signature().name().ref_(self),
+                    ) {
                         return self.visit_declaration_subtree_cleanup(
                             input,
                             can_produce_diagnostic,
@@ -1192,17 +1190,25 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        Some(self.factory.ref_(self).update_property_signature(
-                            input,
-                            self.ensure_modifiers(input),
-                            input_as_property_signature.name(),
-                            input_as_property_signature.maybe_question_token(),
-                            self.ensure_type(
+                        Some(
+                            self.factory.ref_(self).update_property_signature(
                                 input,
-                                input_as_property_signature.maybe_type(),
-                                None,
-                            )?,
-                        )),
+                                self.ensure_modifiers(input),
+                                released!(input.ref_(self).as_property_signature().name()),
+                                released!(input
+                                    .ref_(self)
+                                    .as_property_signature()
+                                    .maybe_question_token()),
+                                self.ensure_type(
+                                    input,
+                                    released!(input
+                                        .ref_(self)
+                                        .as_property_signature()
+                                        .maybe_type()),
+                                    None,
+                                )?,
+                            ),
+                        ),
                     )?
                 }
                 SyntaxKind::MethodSignature => {

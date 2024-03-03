@@ -84,7 +84,9 @@ impl TypeChecker {
         self.check_grammar_statement_in_ambient_context(node);
 
         self.check_truthiness_expression(node.ref_(self).as_while_statement().expression, None)?;
-        self.check_source_element(Some(node.ref_(self).as_while_statement().statement))?;
+        self.check_source_element(Some(released!(
+            node.ref_(self).as_while_statement().statement
+        )))?;
 
         Ok(())
     }

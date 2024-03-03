@@ -116,9 +116,9 @@ impl NodeFactory {
         left: Id<Node /*EntityName*/>,
         right: Id<Node /*Identifier*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_qualified_name = node_ref.as_qualified_name();
-        if node_as_qualified_name.left != left || node_as_qualified_name.right != right {
+        if node.ref_(self).as_qualified_name().left != left
+            || node.ref_(self).as_qualified_name().right != right
+        {
             self.update(self.create_qualified_name(left, right), node)
         } else {
             node

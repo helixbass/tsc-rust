@@ -653,7 +653,7 @@ impl TransformDeclarations {
                             input,
                             Option::<Id<NodeArray>>::None,
                             mods,
-                            input.ref_(self).as_module_declaration().name(),
+                            released!(input.ref_(self).as_module_declaration().name()),
                             body.as_ref().map(SingleNodeOrVecNode::as_single_node),
                         )),
                     )

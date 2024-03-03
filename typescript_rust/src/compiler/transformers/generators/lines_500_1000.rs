@@ -554,7 +554,7 @@ impl TransformGenerators {
     ) -> Id<Node /*LeftHandSideExpression*/> {
         let resume_label = self.define_label();
         let expression = maybe_visit_node(
-            node.ref_(self).as_yield_expression().expression,
+            released!(node.ref_(self).as_yield_expression().expression),
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

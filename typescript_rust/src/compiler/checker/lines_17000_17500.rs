@@ -761,14 +761,12 @@ impl TypeChecker {
         node: Id<Node>, /*JsxElement*/
         mut get_invalid_text_diagnostic: impl FnMut() -> io::Result<Cow<'static, DiagnosticMessage>>,
     ) -> io::Result<Vec<ElaborationIteratorItem>> {
-        let node_ref = node.ref_(self);
-        let node_as_jsx_element = node_ref.as_jsx_element();
-        if length(Some(&*node_as_jsx_element.children.ref_(self))) == 0 {
+        if length(Some(&*node.ref_(self).as_jsx_element().children.ref_(self))) == 0 {
             return Ok(vec![]);
         }
         let mut member_offset = 0;
         try_flat_map(
-            Some(&*node_as_jsx_element.children.ref_(self)),
+            Some(&*node.ref_(self).as_jsx_element().children.ref_(self)),
             |&child, i| -> io::Result<_> {
                 let name_type =
                     self.get_number_literal_type(Number::new((i - member_offset) as f64));
@@ -1524,13 +1522,10 @@ impl TypeChecker {
         if !check_mode.intersects(SignatureCheckMode::IgnoreReturnTypes) {
             let target_return_type = if self.is_resolving_return_type_of_signature(target.clone()) {
                 self.any_type()
-            } else if let Some(target_declaration) =
-                target
-                    .ref_(self)
-                    .declaration
-                    .try_filter(|&target_declaration| {
-                        self.is_js_constructor(Some(target_declaration))
-                    })?
+            } else if let Some(target_declaration) = released!(target.ref_(self).declaration)
+                .try_filter(|&target_declaration| {
+                    self.is_js_constructor(Some(target_declaration))
+                })?
             {
                 self.get_declared_type_of_class_or_interface(
                     self.get_merged_symbol(target_declaration.ref_(self).maybe_symbol())

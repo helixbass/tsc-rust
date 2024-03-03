@@ -884,22 +884,23 @@ impl Printer {
             node,
             None,
         );
-        let node_ref = node.ref_(self);
-        let node_as_do_statement = node_ref.as_do_statement();
-        self.emit_embedded_statement(node, node_as_do_statement.statement)?;
-        if is_block(&node_as_do_statement.statement.ref_(self))
+        self.emit_embedded_statement(node, node.ref_(self).as_do_statement().statement)?;
+        if is_block(&node.ref_(self).as_do_statement().statement.ref_(self))
             && self.maybe_preserve_source_newlines() != Some(true)
         {
             self.write_space();
         } else {
             self.write_line_or_space(
                 node,
-                node_as_do_statement.statement,
-                node_as_do_statement.expression,
+                node.ref_(self).as_do_statement().statement,
+                node.ref_(self).as_do_statement().expression,
             );
         }
 
-        self.emit_while_clause(node, node_as_do_statement.statement.ref_(self).end())?;
+        self.emit_while_clause(
+            node,
+            node.ref_(self).as_do_statement().statement.ref_(self).end(),
+        )?;
         self.write_trailing_semicolon();
 
         Ok(())

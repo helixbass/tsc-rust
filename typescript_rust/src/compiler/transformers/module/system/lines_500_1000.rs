@@ -104,14 +104,12 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*ExportAssignment*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_ref = node.ref_(self);
-        let node_as_export_assignment = node_ref.as_export_assignment();
-        if node_as_export_assignment.is_export_equals == Some(true) {
+        if node.ref_(self).as_export_assignment().is_export_equals == Some(true) {
             return Ok(None);
         }
 
         let expression = try_visit_node(
-            node_as_export_assignment.expression,
+            node.ref_(self).as_export_assignment().expression,
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -143,23 +141,21 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*FunctionDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_ref = node.ref_(self);
-        let node_as_function_declaration = node_ref.as_function_declaration();
         if has_syntactic_modifier(node, ModifierFlags::Export, self) {
             self.maybe_hoisted_statements_mut()
                 .get_or_insert_default_()
                 .push(self.factory.ref_(self).update_function_declaration(
                     node,
-                    node.ref_(self).maybe_decorators(),
+                    released!(node.ref_(self).maybe_decorators()),
                     maybe_visit_nodes(
-                        node.ref_(self).maybe_modifiers(),
+                        released!(node.ref_(self).maybe_modifiers()),
                         Some(|node: Id<Node>| self.modifier_visitor(node)),
                         Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                         None,
                         None,
                         self,
                     ),
-                    node_as_function_declaration.maybe_asterisk_token(),
+                    released!(node.ref_(self).as_function_declaration().maybe_asterisk_token()),
                     Some(self.factory.ref_(self).get_declaration_name(
                         Some(node),
                         Some(true),
@@ -167,7 +163,7 @@ impl TransformSystemModule {
                     )),
                     Option::<Id<NodeArray>>::None,
                     try_visit_nodes(
-                        node_as_function_declaration.parameters(),
+                        released!(node.ref_(self).as_function_declaration().parameters()),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_parameter_declaration(node, self)),
                         None,
@@ -176,7 +172,7 @@ impl TransformSystemModule {
                     )?,
                     None,
                     try_maybe_visit_node(
-                        node_as_function_declaration.maybe_body(),
+                        released!(node.ref_(self).as_function_declaration().maybe_body()),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node: Id<Node>| is_block(&node.ref_(self))),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -213,8 +209,6 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*ClassDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_ref = node.ref_(self);
-        let node_as_class_declaration = node_ref.as_class_declaration();
         let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
 
         let name = self.factory.ref_(self).get_local_name(node, None, None);
@@ -238,10 +232,12 @@ impl TransformSystemModule {
                                     self,
                                 )?,
                                 Option::<Id<NodeArray>>::None,
-                                node_as_class_declaration.maybe_name(),
+                                node.ref_(self).as_class_declaration().maybe_name(),
                                 Option::<Id<NodeArray>>::None,
                                 try_maybe_visit_nodes(
-                                    node_as_class_declaration.maybe_heritage_clauses(),
+                                    node.ref_(self)
+                                        .as_class_declaration()
+                                        .maybe_heritage_clauses(),
                                     Some(|node: Id<Node>| self.visitor(node)),
                                     Some(|node: Id<Node>| is_heritage_clause(&node.ref_(self))),
                                     None,
@@ -249,7 +245,7 @@ impl TransformSystemModule {
                                     self,
                                 )?,
                                 try_visit_nodes(
-                                    node_as_class_declaration.members(),
+                                    node.ref_(self).as_class_declaration().members(),
                                     Some(|node: Id<Node>| self.visitor(node)),
                                     Some(|node: Id<Node>| is_class_element(&node.ref_(self))),
                                     None,
