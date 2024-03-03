@@ -7,7 +7,8 @@ use crate::{
     array_is_homogeneous, cast_present, create_underscore_escaped_multi_map, first,
     get_check_flags, get_declaration_of_kind, get_emit_module_resolution_kind, get_factory,
     get_first_identifier, get_name_from_index_info, get_non_augmentation_declaration,
-    get_null_transformation_context, get_original_node, get_source_file_of_node,
+    get_null_transformation_context, get_original_node,
+    get_single_line_string_writer_symbol_tracker, get_source_file_of_node,
     get_text_of_jsdoc_comment, is_ambient_module, is_binding_element, is_computed_property_name,
     is_entity_name, is_identifier, is_identifier_type_reference, is_indexed_access_type_node,
     is_jsdoc_parameter_tag, is_rest_parameter, is_transient_symbol, length, maybe_filter,
@@ -846,6 +847,9 @@ impl NodeBuilder {
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
         yield_module_symbol: Option<bool>,
     ) -> io::Result<Vec<Id<Symbol>>> {
+        // avoid borrow errors in .track_symbol() below
+        get_single_line_string_writer_symbol_tracker(self);
+
         context.ref_(self).tracker_ref().track_symbol(
             symbol,
             context.ref_(self).maybe_enclosing_declaration(),

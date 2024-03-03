@@ -1010,27 +1010,34 @@ impl NodeFactory {
             return node;
         }
         let outermost_labeled_statement = outermost_labeled_statement.unwrap();
-        let outermost_labeled_statement_ref = outermost_labeled_statement.ref_(self);
-        let outermost_labeled_statement_as_labeled_statement =
-            outermost_labeled_statement_ref.as_labeled_statement();
         let updated = self.update_labeled_statement(
             outermost_labeled_statement,
-            outermost_labeled_statement_as_labeled_statement
-                .label
-                .clone(),
-            if is_labeled_statement(
-                &outermost_labeled_statement_as_labeled_statement
+            released!(
+                outermost_labeled_statement
+                    .ref_(self)
+                    .as_labeled_statement()
+                    .label
+            ),
+            released!(if is_labeled_statement(
+                &outermost_labeled_statement
+                    .ref_(self)
+                    .as_labeled_statement()
                     .statement
                     .ref_(self),
             ) {
                 self.restore_enclosing_label(
                     node,
-                    Some(outermost_labeled_statement_as_labeled_statement.statement),
+                    released!(Some(
+                        outermost_labeled_statement
+                            .ref_(self)
+                            .as_labeled_statement()
+                            .statement
+                    )),
                     Option::<fn(Id<Node>)>::None,
                 )
             } else {
                 node
-            },
+            }),
         );
         if let Some(mut after_restore_label_callback) = after_restore_label_callback {
             after_restore_label_callback(outermost_labeled_statement);

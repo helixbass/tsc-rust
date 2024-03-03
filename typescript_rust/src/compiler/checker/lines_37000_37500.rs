@@ -81,7 +81,10 @@ impl TypeChecker {
     ) -> io::Result<()> {
         self.check_grammar_statement_in_ambient_context(node);
 
-        self.check_truthiness_expression(node.ref_(self).as_while_statement().expression, None)?;
+        self.check_truthiness_expression(
+            released!(node.ref_(self).as_while_statement().expression),
+            None,
+        )?;
         self.check_source_element(Some(released!(
             node.ref_(self).as_while_statement().statement
         )))?;

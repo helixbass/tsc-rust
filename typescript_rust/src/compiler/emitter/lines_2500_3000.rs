@@ -884,7 +884,7 @@ impl Printer {
             node,
             None,
         );
-        self.emit_embedded_statement(node, node.ref_(self).as_do_statement().statement)?;
+        self.emit_embedded_statement(node, released!(node.ref_(self).as_do_statement().statement))?;
         if is_block(&node.ref_(self).as_do_statement().statement.ref_(self))
             && self.maybe_preserve_source_newlines() != Some(true)
         {

@@ -69,8 +69,11 @@ impl TypeChecker {
         let mut first_default_clause: Option<Id<Node /*CaseOrDefaultClause*/>> = None;
         let mut has_duplicate_default_clause = false;
 
-        let expression_type =
-            self.check_expression(node.ref_(self).as_switch_statement().expression, None, None)?;
+        let expression_type = self.check_expression(
+            released!(node.ref_(self).as_switch_statement().expression),
+            None,
+            None,
+        )?;
         let expression_is_literal = self.is_literal_type(expression_type);
         try_for_each(
             &*released!(node

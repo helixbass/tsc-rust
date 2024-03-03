@@ -541,7 +541,7 @@ impl GetFlowTypeOfReference {
             SyntaxKind::ParenthesizedExpression | SyntaxKind::NonNullExpression => {
                 return self.narrow_type(
                     type_,
-                    expr.ref_(self).as_has_expression().expression(),
+                    released!(expr.ref_(self).as_has_expression().expression()),
                     assume_true,
                 );
             }
@@ -549,12 +549,12 @@ impl GetFlowTypeOfReference {
                 return self.narrow_type_by_binary_expression(type_, expr, assume_true);
             }
             SyntaxKind::PrefixUnaryExpression => {
-                let expr_ref = expr.ref_(self);
-                let expr_as_prefix_unary_expression = expr_ref.as_prefix_unary_expression();
-                if expr_as_prefix_unary_expression.operator == SyntaxKind::ExclamationToken {
+                if expr.ref_(self).as_prefix_unary_expression().operator
+                    == SyntaxKind::ExclamationToken
+                {
                     return self.narrow_type(
                         type_,
-                        expr_as_prefix_unary_expression.operand,
+                        released!(expr.ref_(self).as_prefix_unary_expression().operand),
                         !assume_true,
                     );
                 }

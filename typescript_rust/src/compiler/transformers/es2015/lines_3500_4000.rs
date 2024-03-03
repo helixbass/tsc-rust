@@ -45,7 +45,9 @@ impl TransformES2015 {
                 ),
                 self.transform_function_like_to_expression(
                     method,
-                    Some(&*method.ref_(self)),
+                    Some(&released!(ReadonlyTextRangeConcrete::from(
+                        &*method.ref_(self)
+                    ))),
                     Option::<Id<Node>>::None,
                     Some(container),
                 )?,

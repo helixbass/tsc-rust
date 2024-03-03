@@ -1034,7 +1034,7 @@ impl TypeChecker {
                 }
                 SyntaxKind::PropertyAccessExpression => {
                     let type_ = self.get_type_of_dotted_name(
-                        node.ref_(self).as_property_access_expression().expression,
+                        released!(node.ref_(self).as_property_access_expression().expression),
                         diagnostic,
                     )?;
                     if let Some(type_) = type_ {
