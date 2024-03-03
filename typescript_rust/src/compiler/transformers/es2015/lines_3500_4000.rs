@@ -153,10 +153,14 @@ impl TransformES2015 {
             None,
             self,
         )?;
-        Ok(self.factory.ref_(self).update_block(
-            block,
-            vec![statement].and_extend(transformed_statements.ref_(self).iter().copied()),
-        ))
+        Ok(
+            self.factory.ref_(self).update_block(
+                block,
+                released!(
+                    vec![statement].and_extend(transformed_statements.ref_(self).iter().copied())
+                ),
+            ),
+        )
     }
 
     pub(super) fn visit_method_declaration(

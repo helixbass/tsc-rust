@@ -650,8 +650,8 @@ impl TypeChecker {
                 Some(source_members) if !source_members.ref_(self).is_empty()
             ) {
                 self.merge_symbol_table(
-                    inferred.ref_(self).maybe_members().unwrap(),
-                    source.ref_(self).maybe_members().unwrap(),
+                    released!(inferred.ref_(self).maybe_members().unwrap()),
+                    released!(source.ref_(self).maybe_members().unwrap()),
                     None,
                 )?;
             }

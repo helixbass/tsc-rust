@@ -173,8 +173,6 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*LabeledStatement*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_labeled_statement = node_ref.as_labeled_statement();
         if !self.check_grammar_statement_in_ambient_context(node) {
             find_ancestor(
                 node.ref_(self).maybe_parent(),
@@ -190,17 +188,19 @@ impl TypeChecker {
                             .ref_(self)
                             .as_identifier()
                             .escaped_text
-                            == node_as_labeled_statement
+                            == node
+                                .ref_(self)
+                                .as_labeled_statement()
                                 .label
                                 .ref_(self)
                                 .as_identifier()
                                 .escaped_text
                     {
                         self.grammar_error_on_node(
-                            node_as_labeled_statement.label,
+                            node.ref_(self).as_labeled_statement().label,
                             &Diagnostics::Duplicate_label_0,
                             Some(vec![get_text_of_node(
-                                node_as_labeled_statement.label,
+                                node.ref_(self).as_labeled_statement().label,
                                 None,
                                 self,
                             )
@@ -214,7 +214,7 @@ impl TypeChecker {
             );
         }
 
-        self.check_source_element(Some(node_as_labeled_statement.statement))?;
+        self.check_source_element(Some(node.ref_(self).as_labeled_statement().statement))?;
 
         return Ok(());
     }

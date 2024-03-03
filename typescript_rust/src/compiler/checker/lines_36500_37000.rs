@@ -557,10 +557,11 @@ impl TypeChecker {
                     self.get_widened_type_for_variable_like_declaration(node, None)?;
                 if need_check_initializer {
                     let initializer_type = self.check_expression_cached(
-                        node.ref_(self)
+                        released!(node
+                            .ref_(self)
                             .as_has_initializer()
                             .maybe_initializer()
-                            .unwrap(),
+                            .unwrap()),
                         None,
                     )?;
                     if self.strict_null_checks && need_check_widened_type {

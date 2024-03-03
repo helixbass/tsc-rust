@@ -95,7 +95,7 @@ impl Printer {
             None,
         );
         self.emit_expression_with_leading_space(
-            Some(node.ref_(self).as_throw_statement().expression),
+            released!(Some(node.ref_(self).as_throw_statement().expression)),
             None,
         )?;
         self.write_trailing_semicolon();

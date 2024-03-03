@@ -849,7 +849,7 @@ impl TypeChecker {
             return self.check_assertion_worker(
                 type_,
                 type_,
-                node.ref_(self).as_parenthesized_expression().expression,
+                released!(node.ref_(self).as_parenthesized_expression().expression),
                 check_mode,
             );
         }

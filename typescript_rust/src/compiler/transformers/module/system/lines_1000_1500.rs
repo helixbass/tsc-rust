@@ -128,7 +128,7 @@ impl TransformSystemModule {
                 {
                     self.append_export_statement(
                         statements,
-                        export_specifier.ref_(self).as_export_specifier().name,
+                        released!(export_specifier.ref_(self).as_export_specifier().name),
                         name,
                         None,
                     );

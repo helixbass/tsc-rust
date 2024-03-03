@@ -264,7 +264,7 @@ impl NodeBuilder {
             if text != rawtext {
                 result = get_factory(self).create_identifier_full(
                     &text,
-                    result.ref_(self).as_identifier().maybe_type_arguments(),
+                    released!(result.ref_(self).as_identifier().maybe_type_arguments()),
                     None,
                 );
             }
@@ -1125,7 +1125,7 @@ impl NodeBuilder {
             return Ok(Some(
                 get_factory(self).create_type_literal_node(
                     try_maybe_map(
-                        released!(node.ref_(self).as_jsdoc_type_literal().js_doc_property_tags).refed(self).as_deref(),
+                        released!(node.ref_(self).as_jsdoc_type_literal().js_doc_property_tags.refed(self).as_ref().cloned()).as_deref(),
                         |t: &Id<Node>, _| -> io::Result<Id<Node>> {
                             let name = if is_identifier(
                                 &t.ref_(self).as_jsdoc_property_like_tag().name.ref_(self)
@@ -1169,9 +1169,9 @@ impl NodeBuilder {
                                     None
                                 },
                                 Some(override_type_node.try_or_else(|| {
-                                    t.ref_(self).as_jsdoc_property_like_tag().type_expression.as_ref().try_and_then(|t_type_expression| {
+                                    released!(t.ref_(self).as_jsdoc_property_like_tag().type_expression).try_and_then(|t_type_expression| {
                                         try_maybe_visit_node(
-                                            Some(t_type_expression.ref_(self).as_jsdoc_type_expression().type_),
+                                            released!(Some(t_type_expression.ref_(self).as_jsdoc_type_expression().type_)),
                                             Some(|node: Id<Node>| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, node)),
                                             Option::<fn(Id<Node>) -> bool>::None,
                                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -1231,13 +1231,14 @@ impl NodeBuilder {
                             Some("x"),
                             None,
                             try_maybe_visit_node(
-                                node.ref_(self)
+                                released!(node
+                                    .ref_(self)
                                     .as_has_type_arguments()
                                     .maybe_type_arguments()
                                     .unwrap()
                                     .ref_(self)
                                     .get(0)
-                                    .copied(),
+                                    .copied()),
                                 Some(|node: Id<Node>| {
                                     self.visit_existing_node_tree_symbols(
                                         context,
@@ -1441,15 +1442,13 @@ impl NodeBuilder {
                 .ref_(self)
                 .resolved_symbol
                 .clone();
-            let node_ref = node.ref_(self);
-            let node_as_import_type_node = node_ref.as_import_type_node();
             #[allow(clippy::nonminimal_bool)]
             if is_in_jsdoc(Some(&node.ref_(self)))
                 && matches!(
                     node_symbol,
-                    Some(node_symbol) if !node_as_import_type_node.is_type_of() &&
+                    Some(node_symbol) if !node.ref_(self).as_import_type_node().is_type_of() &&
                         !node_symbol.ref_(self).flags().intersects(SymbolFlags::Type) ||
-                        !(length(node_as_import_type_node.maybe_type_arguments().refed(self).as_double_deref()) >=
+                        !(length(node.ref_(self).as_import_type_node().maybe_type_arguments().refed(self).as_double_deref()) >=
                             self.type_checker.ref_(self).get_min_type_argument_count(
                                 self.type_checker.ref_(self).get_local_type_parameters_of_class_or_interface_or_type_alias(
                                     node_symbol

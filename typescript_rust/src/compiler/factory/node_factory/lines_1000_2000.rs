@@ -1283,9 +1283,7 @@ impl NodeFactory {
         node: Id<Node>, /*ArrayTypeNode*/
         element_type: Id<Node /*TypeNode*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_array_type_node = node_ref.as_array_type_node();
-        if node_as_array_type_node.element_type != element_type {
+        if node.ref_(self).as_array_type_node().element_type != element_type {
             self.update(self.create_array_type_node(element_type), node)
         } else {
             node

@@ -312,19 +312,27 @@ impl SymbolTableToDeclarationStatements {
         let ns = ns_index.map(|ns_index| statements[ns_index].clone());
         let mut statements = statements.to_owned();
         if let (Some(mut ns), Some(export_assignment)) = (ns, export_assignment) {
-            let export_assignment_ref = export_assignment.ref_(self);
-            let export_assignment_as_export_assignment =
-                export_assignment_ref.as_export_assignment();
-            if is_identifier(&export_assignment_as_export_assignment.expression.ref_(self))
-                && is_identifier(&ns.ref_(self).as_module_declaration().name.ref_(self))
+            if is_identifier(
+                &export_assignment
+                    .ref_(self)
+                    .as_export_assignment()
+                    .expression
+                    .ref_(self),
+            ) && is_identifier(&ns.ref_(self).as_module_declaration().name.ref_(self))
                 && id_text(&ns.ref_(self).as_module_declaration().name.ref_(self))
-                    == id_text(&export_assignment_as_export_assignment.expression.ref_(self))
+                    == id_text(
+                        &export_assignment
+                            .ref_(self)
+                            .as_export_assignment()
+                            .expression
+                            .ref_(self),
+                    )
             {
-                if let Some(ns_body) = ns
+                if let Some(ns_body) = released!(ns
                     .ref_(self)
                     .as_module_declaration()
                     .body
-                    .filter(|ns_body| is_module_block(&ns_body.ref_(self)))
+                    .filter(|ns_body| is_module_block(&ns_body.ref_(self))))
                 {
                     let excess_exports = filter(&statements, |&s: &Id<Node>| {
                         get_effective_modifier_flags(s, self).intersects(ModifierFlags::Export)
@@ -389,15 +397,19 @@ impl SymbolTableToDeclarationStatements {
                         .any(|&s| s != ns && node_has_name(s, name, self))
                     {
                         self.set_results(vec![]);
-                        let body_ref = body.ref_(self);
-                        let body_as_module_block = body_ref.as_module_block();
-                        let mixin_export_flag =
-                            !body_as_module_block.statements.ref_(self).iter().any(|&s| {
+                        let mixin_export_flag = !body
+                            .ref_(self)
+                            .as_module_block()
+                            .statements
+                            .ref_(self)
+                            .iter()
+                            .any(|&s| {
                                 has_syntactic_modifier(s, ModifierFlags::Export, self)
                                     || is_export_assignment(&s.ref_(self))
                                     || is_export_declaration(&s.ref_(self))
                             });
-                        body_as_module_block
+                        body.ref_(self)
+                            .as_module_block()
                             .statements
                             .ref_(self)
                             .iter()

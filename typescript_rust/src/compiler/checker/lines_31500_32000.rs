@@ -628,11 +628,8 @@ impl TypeChecker {
                 .maybe_body()
                 .unwrap()),
             |yield_expression: Id<Node>| -> io::Result<_> {
-                let yield_expression_ref = yield_expression.ref_(self);
-                let yield_expression_as_yield_expression =
-                    yield_expression_ref.as_yield_expression();
                 let yield_expression_type = if let Some(yield_expression_expression) =
-                    yield_expression_as_yield_expression.expression
+                    yield_expression.ref_(self).as_yield_expression().expression
                 {
                     self.check_expression(yield_expression_expression, check_mode, None)?
                 } else {
@@ -647,7 +644,9 @@ impl TypeChecker {
                     push_if_unique_eq(&mut yield_types, yielded_type);
                 }
                 let next_type: Option<Id<Type>>;
-                if yield_expression_as_yield_expression
+                if yield_expression
+                    .ref_(self)
+                    .as_yield_expression()
                     .asterisk_token
                     .is_some()
                 {
@@ -658,7 +657,7 @@ impl TypeChecker {
                         } else {
                             IterationUse::YieldStar
                         },
-                        yield_expression_as_yield_expression.expression,
+                        yield_expression.ref_(self).as_yield_expression().expression,
                     )?;
                     next_type = iteration_types
                         .map(|iteration_types| iteration_types.ref_(self).next_type());

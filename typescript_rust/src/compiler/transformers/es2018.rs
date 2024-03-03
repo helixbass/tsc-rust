@@ -1570,45 +1570,44 @@ impl TransformES2018 {
             self.factory
                 .ref_(self)
                 .create_for_statement(
-                    Some(
-                        self.factory
-                            .ref_(self)
-                            .create_variable_declaration_list(
-                                vec![
-                                    released!(self
-                                        .factory
-                                        .ref_(self)
-                                        .create_variable_declaration(
-                                            Some(iterator.clone()),
-                                            None,
-                                            None,
-                                            Some(initializer),
-                                        )
-                                        .set_text_range(
-                                            Some(
-                                                &*node
-                                                    .ref_(self)
-                                                    .as_for_of_statement()
-                                                    .expression
-                                                    .ref_(self),
-                                            ),
-                                            self,
-                                        )),
-                                    self.factory.ref_(self).create_variable_declaration(
-                                        Some(result.clone()),
+                    Some(released!(self
+                        .factory
+                        .ref_(self)
+                        .create_variable_declaration_list(
+                            vec![
+                                released!(self
+                                    .factory
+                                    .ref_(self)
+                                    .create_variable_declaration(
+                                        Some(iterator.clone()),
                                         None,
                                         None,
-                                        None,
-                                    ),
-                                ],
-                                None,
-                            )
-                            .set_text_range(
-                                Some(&*node.ref_(self).as_for_of_statement().expression.ref_(self)),
-                                self,
-                            )
-                            .set_emit_flags(EmitFlags::NoHoisting, self),
-                    ),
+                                        Some(initializer),
+                                    )
+                                    .set_text_range(
+                                        Some(
+                                            &*node
+                                                .ref_(self)
+                                                .as_for_of_statement()
+                                                .expression
+                                                .ref_(self),
+                                        ),
+                                        self,
+                                    )),
+                                self.factory.ref_(self).create_variable_declaration(
+                                    Some(result.clone()),
+                                    None,
+                                    None,
+                                    None,
+                                ),
+                            ],
+                            None,
+                        )
+                        .set_text_range(
+                            Some(&*node.ref_(self).as_for_of_statement().expression.ref_(self)),
+                            self,
+                        )
+                        .set_emit_flags(EmitFlags::NoHoisting, self))),
                     Some(self.factory.ref_(self).create_comma(
                         self.factory.ref_(self).create_assignment(
                             result.clone(),
@@ -1780,9 +1779,11 @@ impl TransformES2018 {
         let updated = self.factory.ref_(self).update_constructor_declaration(
             node,
             Option::<Id<NodeArray>>::None,
-            node.ref_(self).maybe_modifiers(),
+            released!(node.ref_(self).maybe_modifiers()),
             visit_parameter_list(
-                Some(node.ref_(self).as_constructor_declaration().parameters()),
+                released!(Some(
+                    node.ref_(self).as_constructor_declaration().parameters()
+                )),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,

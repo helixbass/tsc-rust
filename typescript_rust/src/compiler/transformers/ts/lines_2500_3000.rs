@@ -590,7 +590,7 @@ impl TransformTypeScript {
                 Some(ImportsNotUsedAsValues::Preserve) | Some(ImportsNotUsedAsValues::Error)
             );
         let export_clause = try_maybe_visit_node(
-            node.ref_(self).as_export_declaration().export_clause,
+            released!(node.ref_(self).as_export_declaration().export_clause),
             Some(|bindings: Id<Node> /*NamedExportBindings*/| {
                 self.visit_named_export_bindings(bindings, allow_empty)
             }),

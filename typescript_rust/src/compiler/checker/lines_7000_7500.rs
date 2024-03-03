@@ -220,10 +220,12 @@ impl SymbolTableToDeclarationStatements {
             .try_and_then(|jsdoc_alias_decl_type_expression| {
                 self.node_builder.ref_(self).serialize_existing_type_node(
                     self.context(),
-                    jsdoc_alias_decl_type_expression
-                        .ref_(self)
-                        .as_jsdoc_type_expression()
-                        .type_,
+                    released!(
+                        jsdoc_alias_decl_type_expression
+                            .ref_(self)
+                            .as_jsdoc_type_expression()
+                            .type_
+                    ),
                     Some(&|symbol: Id<Symbol>| {
                         self.include_private_symbol(symbol);
                     }),
@@ -418,9 +420,7 @@ impl SymbolTableToDeclarationStatements {
                 &real_members,
                 &local_name,
                 modifier_flags,
-                symbol
-                    .ref_(self)
-                    .flags()
+                released!(symbol.ref_(self).flags())
                     .intersects(SymbolFlags::Function | SymbolFlags::Assignment),
             )?;
         }
@@ -845,8 +845,10 @@ impl SymbolTableToDeclarationStatements {
                             released!(e
                                 .ref_(self)
                                 .as_expression_with_type_arguments()
-                                .maybe_type_arguments())
-                            .refed(self)
+                                .maybe_type_arguments()
+                                .refed(self)
+                                .as_ref()
+                                .cloned())
                             .as_deref(),
                             |&a: &Id<Node>, _| -> io::Result<_> {
                                 self.node_builder
@@ -1233,10 +1235,12 @@ impl SymbolTableToDeclarationStatements {
                         get_factory(self).create_import_declaration(
                             Option::<Id<NodeArray>>::None,
                             Option::<Id<NodeArray>>::None,
-                            Some(get_factory(self).create_import_clause(
-                                false,
-                                None,
-                                Some(get_factory(self).create_named_imports(vec![get_factory(
+                            Some(
+                                get_factory(self).create_import_clause(
+                                    false,
+                                    None,
+                                    Some(
+                                        get_factory(self).create_named_imports(vec![get_factory(
                                             self,
                                         )
                                         .create_import_specifier(
@@ -1246,13 +1250,16 @@ impl SymbolTableToDeclarationStatements {
                                                     is_identifier(&property_name.ref_(self))
                                                 })
                                                 .map(|property_name| {
-                                                    get_factory(self).create_identifier(id_text(
-                                                        &property_name.ref_(self),
+                                                    get_factory(self).create_identifier(&released!(
+                                                        id_text(&property_name.ref_(self),)
+                                                            .to_owned()
                                                     ))
                                                 }),
                                             get_factory(self).create_identifier(local_name),
-                                        )])),
-                            )),
+                                        )]),
+                                    ),
+                                ),
+                            ),
                             get_factory(self).create_string_literal(specifier, None, None),
                             None,
                         ),
@@ -1285,15 +1292,19 @@ impl SymbolTableToDeclarationStatements {
                 }
             }
             SyntaxKind::VariableDeclaration => 'case: {
-                let node_ref = node.ref_(self);
-                let node_as_variable_declaration = node_ref.as_variable_declaration();
                 if is_property_access_expression(
-                    &node_as_variable_declaration
+                    &node
+                        .ref_(self)
+                        .as_variable_declaration()
                         .maybe_initializer()
                         .unwrap()
                         .ref_(self),
                 ) {
-                    let ref initializer = node_as_variable_declaration.maybe_initializer().unwrap();
+                    let ref initializer = node
+                        .ref_(self)
+                        .as_variable_declaration()
+                        .maybe_initializer()
+                        .unwrap();
                     let unique_name = get_factory(self).create_unique_name(local_name, None);
                     let specifier = self
                         .node_builder

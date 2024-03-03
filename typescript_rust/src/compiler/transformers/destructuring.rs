@@ -390,7 +390,7 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
                 &flatten_context,
                 value.unwrap(),
                 false,
-                &*location.ref_(arena),
+                &released!(ReadonlyTextRangeConcrete::from(&*location.ref_(arena))),
                 arena,
             )?);
         } else if needs_value == Some(true) {
@@ -1208,7 +1208,7 @@ fn flatten_array_binding_or_assignment_pattern(
                 flatten_context,
                 element,
                 Some(id),
-                &*element.ref_(arena),
+                &released!(ReadonlyTextRangeConcrete::from(&*element.ref_(arena))),
                 None,
                 arena,
             )?;

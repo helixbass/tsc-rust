@@ -1101,7 +1101,7 @@ impl TypeChecker {
                 node.ref_(self).as_binary_expression().right,
             )?
         } else {
-            self.get_type_of_expression(node.ref_(self).as_binary_expression().right)?
+            self.get_type_of_expression(released!(node.ref_(self).as_binary_expression().right))?
         })
     }
 
@@ -1178,7 +1178,7 @@ impl TypeChecker {
         node: Id<Node>, /*Expression*/
     ) -> io::Result<Id<Type>> {
         let parent = node.ref_(self).parent();
-        Ok(match parent.ref_(self).kind() {
+        Ok(match released!(parent.ref_(self).kind()) {
             SyntaxKind::ForInStatement => self.string_type(),
             SyntaxKind::ForOfStatement => self.check_right_hand_side_of_for_of(parent)?, /*|| errorType*/
             SyntaxKind::BinaryExpression => self.get_assigned_type_of_binary_expression(parent)?,

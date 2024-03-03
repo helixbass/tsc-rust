@@ -450,7 +450,7 @@ impl TypeChecker {
                     use_,
                     IterationTypeKind::Return,
                     yield_expression_type,
-                    node.ref_(self).as_yield_expression().expression,
+                    released!(node.ref_(self).as_yield_expression().expression),
                 )?
                 .unwrap_or_else(|| self.any_type()));
         } else if let Some(return_type) = return_type {
@@ -533,17 +533,23 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*TemplateExpression*/
     ) -> io::Result<Id<Type>> {
-        let node_ref = node.ref_(self);
-        let node_as_template_expression = node_ref.as_template_expression();
         // TODO: try and avoid String cloning here?
-        let mut texts = vec![node_as_template_expression
+        let mut texts = vec![node
+            .ref_(self)
+            .as_template_expression()
             .head
             .ref_(self)
             .as_literal_like_node()
             .text()
             .clone()];
         let mut types = vec![];
-        for span in node_as_template_expression.template_spans.ref_(self).iter() {
+        for span in node
+            .ref_(self)
+            .as_template_expression()
+            .template_spans
+            .ref_(self)
+            .iter()
+        {
             let span_ref = span.ref_(self);
             let span = span_ref.as_template_span();
             let type_ = self.check_expression(span.expression, None, None)?;

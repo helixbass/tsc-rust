@@ -125,7 +125,7 @@ impl TypeChecker {
                         Some(&Diagnostics::A_rest_parameter_or_binding_pattern_may_not_have_a_trailing_comma)
                     );
                     Some(self.check_destructuring_assignment(
-                        property.ref_(self).as_has_expression().expression(),
+                        released!(property.ref_(self).as_has_expression().expression()),
                         type_,
                         None,
                         None,

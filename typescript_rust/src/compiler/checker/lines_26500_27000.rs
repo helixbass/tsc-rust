@@ -1136,13 +1136,11 @@ impl TypeChecker {
                     {
                         self.check_type_assignable_to(
                             type_,
-                            self.get_type_from_type_node_(
-                                enum_tag
-                                    .ref_(self)
-                                    .as_base_jsdoc_type_like_tag()
-                                    .type_expression
-                                    .unwrap(),
-                            )?,
+                            self.get_type_from_type_node_(released!(enum_tag
+                                .ref_(self)
+                                .as_base_jsdoc_type_like_tag()
+                                .type_expression
+                                .unwrap()))?,
                             Some(member_decl),
                             None,
                             None,

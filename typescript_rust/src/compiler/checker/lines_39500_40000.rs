@@ -777,13 +777,12 @@ impl TypeChecker {
         node: Id<Node>, /*ExportSpecifier*/
     ) -> io::Result<()> {
         self.check_alias_symbol(node)?;
-        let node_ref = node.ref_(self);
-        let node_as_export_specifier = node_ref.as_export_specifier();
         if get_emit_declarations(&self.compiler_options.ref_(self)) {
             self.collect_linked_aliases(
-                node_as_export_specifier
+                node.ref_(self)
+                    .as_export_specifier()
                     .property_name
-                    .unwrap_or(node_as_export_specifier.name),
+                    .unwrap_or(node.ref_(self).as_export_specifier().name),
                 Some(true),
             )?;
         }
@@ -797,9 +796,11 @@ impl TypeChecker {
             .module_specifier
             .is_none()
         {
-            let exported_name = node_as_export_specifier
+            let exported_name = node
+                .ref_(self)
+                .as_export_specifier()
                 .property_name
-                .unwrap_or(node_as_export_specifier.name);
+                .unwrap_or(node.ref_(self).as_export_specifier().name);
             let symbol = self.resolve_name_(
                 Some(exported_name),
                 &exported_name.ref_(self).as_identifier().escaped_text,
@@ -851,9 +852,10 @@ impl TypeChecker {
                     }
                 } {
                     self.check_expression_cached(
-                        node_as_export_specifier
+                        node.ref_(self)
+                            .as_export_specifier()
                             .property_name
-                            .unwrap_or(node_as_export_specifier.name),
+                            .unwrap_or(node.ref_(self).as_export_specifier().name),
                         None,
                     )?;
                 }
@@ -868,9 +870,11 @@ impl TypeChecker {
                         .maybe_implied_node_format()
                         == Some(ModuleKind::CommonJS))
                 && id_text(
-                    &node_as_export_specifier
+                    &node
+                        .ref_(self)
+                        .as_export_specifier()
                         .property_name
-                        .unwrap_or(node_as_export_specifier.name)
+                        .unwrap_or(node.ref_(self).as_export_specifier().name)
                         .ref_(self),
                 ) == "default"
             {

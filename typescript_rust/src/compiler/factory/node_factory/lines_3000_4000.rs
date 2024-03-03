@@ -447,10 +447,8 @@ impl NodeFactory {
         statement: Id<Node /*Statement*/>,
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_do_statement = node_ref.as_do_statement();
-        if node_as_do_statement.statement != statement
-            || node_as_do_statement.expression != expression
+        if node.ref_(self).as_do_statement().statement != statement
+            || node.ref_(self).as_do_statement().expression != expression
         {
             self.update(self.create_do_statement(statement, expression), node)
         } else {
@@ -838,9 +836,7 @@ impl NodeFactory {
         node: Id<Node>, /*ThrowStatement*/
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_throw_statement = node_ref.as_throw_statement();
-        if node_as_throw_statement.expression != expression {
+        if node.ref_(self).as_throw_statement().expression != expression {
             self.update(self.create_throw_statement(expression), node)
         } else {
             node

@@ -53,8 +53,7 @@ impl SymbolTableToDeclarationStatements {
         if symbol.ref_(self).flags().intersects(SymbolFlags::Prototype) {
             return Ok(false);
         }
-        let symbol_ref = symbol.ref_(self);
-        let name = unescape_leading_underscores(symbol_ref.escaped_name());
+        let ref name = unescape_leading_underscores(symbol.ref_(self).escaped_name()).to_owned();
         let is_export_equals = name == InternalSymbolName::ExportEquals;
         let is_default = name == InternalSymbolName::Default;
         let is_export_assignment_compatible_symbol_name = is_export_equals || is_default;
@@ -789,7 +788,7 @@ impl MakeSerializePropertySymbol {
                 base_type,
                 Some(base_type) if self.type_checker.ref_(self).get_property_of_type_(
                     base_type,
-                    p.ref_(self).escaped_name(),
+                    &released!(p.ref_(self).escaped_name().to_owned()),
                     None
                 )?.is_some() &&
                     self.type_checker.ref_(self).is_readonly_symbol(

@@ -165,9 +165,7 @@ impl NodeFactory {
         node: Id<Node>, /*ParenthesizedTypeNode*/
         type_: Id<Node /*TypeNode*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_parenthesized_type_node = node_ref.as_parenthesized_type_node();
-        if node_as_parenthesized_type_node.type_ != type_ {
+        if node.ref_(self).as_parenthesized_type_node().type_ != type_ {
             self.update(self.create_parenthesized_type(type_), node)
         } else {
             node
