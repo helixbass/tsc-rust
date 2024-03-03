@@ -119,7 +119,8 @@ impl SingleLineStringWriter {
     pub fn new(arena: &impl HasArena) -> Id<Box<dyn EmitTextWriter>> {
         arena.alloc_emit_text_writer(Box::new(Self {
             arena: arena.arena(),
-            _dyn_symbol_tracker_wrapper: get_single_line_string_writer_symbol_tracker(arena),
+            _dyn_symbol_tracker_wrapper: arena
+                .alloc_symbol_tracker(Box::new(SingleLineStringWriterSymbolTracker)),
             str: Default::default(),
         }))
     }
@@ -421,16 +422,6 @@ impl SymbolTracker for SingleLineStringWriterSymbolTracker {
     fn is_track_referenced_ambient_module_supported(&self) -> bool {
         false
     }
-}
-
-pub fn get_single_line_string_writer_symbol_tracker(
-    arena: &impl HasArena,
-) -> Id<Box<dyn SymbolTracker>> {
-    per_arena!(
-        Box<dyn SymbolTracker>,
-        arena,
-        arena.alloc_symbol_tracker(Box::new(SingleLineStringWriterSymbolTracker))
-    )
 }
 
 pub fn changes_affect_module_resolution(
