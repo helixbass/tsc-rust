@@ -2014,10 +2014,7 @@ impl SymbolTrackerTrackSymbol for NodeBuilderContextWrappedSymbolTrackerTrackSym
         if self.is_track_symbol_disabled {
             return Ok(false);
         }
-        let result = self
-            .tracker
-            .ref_(self)
-            .get_track_symbol()
+        let result = released!(self.tracker.ref_(self).get_track_symbol())
             .unwrap()
             .track_symbol(symbol, enclosing_declaration, meaning);
         if matches!(
