@@ -170,9 +170,7 @@ impl TransformES2015 {
                 self.factory.ref_(self).create_object_literal_expression(
                     Some(vec![self.factory.ref_(self).create_property_assignment(
                         self.factory.ref_(self).create_identifier("value"),
-                        node.ref_(self)
-                            .as_return_statement()
-                            .expression
+                        released!(node.ref_(self).as_return_statement().expression)
                             .try_map_or_else(
                                 || Ok(self.factory.ref_(self).create_void_zero()),
                                 |node_expression| {
@@ -538,10 +536,12 @@ impl TransformES2015 {
                 Some(extends_clause_element.as_ref().try_map_or_default(
                     |extends_clause_element| -> io::Result<_> {
                         Ok(vec![try_visit_node(
-                            extends_clause_element
-                                .ref_(self)
-                                .as_expression_with_type_arguments()
-                                .expression,
+                            released!(
+                                extends_clause_element
+                                    .ref_(self)
+                                    .as_expression_with_type_arguments()
+                                    .expression
+                            ),
                             Some(|node: Id<Node>| self.visitor(node)),
                             Some(|node| is_expression(node, self)),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

@@ -554,13 +554,21 @@ impl Printer {
         self.emit_modifiers(node, node.ref_(self).maybe_modifiers())?;
         self.write_keyword("interface");
         self.write_space();
-        let node_ref = node.ref_(self);
-        let node_as_interface_declaration = node_ref.as_interface_declaration();
-        self.emit(node_as_interface_declaration.maybe_name(), None)?;
-        self.emit_type_parameters(node, node_as_interface_declaration.maybe_type_parameters())?;
+        self.emit(
+            node.ref_(self).as_interface_declaration().maybe_name(),
+            None,
+        )?;
+        self.emit_type_parameters(
+            node,
+            node.ref_(self)
+                .as_interface_declaration()
+                .maybe_type_parameters(),
+        )?;
         self.emit_list(
             Some(node),
-            node_as_interface_declaration.maybe_heritage_clauses(),
+            node.ref_(self)
+                .as_interface_declaration()
+                .maybe_heritage_clauses(),
             ListFormat::HeritageClauses,
             None,
             None,
@@ -570,7 +578,7 @@ impl Printer {
         self.write_punctuation("{");
         self.emit_list(
             Some(node),
-            Some(node_as_interface_declaration.members),
+            Some(node.ref_(self).as_interface_declaration().members),
             ListFormat::InterfaceMembers,
             None,
             None,
@@ -643,11 +651,9 @@ impl Printer {
             );
             self.write_space();
         }
-        let node_ref = node.ref_(self);
-        let node_as_module_declaration = node_ref.as_module_declaration();
-        self.emit(node_as_module_declaration.maybe_name(), None)?;
+        self.emit(node.ref_(self).as_module_declaration().maybe_name(), None)?;
 
-        let mut body = node_as_module_declaration.body;
+        let mut body = node.ref_(self).as_module_declaration().body;
         if body.is_none() {
             return Ok(self.write_trailing_semicolon());
         }

@@ -899,7 +899,9 @@ impl TransformTypeScript {
             }
         } else {
             self.enable_substitution_for_non_qualified_enum_members();
-            if let Some(member_initializer) = member.ref_(self).as_enum_member().initializer {
+            if let Some(member_initializer) =
+                released!(member.ref_(self).as_enum_member().initializer)
+            {
                 try_visit_node(
                     member_initializer,
                     Some(|node: Id<Node>| self.visitor(node)),

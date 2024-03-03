@@ -1762,7 +1762,8 @@ impl CheckTypeRelatedTo {
     }
 
     pub(super) fn get_type_of_property_in_types(
-        &self,
+        self_: Id<Self>,
+        arena: &impl HasArena,
         types: &[Id<Type>],
         name: &str, /*__String*/
     ) -> io::Result<Id<Type>> {
@@ -1770,37 +1771,52 @@ impl CheckTypeRelatedTo {
                                 &type_: &Id<Type>,
                                 _|
          -> io::Result<Option<Vec<Id<Type>>>> {
-            let type_ = self.type_checker.ref_(self).get_apparent_type(type_)?;
+            let type_ = self_
+                .ref_(arena)
+                .type_checker
+                .ref_(arena)
+                .get_apparent_type(type_)?;
             let prop = if type_
-                .ref_(self)
+                .ref_(arena)
                 .flags()
                 .intersects(TypeFlags::UnionOrIntersection)
             {
-                self.type_checker
-                    .ref_(self)
+                self_
+                    .ref_(arena)
+                    .type_checker
+                    .ref_(arena)
                     .get_property_of_union_or_intersection_type(type_, name, None)?
             } else {
-                self.type_checker
-                    .ref_(self)
+                self_
+                    .ref_(arena)
+                    .type_checker
+                    .ref_(arena)
                     .get_property_of_object_type(type_, name)?
             };
             let prop_type = prop
-                .try_map(|prop| self.type_checker.ref_(self).get_type_of_symbol(prop))?
-                .try_or_else(|| -> io::Result<_> {
-                    Ok(self
+                .try_map(|prop| {
+                    self_
+                        .ref_(arena)
                         .type_checker
-                        .ref_(self)
-                        .get_applicable_index_info_for_name(type_, name)?
-                        .map(|index_info| index_info.ref_(self).type_.clone()))
+                        .ref_(arena)
+                        .get_type_of_symbol(prop)
                 })?
-                .unwrap_or_else(|| self.type_checker.ref_(self).undefined_type());
+                .try_or_else(|| -> io::Result<_> {
+                    Ok(self_
+                        .ref_(arena)
+                        .type_checker
+                        .ref_(arena)
+                        .get_applicable_index_info_for_name(type_, name)?
+                        .map(|index_info| index_info.ref_(arena).type_.clone()))
+                })?
+                .unwrap_or_else(|| self_.ref_(arena).type_checker.ref_(arena).undefined_type());
             if prop_types.is_none() {
                 prop_types = Some(vec![]);
             }
             append(prop_types.as_mut().unwrap(), Some(prop_type));
             Ok(prop_types)
         };
-        self.type_checker.ref_(self).get_union_type(
+        self_.ref_(arena).type_checker.ref_(arena).get_union_type(
             &try_reduce_left(types, append_prop_type, None, None, None)?.unwrap_or_else(|| vec![]),
             None,
             Option::<Id<Symbol>>::None,
@@ -1899,9 +1915,7 @@ impl CheckTypeRelatedTo {
                 },
             );
         }
-        for prop in self_
-            .ref_(arena)
-            .type_checker
+        for prop in released!(self_.ref_(arena).type_checker)
             .ref_(arena)
             .get_properties_of_type(source)?
         {
@@ -2135,8 +2149,10 @@ impl CheckTypeRelatedTo {
                     Some(check_types) if Self::is_related_to(
                         self_,
                         arena,
-                        self_.ref_(arena).type_checker.ref_(arena).get_type_of_symbol(prop)?,
-                        self_.ref_(arena).get_type_of_property_in_types(
+                        released!(self_.ref_(arena).type_checker).ref_(arena).get_type_of_symbol(prop)?,
+                        Self::get_type_of_property_in_types(
+                            self_,
+                            arena,
                             check_types,
                             &released!(prop.ref_(arena).escaped_name().to_owned()),
                         )?,

@@ -234,21 +234,15 @@ impl CheckTypeRelatedTo {
                         & Self::is_related_to(
                             self_,
                             arena,
-                            self_
-                                .ref_(arena)
-                                .type_checker
+                            released!(self_.ref_(arena).type_checker)
                                 .ref_(arena)
                                 .instantiate_type(
-                                    self_
-                                        .ref_(arena)
-                                        .type_checker
+                                    released!(self_.ref_(arena).type_checker)
                                         .ref_(arena)
                                         .get_template_type_from_mapped_type(source)?,
                                     Some(mapper),
                                 )?,
-                            self_
-                                .ref_(arena)
-                                .type_checker
+                            released!(self_.ref_(arena).type_checker)
                                 .ref_(arena)
                                 .get_template_type_from_mapped_type(target)?,
                             Some(RecursionFlags::Both),

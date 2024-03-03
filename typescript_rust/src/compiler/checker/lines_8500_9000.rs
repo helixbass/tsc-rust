@@ -32,7 +32,7 @@ impl TypeChecker {
         node: Id<Node>, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
     ) -> io::Result<Option<Id<Node>>> {
         let ancestor = node.ref_(self).parent().ref_(self).parent();
-        Ok(match ancestor.ref_(self).kind() {
+        Ok(match released!(ancestor.ref_(self).kind()) {
             SyntaxKind::BindingElement | SyntaxKind::PropertyAssignment => {
                 self.get_synthetic_element_access(ancestor)?
             }

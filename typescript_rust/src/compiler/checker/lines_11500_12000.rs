@@ -1076,7 +1076,7 @@ impl TypeChecker {
             .is_none()
         {
             if let Some(type_parameter_target) =
-                type_parameter.ref_(self).as_type_parameter().target
+                released!(type_parameter.ref_(self).as_type_parameter().targe)t
             {
                 let target_default =
                     self.get_resolved_type_parameter_default(type_parameter_target)?;

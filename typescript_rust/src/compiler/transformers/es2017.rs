@@ -590,9 +590,7 @@ impl TransformES2017 {
         &self,
         node: Id<Node>, /*ForStatement*/
     ) -> io::Result<Id<Node>> {
-        let node_ref = node.ref_(self);
-        let node_as_for_statement = node_ref.as_for_statement();
-        let initializer = node_as_for_statement.initializer;
+        let initializer = node.ref_(self).as_for_statement().initializer;
         Ok(self.factory.ref_(self).update_for_statement(
             node,
             if self.is_variable_declaration_list_with_colliding_name(initializer) {
@@ -609,19 +607,19 @@ impl TransformES2017 {
                 )?
             },
             try_maybe_visit_node(
-                node_as_for_statement.condition,
+                released!(node.ref_(self).as_for_statement().condition),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_maybe_visit_node(
-                node_as_for_statement.incrementor,
+                released!(node.ref_(self).as_for_statement().incrementor),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_iteration_body(
-                node_as_for_statement.statement,
+                released!(node.ref_(self).as_for_statement().statement),
                 |node: Id<Node>| self.async_body_visitor(node),
                 &*self.context.ref_(self),
                 self,

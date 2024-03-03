@@ -28,7 +28,9 @@ impl TransformSystemModule {
 
         let decl_name = decl.ref_(self).as_named_declaration().name();
         if is_binding_pattern(Some(&*decl_name.ref_(self))) {
-            for &element in &*decl_name.ref_(self).as_has_elements().elements().ref_(self) {
+            for &element in
+                &*released!(decl_name.ref_(self).as_has_elements().elements()).ref_(self)
+            {
                 if !is_omitted_expression(&element.ref_(self)) {
                     self.append_exports_of_binding_element(statements, element, export_self);
                 }
@@ -114,11 +116,10 @@ impl TransformSystemModule {
             .get(id_text(&name.ref_(self)));
         if let Some(export_specifiers) = export_specifiers {
             for export_specifier in export_specifiers {
-                let export_specifier_ref = export_specifier.ref_(self);
-                let export_specifier_as_export_specifier =
-                    export_specifier_ref.as_export_specifier();
                 if Some(
-                    &*export_specifier_as_export_specifier
+                    &*export_specifier
+                        .ref_(self)
+                        .as_export_specifier()
                         .name
                         .ref_(self)
                         .as_identifier()
@@ -127,7 +128,7 @@ impl TransformSystemModule {
                 {
                     self.append_export_statement(
                         statements,
-                        export_specifier_as_export_specifier.name,
+                        export_specifier.ref_(self).as_export_specifier().name,
                         name,
                         None,
                     );

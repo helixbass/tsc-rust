@@ -545,7 +545,7 @@ impl TypeChecker {
             )?;
             let index_infos = self.instantiate_index_infos(
                 &self.get_index_infos_of_type(type_target)?,
-                type_.ref_(self).as_object_type().maybe_mapper().unwrap(),
+                released!(type_.ref_(self).as_object_type().maybe_mapper().unwrap()),
             )?;
             self.set_structured_type_members(
                 || debug_cell::Ref::map(type_.ref_(self), |type_| type_.as_object_type()),
