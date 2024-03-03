@@ -587,8 +587,6 @@ impl TransformDeclarations {
         }
 
         if node.ref_(self).kind() == SyntaxKind::Bundle {
-            let node_ref = node.ref_(self);
-            let node_as_bundle = node_ref.as_bundle();
             self.set_is_bundled_emit(true);
             self.set_refs(Some(HashMap::new()));
             self.set_libs(Some(HashMap::new()));
@@ -596,15 +594,13 @@ impl TransformDeclarations {
             let mut bundle =
                 self.factory.ref_(self).create_bundle_raw(
                     try_map(
-                        &node_as_bundle.source_files,
+                        &node.ref_(self).as_bundle().source_files,
                         |source_file: &Option<Id<Node>>, _| -> io::Result<Option<Id<Node>>> {
                             let source_file = source_file.unwrap();
-                            let source_file_ref = source_file.ref_(self);
-                            let source_file_as_source_file = source_file_ref.as_source_file();
-                            if source_file_as_source_file.is_declaration_file() {
+                            if source_file.ref_(self).as_source_file().is_declaration_file() {
                                 return Ok(None);
                             }
-                            has_no_default_lib = has_no_default_lib || source_file_as_source_file.has_no_default_lib();
+                            has_no_default_lib = has_no_default_lib || source_file.ref_(self).as_source_file().has_no_default_lib();
                             self.set_current_source_file(
                                 Some(source_file.clone())
                             );
@@ -640,7 +636,7 @@ impl TransformDeclarations {
                                     )
                                 } else {
                                     try_visit_nodes(
-                                        source_file_as_source_file.statements(),
+                                        source_file.ref_(self).as_source_file().statements(),
                                         Some(|node: Id<Node>| self.visit_declaration_statements(node)),
                                         Option::<fn(Id<Node>) -> bool>::None,
                                         None,
@@ -678,7 +674,7 @@ impl TransformDeclarations {
                                                                     )?),
                                                                     None,
                                                                 ),
-                                                                Some(&*source_file_as_source_file.statements().ref_(self)),
+                                                                Some(&*source_file.ref_(self).as_source_file().statements().ref_(self)),
                                                                 self,
                                                             )
                                                         )
@@ -703,7 +699,7 @@ impl TransformDeclarations {
                                 )
                             } else {
                                 try_visit_nodes(
-                                    source_file_as_source_file.statements(),
+                                    source_file.ref_(self).as_source_file().statements(),
                                     Some(|node: Id<Node>| self.visit_declaration_statements(node)),
                                     Option::<fn(Id<Node>) -> bool>::None,
                                     None,
@@ -727,7 +723,7 @@ impl TransformDeclarations {
                         }
                     )?,
                     Some(try_map_defined(
-                        Some(&node_as_bundle.prepends),
+                        Some(&node.ref_(self).as_bundle().prepends),
                         |prepend: &Id<Node>, _| -> io::Result<Option<Id<Node>>> {
                             if prepend.ref_(self).kind() == SyntaxKind::InputFiles {
                                 let source_file = create_unparsed_source_file(

@@ -750,11 +750,11 @@ impl TransformES2015 {
                     Option::<&Node>::None,
                 ),
                 try_visit_node(
-                    property
+                    released!(property
                         .ref_(self)
                         .as_property_assignment()
                         .maybe_initializer()
-                        .unwrap(),
+                        .unwrap()),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

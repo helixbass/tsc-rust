@@ -143,16 +143,19 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*NumericLiteral*/
     ) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_numeric_literal = node_ref.as_numeric_literal();
-        if node_as_numeric_literal
+        if node
+            .ref_(self)
+            .as_numeric_literal()
             .numeric_literal_flags
             .intersects(TokenFlags::BinaryOrOctalSpecifier)
         {
             return Some(
                 self.factory
                     .ref_(self)
-                    .create_numeric_literal(node_as_numeric_literal.text().clone(), None)
+                    .create_numeric_literal(
+                        node.ref_(self).as_numeric_literal().text().clone(),
+                        None,
+                    )
                     .set_text_range(Some(&*node.ref_(self)), self)
                     .into(),
             );

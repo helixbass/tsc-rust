@@ -1143,7 +1143,7 @@ impl TypeChecker {
                     .unwrap();
                 let export_assignment = export_equals_symbol.ref_(self).maybe_value_declaration();
                 let err = self.error(
-                    node.ref_(self).as_import_clause().name,
+                    released!(node.ref_(self).as_import_clause().name),
                     &Diagnostics::Module_0_can_only_be_default_imported_using_the_1_flag,
                     Some(vec![
                         self.symbol_to_string_(

@@ -146,14 +146,10 @@ impl TransformModule {
                             .set_original_node(Some(node), self),
                     );
                 }
-                for &specifier in &*node_export_clause
-                    .ref_(self)
-                    .as_named_exports()
-                    .elements
-                    .ref_(self)
+                for &specifier in
+                    &*released!(node_export_clause.ref_(self).as_named_exports().elements)
+                        .ref_(self)
                 {
-                    let specifier_ref = specifier.ref_(self);
-                    let specifier_as_export_specifier = specifier_ref.as_export_specifier();
                     if self.language_version == ScriptTarget::ES3 {
                         statements.push(
                             self.factory
@@ -162,15 +158,28 @@ impl TransformModule {
                                     self.emit_helpers().create_create_binding_helper(
                                         generated_name.clone(),
                                         self.factory.ref_(self).create_string_literal_from_node(
-                                            specifier_as_export_specifier
+                                            specifier
+                                                .ref_(self)
+                                                .as_export_specifier()
                                                 .property_name
-                                                .unwrap_or(specifier_as_export_specifier.name),
+                                                .unwrap_or(
+                                                    specifier.ref_(self).as_export_specifier().name,
+                                                ),
                                         ),
-                                        specifier_as_export_specifier.property_name.map(|_| {
-                                            self.factory.ref_(self).create_string_literal_from_node(
-                                                specifier_as_export_specifier.name,
-                                            )
-                                        }),
+                                        specifier
+                                            .ref_(self)
+                                            .as_export_specifier()
+                                            .property_name
+                                            .map(|_| {
+                                                self.factory
+                                                    .ref_(self)
+                                                    .create_string_literal_from_node(
+                                                        specifier
+                                                            .ref_(self)
+                                                            .as_export_specifier()
+                                                            .name,
+                                                    )
+                                            }),
                                     ),
                                 )
                                 .set_text_range(Some(&*specifier.ref_(self)), self)
@@ -182,9 +191,11 @@ impl TransformModule {
                                 && !get_emit_flags(node, self)
                                     .intersects(EmitFlags::NeverApplyImportHelper)
                                 && id_text(
-                                    &specifier_as_export_specifier
+                                    &specifier
+                                        .ref_(self)
+                                        .as_export_specifier()
                                         .property_name
-                                        .unwrap_or(specifier_as_export_specifier.name)
+                                        .unwrap_or(specifier.ref_(self).as_export_specifier().name)
                                         .ref_(self),
                                 ) == "default";
                         let exported_value =
@@ -195,10 +206,14 @@ impl TransformModule {
                                 } else {
                                     generated_name.clone()
                                 },
-                                specifier_as_export_specifier
+                                specifier
+                                    .ref_(self)
+                                    .as_export_specifier()
                                     .property_name
                                     .clone()
-                                    .unwrap_or_else(|| specifier_as_export_specifier.name.clone()),
+                                    .unwrap_or_else(|| {
+                                        specifier.ref_(self).as_export_specifier().name.clone()
+                                    }),
                             );
                         statements.push(
                             self.factory

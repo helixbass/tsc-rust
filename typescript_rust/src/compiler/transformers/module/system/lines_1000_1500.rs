@@ -285,7 +285,9 @@ impl TransformSystemModule {
 
         let node = self.factory.ref_(self).update_for_in_statement(
             node,
-            self.visit_for_initializer(node.ref_(self).as_for_in_statement().initializer)?,
+            self.visit_for_initializer(released!(
+                node.ref_(self).as_for_in_statement().initializer
+            ))?,
             try_visit_node(
                 node.ref_(self).as_for_in_statement().expression,
                 Some(|node: Id<Node>| self.visitor(node)),

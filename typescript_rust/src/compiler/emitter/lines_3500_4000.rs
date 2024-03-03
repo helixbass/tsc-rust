@@ -443,9 +443,9 @@ impl Printer {
             None,
         );
         self.write_space();
-        let node_ref = node.ref_(self);
-        let node_as_catch_clause = node_ref.as_catch_clause();
-        if let Some(node_variable_declaration) = node_as_catch_clause.variable_declaration {
+        if let Some(node_variable_declaration) =
+            node.ref_(self).as_catch_clause().variable_declaration
+        {
             self.emit_token_with_comment(
                 SyntaxKind::OpenParenToken,
                 open_paren_pos,
@@ -463,7 +463,7 @@ impl Printer {
             );
             self.write_space();
         }
-        self.emit(Some(node_as_catch_clause.block), None)?;
+        self.emit(Some(node.ref_(self).as_catch_clause().block), None)?;
 
         Ok(())
     }

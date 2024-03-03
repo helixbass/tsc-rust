@@ -210,14 +210,21 @@ impl TypeChecker {
             .clone())
         {
             if !is_omitted_expression(&element.ref_(self)) {
-                let element_ref = element.ref_(self);
-                let element_as_binding_element = element_ref.as_binding_element();
-                if element_as_binding_element.name().ref_(self).kind() == SyntaxKind::Identifier {
+                if element
+                    .ref_(self)
+                    .as_binding_element()
+                    .name()
+                    .ref_(self)
+                    .kind()
+                    == SyntaxKind::Identifier
+                {
                     self.get_symbol_links(self.get_symbol_of_node(element)?.unwrap())
                         .ref_mut(self)
                         .type_ = self.get_type_for_binding_element(element)?;
                 } else {
-                    self.assign_binding_element_types(element_as_binding_element.name())?;
+                    self.assign_binding_element_types(
+                        element.ref_(self).as_binding_element().name(),
+                    )?;
                 }
             }
         }

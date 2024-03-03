@@ -291,7 +291,7 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete {
 
     fn parenthesize_expression_of_new(&self, expression: Id<Node>) -> Id<Node> {
         let leftmost_expr = get_leftmost_expression(expression, true, self);
-        match leftmost_expr.ref_(self).kind() {
+        match released!(leftmost_expr.ref_(self).kind()) {
             SyntaxKind::CallExpression => {
                 return self
                     .factory

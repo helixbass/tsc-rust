@@ -112,27 +112,31 @@ impl Printer {
             None,
         );
         self.write_space();
-        let node_ref = node.ref_(self);
-        let node_as_try_statement = node_ref.as_try_statement();
-        self.emit(Some(node_as_try_statement.try_block), None)?;
-        if let Some(node_catch_clause) = node_as_try_statement.catch_clause {
-            self.write_line_or_space(node, node_as_try_statement.try_block, node_catch_clause);
+        self.emit(Some(node.ref_(self).as_try_statement().try_block), None)?;
+        if let Some(node_catch_clause) = node.ref_(self).as_try_statement().catch_clause {
+            self.write_line_or_space(
+                node,
+                node.ref_(self).as_try_statement().try_block,
+                node_catch_clause,
+            );
             self.emit(Some(node_catch_clause), None)?;
         }
         Ok(
-            if let Some(node_finally_block) = node_as_try_statement.finally_block {
+            if let Some(node_finally_block) = node.ref_(self).as_try_statement().finally_block {
                 self.write_line_or_space(
                     node,
-                    node_as_try_statement
+                    node.ref_(self)
+                        .as_try_statement()
                         .catch_clause
-                        .unwrap_or(node_as_try_statement.try_block),
+                        .unwrap_or(node.ref_(self).as_try_statement().try_block),
                     node_finally_block,
                 );
                 self.emit_token_with_comment(
                     SyntaxKind::FinallyKeyword,
-                    node_as_try_statement
+                    node.ref_(self)
+                        .as_try_statement()
                         .catch_clause
-                        .unwrap_or(node_as_try_statement.try_block)
+                        .unwrap_or(node.ref_(self).as_try_statement().try_block)
                         .ref_(self)
                         .end(),
                     |text: &str| self.write_keyword(text),

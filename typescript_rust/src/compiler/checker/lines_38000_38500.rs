@@ -126,10 +126,7 @@ impl TypeChecker {
                     }
                 }
                 try_for_each(
-                    &*clause
-                        .ref_(self)
-                        .as_case_or_default_clause()
-                        .statements()
+                    &*released!(clause.ref_(self).as_case_or_default_clause().statements())
                         .ref_(self),
                     |&statement: &Id<Node>, _| -> io::Result<Option<()>> {
                         self.check_source_element(Some(statement))?;

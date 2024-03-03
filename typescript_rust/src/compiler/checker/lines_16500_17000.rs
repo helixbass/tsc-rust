@@ -872,7 +872,7 @@ impl TypeChecker {
             return Ok(type_);
         }
         let inner_index_type = self.instantiate_type(
-            type_.ref_(self).as_reverse_mapped_type().constraint_type,
+            released!(type_.ref_(self).as_reverse_mapped_type().constraint_type),
             Some(mapper.clone()),
         )?;
         if !inner_index_type
