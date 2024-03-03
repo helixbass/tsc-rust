@@ -13,11 +13,12 @@ use crate::{
     is_entity_name, is_identifier, is_identifier_type_reference, is_indexed_access_type_node,
     is_jsdoc_parameter_tag, is_rest_parameter, is_transient_symbol, length, maybe_filter,
     maybe_for_each_bool, modifiers_to_flags, module_specifiers, node_is_synthesized, out_file,
-    path_is_relative, released, set_comment_range, set_emit_flags, set_synthetic_leading_comments,
-    some, symbol_name, try_maybe_first_defined, try_maybe_map, try_visit_each_child,
-    unescape_leading_underscores, CheckFlags, CompilerOptions, Debug_, EmitFlags,
-    GetOrInsertDefault, HasArena, HasInitializerInterface, InArena, IndexInfo, InternalSymbolName,
-    ModifierFlags, ModuleResolutionKind, NamedDeclarationInterface, Node, NodeArray, NodeBuilder,
+    path_is_relative, preload_default_node_builder_context_symbol_trackers_for_program_and_arena,
+    released, set_comment_range, set_emit_flags, set_synthetic_leading_comments, some, symbol_name,
+    try_maybe_first_defined, try_maybe_map, try_visit_each_child, unescape_leading_underscores,
+    CheckFlags, CompilerOptions, Debug_, EmitFlags, GetOrInsertDefault, HasArena,
+    HasInitializerInterface, InArena, IndexInfo, InternalSymbolName, ModifierFlags,
+    ModuleResolutionKind, NamedDeclarationInterface, Node, NodeArray, NodeBuilder,
     NodeBuilderFlags, NodeInterface, OptionTry, Signature, SignatureFlags, StrOrNodeArray,
     StrOrRcNode, StringOrNodeArray, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
     SynthesizedComment, TransientSymbolInterface, Type, TypeInterface, TypePredicateKind,
@@ -849,6 +850,10 @@ impl NodeBuilder {
     ) -> io::Result<Vec<Id<Symbol>>> {
         // avoid borrow errors in .track_symbol() below
         get_single_line_string_writer_symbol_tracker(self);
+        preload_default_node_builder_context_symbol_trackers_for_program_and_arena(
+            self.type_checker.ref_(self).host,
+            self,
+        );
 
         context.ref_(self).tracker_ref().track_symbol(
             symbol,

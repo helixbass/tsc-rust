@@ -28,6 +28,7 @@ pub use compiler::{
     },
     checker::{
         create_type_checker, get_node_id, get_symbol_id, is_instantiated_module,
+        preload_default_node_builder_context_symbol_trackers_for_program_and_arena,
         CheckBinaryExpression, CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer,
         CheckTypeRelatedTo, DiagnosticMessageOrDiagnosticMessageChain,
         MakeSerializePropertySymbolCreateProperty, NodeBuilder, NodeBuilderContext,

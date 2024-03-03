@@ -20,8 +20,8 @@ use crate::{
     maybe_get_source_file_of_node, no_truncation_maximum_truncation_length,
     pseudo_big_int_to_string, ref_mut_unwrapped, ref_unwrapped, released, set_emit_flags,
     symbol_name, try_map, try_using_single_line_string_writer, using_single_line_string_writer,
-    AllArenas, Debug_, EmitFlags, EmitHint, EmitTextWriter, FileIncludeReason, HasArena,
-    IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory, InArena, IndexInfo,
+    AllArenas, AllArenasId, Debug_, EmitFlags, EmitHint, EmitTextWriter, FileIncludeReason,
+    HasArena, IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory, InArena, IndexInfo,
     KeywordTypeNode, ModifierFlags, ModuleSpecifierResolutionHost,
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, MultiMap, Node, NodeArray,
     NodeBuilderFlags, NodeFlags, NodeInterface, ObjectFlags, Path, PrinterOptionsBuilder, Program,
@@ -1582,24 +1582,7 @@ impl DefaultNodeBuilderContextSymbolTracker {
         flags: Option<NodeBuilderFlags>,
         arena: &impl HasArena,
     ) -> Id<Box<dyn SymbolTracker>> {
-        arena.alloc_symbol_tracker(Box::new(Self {
-            module_resolver_host: if matches!(
-                flags,
-                Some(flags) if flags.intersects(NodeBuilderFlags::DoNotIncludeSymbolChain)
-            ) {
-                Some(
-                    arena.alloc_module_specifier_resolution_host_and_get_common_source_directory(
-                        Box::new(
-                            DefaultNodeBuilderContextSymbolTrackerModuleResolverHost::new(
-                                host, arena,
-                            ),
-                        ),
-                    ),
-                )
-            } else {
-                None
-            },
-        }))
+        get_default_node_builder_context_symbol_tracker(host, flags, arena)
     }
 }
 
@@ -1663,6 +1646,54 @@ impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {
     fn is_track_referenced_ambient_module_supported(&self) -> bool {
         false
     }
+}
+
+pub fn get_default_node_builder_context_symbol_tracker(
+    host: Id<Program>,
+    flags: Option<NodeBuilderFlags>,
+    arena: &impl HasArena,
+) -> Id<Box<dyn SymbolTracker>> {
+    thread_local! {
+        static PER_ARENA_PROGRAM_AND_FLAGS_INTERSECTS_DO_NOT_INCLUDE_SYMBOL_CHAIN: RefCell<HashMap<(AllArenasId, Id<Program>, bool), Id<Box<dyn SymbolTracker>>>> = RefCell::new(HashMap::new());
+    }
+
+    PER_ARENA_PROGRAM_AND_FLAGS_INTERSECTS_DO_NOT_INCLUDE_SYMBOL_CHAIN.with(|per_arena| {
+        let mut per_arena = per_arena.borrow_mut();
+        let arena_id = arena.all_arenas_id();
+        let flags_intersects_do_not_include_symbol_chain = matches!(
+            flags,
+            Some(flags) if flags.intersects(NodeBuilderFlags::DoNotIncludeSymbolChain)
+        );
+        *per_arena.entry((arena_id, host, flags_intersects_do_not_include_symbol_chain)).or_insert_with(|| {
+            arena.alloc_symbol_tracker(Box::new(DefaultNodeBuilderContextSymbolTracker {
+                module_resolver_host: if flags_intersects_do_not_include_symbol_chain {
+                    Some(
+                        arena.alloc_module_specifier_resolution_host_and_get_common_source_directory(
+                            Box::new(
+                                DefaultNodeBuilderContextSymbolTrackerModuleResolverHost::new(
+                                    host, arena,
+                                ),
+                            ),
+                        ),
+                    )
+                } else {
+                    None
+                },
+            }))
+        })
+    })
+}
+
+pub fn preload_default_node_builder_context_symbol_trackers_for_program_and_arena(
+    host: Id<Program>,
+    arena: &impl HasArena,
+) {
+    get_default_node_builder_context_symbol_tracker(
+        host,
+        Some(NodeBuilderFlags::DoNotIncludeSymbolChain),
+        arena,
+    );
+    get_default_node_builder_context_symbol_tracker(host, None, arena);
 }
 
 struct DefaultNodeBuilderContextSymbolTrackerModuleResolverHost {
