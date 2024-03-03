@@ -590,18 +590,19 @@ impl TransformSystemModule {
         export_self: bool,
     ) /*: Statement[] | undefined*/
     {
-        let node_ref = node.ref_(self);
-        let node_as_variable_statement = node_ref.as_variable_statement();
         if self.module_info().ref_(self).export_equals.is_some() {
             return /*statements*/;
         }
 
-        for &decl in &*node_as_variable_statement
-            .declaration_list
-            .ref_(self)
-            .as_variable_declaration_list()
-            .declarations
-            .ref_(self)
+        for &decl in &*released!(
+            node.ref_(self)
+                .as_variable_statement()
+                .declaration_list
+                .ref_(self)
+                .as_variable_declaration_list()
+                .declarations
+        )
+        .ref_(self)
         {
             if decl
                 .ref_(self)

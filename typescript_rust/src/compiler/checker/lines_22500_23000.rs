@@ -957,10 +957,11 @@ impl TypeChecker {
         if flags.intersects(TypeFlags::Intersection) {
             ignore_objects = ignore_objects || self.maybe_type_of_kind(type_, TypeFlags::Primitive);
             return try_reduce_left(
-                type_
+                &released!(type_
                     .ref_(self)
                     .as_union_or_intersection_type_interface()
-                    .types(),
+                    .types()
+                    .to_owned()),
                 |facts, &t: &Id<Type>, _| -> io::Result<_> {
                     Ok(facts & self.get_type_facts(t, Some(ignore_objects))?)
                 },

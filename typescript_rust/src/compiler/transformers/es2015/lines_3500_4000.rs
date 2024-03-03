@@ -296,9 +296,9 @@ impl TransformES2015 {
             Some(|element: &Id<Node>| is_spread_element(&element.ref_(self))),
         ) {
             return self.transform_and_spread_elements(
-                node.ref_(self).as_array_literal_expression().elements,
+                released!(node.ref_(self).as_array_literal_expression().elements),
                 false,
-                node.ref_(self).as_array_literal_expression().multi_line == Some(true),
+                released!(node.ref_(self).as_array_literal_expression().multi_line) == Some(true),
                 released!(
                     node.ref_(self)
                         .as_array_literal_expression()

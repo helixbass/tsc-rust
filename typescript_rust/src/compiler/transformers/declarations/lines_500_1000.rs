@@ -832,7 +832,7 @@ impl TransformDeclarations {
                     Some(self.factory.ref_(self).create_property_declaration(
                         Option::<Id<NodeArray>>::None,
                         self.ensure_modifiers(input),
-                        input.ref_(self).as_named_declaration().name(),
+                        released!(input.ref_(self).as_named_declaration().name()),
                         None,
                         None,
                         None,

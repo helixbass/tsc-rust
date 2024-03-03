@@ -435,8 +435,7 @@ impl TypeChecker {
         symbol: Option<Id<Symbol>>,
     ) -> io::Result<Vec<Id<Signature>>> {
         let symbol = return_ok_default_if_none!(symbol);
-        let symbol_ref = symbol.ref_(self);
-        let symbol_declarations = symbol_ref.maybe_declarations();
+        let symbol_declarations = symbol.ref_(self).maybe_declarations().clone();
         if symbol_declarations.is_none() {
             return Ok(vec![]);
         }

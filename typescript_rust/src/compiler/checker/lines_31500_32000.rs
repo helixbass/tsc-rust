@@ -202,7 +202,13 @@ impl TypeChecker {
         &self,
         pattern: Id<Node>, /*BindingPattern*/
     ) -> io::Result<()> {
-        for &element in &*pattern.ref_(self).as_has_elements().elements().ref_(self) {
+        for &element in &*released!(pattern
+            .ref_(self)
+            .as_has_elements()
+            .elements()
+            .ref_(self)
+            .clone())
+        {
             if !is_omitted_expression(&element.ref_(self)) {
                 let element_ref = element.ref_(self);
                 let element_as_binding_element = element_ref.as_binding_element();

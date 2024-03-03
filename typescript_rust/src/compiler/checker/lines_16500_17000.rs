@@ -865,8 +865,8 @@ impl TypeChecker {
         mapper: Id<TypeMapper>,
     ) -> io::Result<Id<Type>> {
         let inner_mapped_type = self.instantiate_type(
-            type_.ref_(self).as_reverse_mapped_type().mapped_type,
-            Some(mapper.clone()),
+            released!(type_.ref_(self).as_reverse_mapped_type().mapped_type),
+            Some(mapper),
         )?;
         if !get_object_flags(&inner_mapped_type.ref_(self)).intersects(ObjectFlags::Mapped) {
             return Ok(type_);

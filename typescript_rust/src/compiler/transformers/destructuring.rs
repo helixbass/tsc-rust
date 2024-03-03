@@ -587,7 +587,7 @@ pub fn try_flatten_destructuring_binding<'visitor>(
                 .ref_(arena)
                 .update_variable_declaration(
                     node,
-                    node.ref_(arena).as_variable_declaration().maybe_name(),
+                    released!(node.ref_(arena).as_variable_declaration().maybe_name()),
                     None,
                     None,
                     Some(initializer),

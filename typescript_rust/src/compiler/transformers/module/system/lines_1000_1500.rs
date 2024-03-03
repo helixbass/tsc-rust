@@ -35,7 +35,6 @@ impl TransformSystemModule {
             }
         } else if !is_generated_identifier(&decl_name.ref_(self)) {
             let mut exclude_name = None;
-            let decl_name_ref = decl_name.ref_(self);
             if export_self {
                 self.append_export_statement(
                     statements,
@@ -43,10 +42,10 @@ impl TransformSystemModule {
                     self.factory.ref_(self).get_local_name(decl, None, None),
                     None,
                 );
-                exclude_name = Some(id_text(&decl_name_ref));
+                exclude_name = Some(id_text(&decl_name.ref_(self)).to_owned());
             }
 
-            self.append_exports_of_declaration(statements, decl, exclude_name);
+            self.append_exports_of_declaration(statements, decl, exclude_name.as_deref());
         }
 
         // return statements;
@@ -281,22 +280,20 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*ForInStatement*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_ref = node.ref_(self);
-        let node_as_for_in_statement = node_ref.as_for_in_statement();
         let saved_enclosing_block_scoped_container = self.maybe_enclosing_block_scoped_container();
         self.set_enclosing_block_scoped_container(Some(node));
 
         let node = self.factory.ref_(self).update_for_in_statement(
             node,
-            self.visit_for_initializer(node_as_for_in_statement.initializer)?,
+            self.visit_for_initializer(node.ref_(self).as_for_in_statement().initializer)?,
             try_visit_node(
-                node_as_for_in_statement.expression,
+                node.ref_(self).as_for_in_statement().expression,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_iteration_body(
-                node_as_for_in_statement.statement,
+                node.ref_(self).as_for_in_statement().statement,
                 |node: Id<Node>| self.top_level_nested_visitor(node),
                 &*self.context.ref_(self),
                 self,
@@ -352,11 +349,8 @@ impl TransformSystemModule {
     ) -> io::Result<Id<Node /*ForInitializer*/>> {
         Ok(if self.should_hoist_for_initializer(node) {
             let mut expressions: Option<Vec<Id<Node /*Expression*/>>> = _d();
-            for &variable in &*node
-                .ref_(self)
-                .as_variable_declaration_list()
-                .declarations
-                .ref_(self)
+            for &variable in
+                &*released!(node.ref_(self).as_variable_declaration_list().declarations).ref_(self)
             {
                 expressions
                     .get_or_insert_default_()

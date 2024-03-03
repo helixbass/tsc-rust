@@ -112,7 +112,7 @@ impl Printer {
                 self.write_space();
             }
             self.emit(
-                Some(node.ref_(self).as_jsx_opening_element().attributes),
+                released!(Some(node.ref_(self).as_jsx_opening_element().attributes)),
                 None,
             )?;
             self.write_line_separators_after(
@@ -169,7 +169,7 @@ impl Printer {
         self.try_emit_node_with_prefix(
             "=",
             |text: &str| self.write_punctuation(text),
-            node.ref_(self).as_jsx_attribute().initializer,
+            released!(node.ref_(self).as_jsx_attribute().initializer),
             |node: Id<Node>| self.emit_jsx_attribute_value(node),
         )?;
 

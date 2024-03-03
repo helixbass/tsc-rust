@@ -254,7 +254,12 @@ impl TypeChecker {
         )?;
 
         try_for_each(
-            &*released!(node.ref_(self).as_interface_declaration().members).ref_(self),
+            &*released!(node
+                .ref_(self)
+                .as_interface_declaration()
+                .members
+                .ref_(self)
+                .clone()),
             |&member, _| -> io::Result<_> {
                 self.check_source_element(Some(member))?;
                 Ok(Option::<()>::None)

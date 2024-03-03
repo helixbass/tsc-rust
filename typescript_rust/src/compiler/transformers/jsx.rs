@@ -451,10 +451,15 @@ impl TransformJsx {
             )
         } else {
             self.visit_jsx_opening_like_element_jsx(
-                node.ref_(self).as_jsx_element().opening_element,
-                Some(&node.ref_(self).as_jsx_element().children.ref_(self)),
+                released!(node.ref_(self).as_jsx_element().opening_element),
+                Some(&released!(node
+                    .ref_(self)
+                    .as_jsx_element()
+                    .children
+                    .ref_(self)
+                    .clone())),
                 is_child,
-                &*node.ref_(self),
+                &released!(ReadonlyTextRangeConcrete::from(&*node.ref_(self))),
             )
         }
     }
@@ -481,21 +486,19 @@ impl TransformJsx {
         node: Id<Node>, /*JsxFragment*/
         is_child: bool,
     ) -> Option<Id<Node>> {
-        let node_ref = node.ref_(self);
-        let node_as_jsx_fragment = node_ref.as_jsx_fragment();
         if self.current_file_state().import_specifier.is_none() {
             self.visit_jsx_opening_fragment_create_element(
-                node_as_jsx_fragment.opening_fragment,
-                &node_as_jsx_fragment.children.ref_(self),
+                node.ref_(self).as_jsx_fragment().opening_fragment,
+                &node.ref_(self).as_jsx_fragment().children.ref_(self),
                 is_child,
                 &*node.ref_(self),
             )
         } else {
             self.visit_jsx_opening_fragment_jsx(
-                node_as_jsx_fragment.opening_fragment,
-                &node_as_jsx_fragment.children.ref_(self),
+                node.ref_(self).as_jsx_fragment().opening_fragment,
+                &node.ref_(self).as_jsx_fragment().children.ref_(self),
                 is_child,
-                &*node.ref_(self),
+                &released!(ReadonlyTextRangeConcrete::from(&*node.ref_(self))),
             )
         }
     }
@@ -551,13 +554,13 @@ impl TransformJsx {
         is_child: bool,
         location: &impl ReadonlyTextRange,
     ) -> Option<Id<Node>> {
-        let node_ref = node.ref_(self);
-        let node_as_jsx_opening_like_element = node_ref.as_jsx_opening_like_element();
         let tag_name = self.get_tag_name(node);
         let children_prop = children
             .non_empty()
             .and_then(|children| self.convert_jsx_children_to_children_prop_assignment(children));
-        let key_attr = node_as_jsx_opening_like_element
+        let key_attr = node
+            .ref_(self)
+            .as_jsx_opening_like_element()
             .attributes()
             .ref_(self)
             .as_jsx_attributes()
@@ -576,7 +579,8 @@ impl TransformJsx {
             .cloned();
         let attrs: NodeArrayOrVec = key_attr.map_or_else(
             || {
-                node_as_jsx_opening_like_element
+                node.ref_(self)
+                    .as_jsx_opening_like_element()
                     .attributes()
                     .ref_(self)
                     .as_jsx_attributes()
@@ -586,7 +590,9 @@ impl TransformJsx {
             },
             |key_attr| {
                 filter(
-                    &node_as_jsx_opening_like_element
+                    &node
+                        .ref_(self)
+                        .as_jsx_opening_like_element()
                         .attributes()
                         .ref_(self)
                         .as_jsx_attributes()
@@ -1137,15 +1143,18 @@ impl TransformJsx {
     }
 
     fn visit_jsx_expression(&self, node: Id<Node> /*JsxExpression*/) -> Option<Id<Node>> {
-        let node_ref = node.ref_(self);
-        let node_as_jsx_expression = node_ref.as_jsx_expression();
         let expression = maybe_visit_node(
-            node_as_jsx_expression.expression,
+            released!(node.ref_(self).as_jsx_expression().expression),
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
-        if node_as_jsx_expression.dot_dot_dot_token.is_some() {
+        if node
+            .ref_(self)
+            .as_jsx_expression()
+            .dot_dot_dot_token
+            .is_some()
+        {
             Some(
                 self.factory
                     .ref_(self)

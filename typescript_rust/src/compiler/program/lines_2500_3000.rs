@@ -939,7 +939,7 @@ impl Program {
                 resolved_type_reference_directive.clone(),
                 self.alloc_file_include_reason(FileIncludeReason::ReferencedFile(ReferencedFile {
                     kind: FileIncludeKind::TypeReferenceDirective,
-                    file: file.ref_(self).as_source_file().path().clone(),
+                    file: released!(file.ref_(self).as_source_file().path().clone()),
                     index,
                 })),
             )?;

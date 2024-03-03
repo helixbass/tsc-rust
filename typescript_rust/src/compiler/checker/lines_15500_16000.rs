@@ -1224,14 +1224,13 @@ impl TypeChecker {
                     let result = self.alloc_symbol(
                         self.create_symbol(
                             flags,
-                            left_prop.ref_(self).escaped_name().to_owned(),
+                            released!(left_prop.ref_(self).escaped_name().to_owned()),
                             None,
                         )
                         .into(),
                     );
                     let result_links = result.ref_(self).as_transient_symbol().symbol_links();
-                    let mut result_links = result_links.ref_mut(self);
-                    result_links.type_ = Some(self.get_union_type(
+                    result_links.ref_mut(self).type_ = Some(self.get_union_type(
                         &[
                             self.get_type_of_symbol(left_prop)?,
                             self.remove_missing_or_undefined_type(right_type)?,
@@ -1241,12 +1240,13 @@ impl TypeChecker {
                         None,
                         None,
                     )?);
-                    result_links.left_spread = Some(left_prop.clone());
-                    result_links.right_spread = Some(right_prop.clone());
+                    result_links.ref_mut(self).left_spread = Some(left_prop.clone());
+                    result_links.ref_mut(self).right_spread = Some(right_prop.clone());
                     if let Some(declarations) = declarations {
                         result.ref_(self).set_declarations(declarations);
                     }
-                    result_links.name_type = self.get_symbol_links(left_prop).ref_(self).name_type;
+                    result_links.ref_mut(self).name_type =
+                        self.get_symbol_links(left_prop).ref_(self).name_type;
                     members.insert(left_prop.ref_(self).escaped_name().to_owned(), result);
                 }
             } else {

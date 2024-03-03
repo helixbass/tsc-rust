@@ -496,11 +496,16 @@ impl TypeChecker {
         strings_only: bool,
     ) -> Id<Type> {
         if strings_only {
-            let type_ref = type_.ref_(self);
-            if type_ref.maybe_resolved_string_index_type().is_none() {
-                type_ref.set_resolved_string_index_type(Some(self.create_index_type(type_, true)));
+            if type_
+                .ref_(self)
+                .maybe_resolved_string_index_type()
+                .is_none()
+            {
+                type_
+                    .ref_(self)
+                    .set_resolved_string_index_type(Some(self.create_index_type(type_, true)));
             }
-            type_ref.maybe_resolved_string_index_type().unwrap()
+            type_.ref_(self).maybe_resolved_string_index_type().unwrap()
         } else {
             if type_.ref_(self).maybe_resolved_index_type().is_none() {
                 let index_type = self.create_index_type(type_, false);
