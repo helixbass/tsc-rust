@@ -942,7 +942,7 @@ pub trait SymbolTracker {
         None
     }
     fn is_track_symbol_supported(&self) -> bool;
-    fn disable_track_symbol(&self);
+    fn disable_track_symbol(&self) -> bool;
     fn reenable_track_symbol(&self);
     fn report_inaccessible_this_error(&self) {}
     fn is_report_inaccessible_this_error_supported(&self) -> bool;

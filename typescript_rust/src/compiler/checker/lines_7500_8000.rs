@@ -111,7 +111,8 @@ impl SymbolTableToDeclarationStatements {
                 // if (referenced || target) {
                 self.include_private_symbol(referenced.unwrap_or(target));
                 // }
-                self.context()
+                let was_track_symbol_enabled = self
+                    .context()
                     .ref_(self)
                     .tracker_ref()
                     .disable_track_symbol();
@@ -160,10 +161,12 @@ impl SymbolTableToDeclarationStatements {
                         self.serialize_export_specifier(name, &var_name, Option::<Id<Node>>::None);
                     }
                 }
-                self.context()
-                    .ref_(self)
-                    .tracker_ref()
-                    .reenable_track_symbol();
+                if was_track_symbol_enabled {
+                    self.context()
+                        .ref_(self)
+                        .tracker_ref()
+                        .reenable_track_symbol();
+                }
                 true
             } else {
                 let var_name = self.get_unused_name(name, Some(symbol));

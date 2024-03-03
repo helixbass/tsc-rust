@@ -370,10 +370,10 @@ impl SymbolTracker for TextWriter {
             .is_track_symbol_supported()
     }
 
-    fn disable_track_symbol(&self) {
+    fn disable_track_symbol(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
             .ref_(self)
-            .disable_track_symbol();
+            .disable_track_symbol()
     }
 
     fn reenable_track_symbol(&self) {
@@ -456,7 +456,9 @@ impl SymbolTracker for TextWriterSymbolTracker {
         true
     }
 
-    fn disable_track_symbol(&self) {}
+    fn disable_track_symbol(&self) -> bool {
+        true
+    }
 
     fn reenable_track_symbol(&self) {}
 
@@ -729,10 +731,10 @@ impl SymbolTracker for TrailingSemicolonDeferringWriter {
             .is_track_symbol_supported()
     }
 
-    fn disable_track_symbol(&self) {
+    fn disable_track_symbol(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
             .ref_(self)
-            .disable_track_symbol();
+            .disable_track_symbol()
     }
 
     fn reenable_track_symbol(&self) {
@@ -791,7 +793,9 @@ impl SymbolTracker for TrailingSemicolonDeferringWriterSymbolTracker {
         false
     }
 
-    fn disable_track_symbol(&self) {}
+    fn disable_track_symbol(&self) -> bool {
+        true
+    }
 
     fn reenable_track_symbol(&self) {}
 

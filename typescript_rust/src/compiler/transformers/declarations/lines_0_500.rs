@@ -1397,8 +1397,10 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
         true
     }
 
-    fn disable_track_symbol(&self) {
+    fn disable_track_symbol(&self) -> bool {
+        let ret = !self.is_track_symbol_disabled.get();
         self.is_track_symbol_disabled.set(true);
+        ret
     }
 
     fn reenable_track_symbol(&self) {

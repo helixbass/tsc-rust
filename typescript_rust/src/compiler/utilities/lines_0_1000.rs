@@ -276,7 +276,7 @@ impl SymbolTracker for SingleLineStringWriter {
     fn disable_track_symbol(&self) {
         self._dyn_symbol_tracker_wrapper
             .ref_(self)
-            .disable_track_symbol();
+            .disable_track_symbol()
     }
 
     fn reenable_track_symbol(&self) {
@@ -376,7 +376,9 @@ impl SymbolTracker for SingleLineStringWriterSymbolTracker {
         true
     }
 
-    fn disable_track_symbol(&self) {}
+    fn disable_track_symbol(&self) -> bool {
+        true
+    }
 
     fn reenable_track_symbol(&self) {}
 

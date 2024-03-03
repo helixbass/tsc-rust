@@ -772,9 +772,7 @@ impl NodeBuilder {
         );
         let context_tracker =
             wrap_symbol_tracker_to_report_for_context(context.clone(), tracker, self);
-        context
-            .ref_(self)
-            .set_tracker(self.alloc_symbol_tracker(Box::new(context_tracker)));
+        context.ref_(self).set_tracker(context_tracker);
         let resulting_node = cb(context);
         if context.ref_(self).truncating.get() == Some(true)
             && context
@@ -826,9 +824,7 @@ impl NodeBuilder {
         );
         let context_tracker =
             wrap_symbol_tracker_to_report_for_context(context.clone(), tracker, self);
-        context
-            .ref_(self)
-            .set_tracker(self.alloc_symbol_tracker(Box::new(context_tracker)));
+        context.ref_(self).set_tracker(context_tracker);
         let resulting_node = cb(context)?;
         if context.ref_(self).truncating.get() == Some(true)
             && context
@@ -1600,7 +1596,9 @@ impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {
         true
     }
 
-    fn disable_track_symbol(&self) {}
+    fn disable_track_symbol(&self) -> bool {
+        true
+    }
 
     fn reenable_track_symbol(&self) {}
 
@@ -1781,8 +1779,22 @@ pub(super) fn wrap_symbol_tracker_to_report_for_context(
     context: Id<NodeBuilderContext>,
     tracker: Id<Box<dyn SymbolTracker>>,
     arena: &impl HasArena,
-) -> NodeBuilderContextWrappedSymbolTracker {
-    NodeBuilderContextWrappedSymbolTracker::new(tracker, context, arena)
+) -> Id<Box<dyn SymbolTracker>> {
+    thread_local! {
+        static PER_ARENA_CONTEXT_AND_TRACKER: RefCell<HashMap<(AllArenasId, Id<NodeBuilderContext>, Id<Box<dyn SymbolTracker>>), Id<Box<dyn SymbolTracker>>>> = RefCell::new(HashMap::new());
+    }
+
+    PER_ARENA_CONTEXT_AND_TRACKER.with(|per_arena| {
+        let mut per_arena = per_arena.borrow_mut();
+        let arena_id = arena.all_arenas_id();
+        *per_arena
+            .entry((arena_id, context, tracker))
+            .or_insert_with(|| {
+                arena.alloc_symbol_tracker(Box::new(NodeBuilderContextWrappedSymbolTracker::new(
+                    tracker, context, arena,
+                )))
+            })
+    })
 }
 
 pub(super) struct NodeBuilderContextWrappedSymbolTracker {
@@ -1977,8 +1989,10 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
         self.tracker.ref_(self).is_track_symbol_supported()
     }
 
-    fn disable_track_symbol(&self) {
+    fn disable_track_symbol(&self) -> bool {
+        let ret = !self.is_track_symbol_disabled.get();
         self.is_track_symbol_disabled.set(true);
+        ret
     }
 
     fn reenable_track_symbol(&self) {

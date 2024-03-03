@@ -681,9 +681,7 @@ impl NodeBuilder {
         }
         let initial_tracker =
             wrap_symbol_tracker_to_report_for_context(context, initial.ref_(self).tracker(), self);
-        initial
-            .ref_(self)
-            .set_tracker(self.alloc_symbol_tracker(Box::new(initial_tracker)));
+        initial.ref_(self).set_tracker(context_tracker);
         initial
     }
 

@@ -147,13 +147,11 @@ impl SymbolTableToDeclarationStatements {
             ));
         context
             .ref_(arena)
-            .set_tracker(arena.alloc_symbol_tracker(Box::new(
-                wrap_symbol_tracker_to_report_for_context(
-                    context.clone(),
-                    context.ref_(arena).tracker(),
-                    arena,
-                ),
-            )));
+            .set_tracker(wrap_symbol_tracker_to_report_for_context(
+                context.clone(),
+                context.ref_(arena).tracker(),
+                arena,
+            ));
         ret
     }
 
@@ -1265,8 +1263,10 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
         Some(Ok(false))
     }
 
-    fn disable_track_symbol(&self) {
+    fn disable_track_symbol(&self) -> bool {
+        let ret = !self.is_track_symbol_disabled.get();
         self.is_track_symbol_disabled.set(true);
+        ret
     }
 
     fn reenable_track_symbol(&self) {
