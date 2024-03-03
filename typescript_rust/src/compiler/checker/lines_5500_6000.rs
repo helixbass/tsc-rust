@@ -829,11 +829,13 @@ impl NodeBuilder {
             None,
         )?;
         if let Some(name) = name {
-            context.ref_(self).tracker_ref().track_symbol(
-                name,
-                enclosing_declaration,
-                SymbolFlags::Value,
-            );
+            context
+                .ref_(self)
+                .tracker_ref()
+                .get_track_symbol()
+                .map(|track_symbol| {
+                    track_symbol.track_symbol(name, enclosing_declaration, SymbolFlags::Value)
+                });
         }
 
         Ok(())
@@ -846,14 +848,20 @@ impl NodeBuilder {
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
         yield_module_symbol: Option<bool>,
     ) -> io::Result<Vec<Id<Symbol>>> {
-        context.ref_(self).tracker_ref().track_symbol(
-            symbol,
-            context.ref_(self).maybe_enclosing_declaration(),
-            // TODO: it looks like this is a place where the Typescript version "lied", I don't
-            // know if we should "bubble down" the "real" Option<SymbolFlags> type into the
-            // signature of .track_symbol()?
-            meaning.unwrap_or(SymbolFlags::None),
-        );
+        context
+            .ref_(self)
+            .tracker_ref()
+            .get_track_symbol()
+            .map(|track_symbol| {
+                track_symbol.track_symbol(
+                    symbol,
+                    context.ref_(self).maybe_enclosing_declaration(),
+                    // TODO: it looks like this is a place where the Typescript version "lied", I don't
+                    // know if we should "bubble down" the "real" Option<SymbolFlags> type into the
+                    // signature of .track_symbol()?
+                    meaning.unwrap_or(SymbolFlags::None),
+                )
+            });
         self.lookup_symbol_chain_worker(symbol, context, meaning, yield_module_symbol)
     }
 

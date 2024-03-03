@@ -37,9 +37,9 @@ use crate::{
     NodeBuilderFlags, NodeFactory, NodeId, NodeInterface, NonEmpty, ReadonlyTextRange,
     ScriptReferenceHost, SourceFileLike, Symbol, SymbolAccessibility,
     SymbolAccessibilityDiagnostic, SymbolAccessibilityResult, SymbolFlags, SymbolInterface,
-    SymbolTracker, SyntaxKind, TextRange, TransformNodesTransformationResult,
-    TransformationContext, TransformationResult, Transformer, TransformerFactory,
-    TransformerFactoryInterface, TransformerInterface, VisitResult,
+    SymbolTracker, SymbolTrackerTrackSymbol, SyntaxKind, TextRange,
+    TransformNodesTransformationResult, TransformationContext, TransformationResult, Transformer,
+    TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
 };
 
 pub fn get_declaration_diagnostics(
@@ -1344,53 +1344,10 @@ impl TransformDeclarationsSymbolTracker {
 }
 
 impl SymbolTracker for TransformDeclarationsSymbolTracker {
-    fn track_symbol(
-        &self,
-        symbol: Id<Symbol>,
-        enclosing_declaration: Option<Id<Node>>,
-        meaning: SymbolFlags,
-    ) -> Option<io::Result<bool>> {
-        if self.is_track_symbol_disabled.get() {
-            return Some(Ok(false));
-        }
-        if symbol
-            .ref_(self)
-            .flags()
-            .intersects(SymbolFlags::TypeParameter)
-        {
-            return Some(Ok(false));
-        }
-        let issued_diagnostic = self
-            .transform_declarations()
-            .handle_symbol_accessibility_error(&match self
-                .transform_declarations()
-                .resolver
-                .ref_(self)
-                .is_symbol_accessible(
-                    symbol,
-                    // TODO: it sort of looks like maybe the signature for .track_symbol() should take
-                    // an Option<Id<Node>> instead?
-                    enclosing_declaration,
-                    Some(meaning),
-                    true,
-                ) {
-                Err(err) => return Some(Err(err)),
-                Ok(value) => value,
-            });
-        self.transform_declarations()
-            .record_type_reference_directives_if_necessary(
-                match self
-                    .transform_declarations()
-                    .resolver
-                    .ref_(self)
-                    .get_type_reference_directives_for_symbol(symbol, Some(meaning))
-                {
-                    Err(err) => return Some(Err(err)),
-                    Ok(value) => value,
-                }
-                .as_deref(),
-            );
-        Some(Ok(issued_diagnostic))
+    fn get_track_symbol(&self) -> Option<Box<dyn SymbolTrackerTrackSymbol>> {
+        Some(Box::new(
+            TransformDeclarationsSymbolTrackerTrackSymbol::new(self),
+        ))
     }
 
     fn is_track_symbol_supported(&self) -> bool {
@@ -1660,6 +1617,73 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
 }
 
 impl_has_arena!(TransformDeclarationsSymbolTracker);
+
+struct TransformDeclarationsSymbolTrackerTrackSymbol {
+    arena: *const AllArenas,
+    is_track_symbol_disabled: bool,
+    transform_declarations: Transformer,
+}
+
+impl TransformDeclarationsSymbolTrackerTrackSymbol {
+    fn new(value: &TransformDeclarationsSymbolTracker) -> Self {
+        Self {
+            arena: value.arena,
+            is_track_symbol_disabled: value.is_track_symbol_disabled.get(),
+            transform_declarations: value.transform_declarations,
+        }
+    }
+
+    pub(super) fn transform_declarations(&self) -> debug_cell::Ref<'_, TransformDeclarations> {
+        downcast_transformer_ref(self.transform_declarations, self)
+    }
+}
+
+impl SymbolTrackerTrackSymbol for TransformDeclarationsSymbolTrackerTrackSymbol {
+    fn track_symbol(
+        &self,
+        symbol: Id<Symbol>,
+        enclosing_declaration: Option<Id<Node>>,
+        meaning: SymbolFlags,
+    ) -> io::Result<bool> {
+        if self.is_track_symbol_disabled {
+            return Ok(false);
+        }
+        if symbol
+            .ref_(self)
+            .flags()
+            .intersects(SymbolFlags::TypeParameter)
+        {
+            return Ok(false);
+        }
+        let issued_diagnostic = self
+            .transform_declarations()
+            .handle_symbol_accessibility_error(
+                &self
+                    .transform_declarations()
+                    .resolver
+                    .ref_(self)
+                    .is_symbol_accessible(
+                        symbol,
+                        // TODO: it sort of looks like maybe the signature for .track_symbol() should take
+                        // an Option<Id<Node>> instead?
+                        enclosing_declaration,
+                        Some(meaning),
+                        true,
+                    )?,
+            );
+        self.transform_declarations()
+            .record_type_reference_directives_if_necessary(
+                self.transform_declarations()
+                    .resolver
+                    .ref_(self)
+                    .get_type_reference_directives_for_symbol(symbol, Some(meaning))?
+                    .as_deref(),
+            );
+        Ok(issued_diagnostic)
+    }
+}
+
+impl_has_arena!(TransformDeclarationsSymbolTrackerTrackSymbol);
 
 pub(super) struct TransformDeclarationsForJSGetSymbolAccessibilityDiagnostic {
     arena: *const AllArenas,

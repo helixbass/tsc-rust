@@ -933,12 +933,7 @@ pub trait ModuleSpecifierCache {
 }
 
 pub trait SymbolTracker {
-    fn track_symbol(
-        &self,
-        _symbol: Id<Symbol>,
-        _enclosing_declaration: Option<Id<Node>>,
-        _meaning: SymbolFlags,
-    ) -> Option<io::Result<bool>> {
+    fn get_track_symbol(&self) -> Option<Box<dyn SymbolTrackerTrackSymbol>> {
         None
     }
     fn is_track_symbol_supported(&self) -> bool;
@@ -980,6 +975,15 @@ pub trait SymbolTracker {
     fn is_report_nonlocal_augmentation_supported(&self) -> bool;
     fn report_non_serializable_property(&self, _property_name: &str) {}
     fn is_report_non_serializable_property_supported(&self) -> bool;
+}
+
+pub trait SymbolTrackerTrackSymbol {
+    fn track_symbol(
+        &self,
+        symbol: Id<Symbol>,
+        enclosing_declaration: Option<Id<Node>>,
+        meaning: SymbolFlags,
+    ) -> io::Result<bool>;
 }
 
 pub trait ModuleSpecifierResolutionHostAndGetCommonSourceDirectory:

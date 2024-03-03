@@ -21,8 +21,8 @@ use crate::{
     FunctionLikeDeclarationInterface, HasArena, HasTypeInterface, InArena, ModuleKind,
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, NamedDeclarationInterface, Node,
     NodeInterface, OptionInArena, OptionTry, ScriptReferenceHost, SignatureDeclarationInterface,
-    SourceFileMayBeEmittedHost, Symbol, SymbolFlags, SymbolTracker, SymbolWriter, SyntaxKind,
-    WriteFileCallback,
+    SourceFileMayBeEmittedHost, Symbol, SymbolFlags, SymbolTracker, SymbolTrackerTrackSymbol,
+    SymbolWriter, SyntaxKind, WriteFileCallback,
 };
 
 pub(super) fn is_quote_or_backtick(char_code: char) -> bool {
@@ -351,17 +351,10 @@ impl SymbolWriter for TextWriter {
 }
 
 impl SymbolTracker for TextWriter {
-    fn track_symbol(
-        &self,
-        symbol: Id<Symbol>,
-        enclosing_declaration: Option<Id<Node>>,
-        meaning: SymbolFlags,
-    ) -> Option<io::Result<bool>> {
-        self._dyn_symbol_tracker_wrapper.ref_(self).track_symbol(
-            symbol,
-            enclosing_declaration,
-            meaning,
-        )
+    fn get_track_symbol(&self) -> Option<Box<dyn SymbolTrackerTrackSymbol>> {
+        self._dyn_symbol_tracker_wrapper
+            .ref_(self)
+            .get_track_symbol()
     }
 
     fn is_track_symbol_supported(&self) -> bool {
@@ -443,13 +436,8 @@ impl_has_arena!(TextWriter);
 struct TextWriterSymbolTracker;
 
 impl SymbolTracker for TextWriterSymbolTracker {
-    fn track_symbol(
-        &self,
-        _symbol: Id<Symbol>,
-        _enclosing_declaration: Option<Id<Node>>,
-        _meaning: SymbolFlags,
-    ) -> Option<io::Result<bool>> {
-        Some(Ok(false))
+    fn get_track_symbol(&self) -> Option<Box<dyn SymbolTrackerTrackSymbol>> {
+        Some(Box::new(TextWriterSymbolTrackerTrackSymbol))
     }
 
     fn is_track_symbol_supported(&self) -> bool {
@@ -495,6 +483,19 @@ impl SymbolTracker for TextWriterSymbolTracker {
 
     fn is_track_referenced_ambient_module_supported(&self) -> bool {
         false
+    }
+}
+
+struct TextWriterSymbolTrackerTrackSymbol;
+
+impl SymbolTrackerTrackSymbol for TextWriterSymbolTrackerTrackSymbol {
+    fn track_symbol(
+        &self,
+        _symbol: Id<Symbol>,
+        _enclosing_declaration: Option<Id<Node>>,
+        _meaning: SymbolFlags,
+    ) -> io::Result<bool> {
+        Ok(false)
     }
 }
 

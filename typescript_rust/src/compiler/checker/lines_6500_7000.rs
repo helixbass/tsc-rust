@@ -28,7 +28,7 @@ use crate::{
     LiteralLikeNodeInterface, ModifierFlags, Node, NodeArray, NodeArrayOrVec, NodeBuilder,
     NodeBuilderFlags, NodeFlags, NodeInterface, OptionInArena, StrOrRcNode, Symbol,
     SymbolAccessibility, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
-    SyntaxKind, TypeChecker, TypeInterface,
+    SymbolTrackerTrackSymbol, SyntaxKind, TypeChecker, TypeInterface,
 };
 
 impl NodeBuilder {
@@ -987,11 +987,11 @@ impl SymbolTableToDeclarationStatements {
                             ),
                             ModifierFlags::None
                         );
-                        self.context().ref_(self).tracker_ref().track_symbol(
+                        self.context().ref_(self).tracker_ref().get_track_symbol().map(|track_symbol| track_symbol.track_symbol(
                             type_.ref_(self).symbol(),
                             self.context().ref_(self).maybe_enclosing_declaration(),
                             SymbolFlags::Value,
-                        ).transpose()?;
+                        )).transpose()?;
                     } else {
                         let statement = set_text_range_id_node(
                             get_factory(self).create_variable_statement(
@@ -1218,51 +1218,10 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
         true
     }
 
-    fn track_symbol(
-        &self,
-        sym: Id<Symbol>,
-        decl: Option<Id<Node>>,
-        meaning: SymbolFlags,
-    ) -> Option<io::Result<bool>> {
-        if self.is_track_symbol_disabled.get() {
-            return Some(Ok(false));
-        }
-        let accessible_result =
-            self.type_checker
-                .ref_(self)
-                .is_symbol_accessible(Some(sym), decl, meaning, false);
-        let accessible_result = match accessible_result {
-            Err(accessible_result) => return Some(Err(accessible_result)),
-            Ok(accessible_result) => accessible_result,
-        };
-        if accessible_result.accessibility == SymbolAccessibility::Accessible {
-            let chain = match self.node_builder.lookup_symbol_chain_worker(
-                sym,
-                self.context,
-                Some(meaning),
-                None,
-            ) {
-                Err(err) => return Some(Err(err)),
-                Ok(chain) => chain,
-            };
-            if !sym.ref_(self).flags().intersects(SymbolFlags::Property) {
-                self.symbol_table_to_declaration_statements
-                    .ref_(self)
-                    .include_private_symbol(chain[0]);
-            }
-        } else if
-        /*oldcontext.tracker && */
-        self
-            .oldcontext_tracker
-            .ref_(self)
-            .is_track_symbol_supported()
-        {
-            return self
-                .oldcontext_tracker
-                .ref_(self)
-                .track_symbol(sym, decl, meaning);
-        }
-        Some(Ok(false))
+    fn get_track_symbol(&self) -> Option<Box<dyn SymbolTrackerTrackSymbol>> {
+        Some(Box::new(
+            SymbolTableToDeclarationStatementsSymbolTrackerTrackSymbol::new(self),
+        ))
     }
 
     fn disable_track_symbol(&self) {
@@ -1402,6 +1361,80 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
 }
 
 impl_has_arena!(SymbolTableToDeclarationStatementsSymbolTracker);
+
+struct SymbolTableToDeclarationStatementsSymbolTrackerTrackSymbol {
+    arena: *const AllArenas,
+    is_track_symbol_disabled: bool,
+    type_checker: Id<TypeChecker>,
+    node_builder: NodeBuilder,
+    context: Id<NodeBuilderContext>,
+    symbol_table_to_declaration_statements: Id<SymbolTableToDeclarationStatements>,
+    oldcontext_tracker: Id<Box<dyn SymbolTracker>>,
+}
+
+impl SymbolTableToDeclarationStatementsSymbolTrackerTrackSymbol {
+    fn new(value: &SymbolTableToDeclarationStatementsSymbolTracker) -> Self {
+        Self {
+            arena: value.arena,
+            is_track_symbol_disabled: value.is_track_symbol_disabled.get(),
+            type_checker: value.type_checker,
+            node_builder: value.node_builder.clone(),
+            context: value.context,
+            symbol_table_to_declaration_statements: value.symbol_table_to_declaration_statements,
+            oldcontext_tracker: value.oldcontext_tracker,
+        }
+    }
+}
+
+impl SymbolTrackerTrackSymbol for SymbolTableToDeclarationStatementsSymbolTrackerTrackSymbol {
+    fn track_symbol(
+        &self,
+        sym: Id<Symbol>,
+        decl: Option<Id<Node>>,
+        meaning: SymbolFlags,
+    ) -> io::Result<bool> {
+        if self.is_track_symbol_disabled {
+            return Ok(false);
+        }
+        let accessible_result =
+            self.type_checker
+                .ref_(self)
+                .is_symbol_accessible(Some(sym), decl, meaning, false);
+        let accessible_result = match accessible_result {
+            Err(accessible_result) => return Err(accessible_result),
+            Ok(accessible_result) => accessible_result,
+        };
+        if accessible_result.accessibility == SymbolAccessibility::Accessible {
+            let chain = self.node_builder.lookup_symbol_chain_worker(
+                sym,
+                self.context,
+                Some(meaning),
+                None,
+            )?;
+            if !sym.ref_(self).flags().intersects(SymbolFlags::Property) {
+                self.symbol_table_to_declaration_statements
+                    .ref_(self)
+                    .include_private_symbol(chain[0]);
+            }
+        } else if
+        /*oldcontext.tracker && */
+        self
+            .oldcontext_tracker
+            .ref_(self)
+            .is_track_symbol_supported()
+        {
+            return self
+                .oldcontext_tracker
+                .ref_(self)
+                .get_track_symbol()
+                .unwrap()
+                .track_symbol(sym, decl, meaning);
+        }
+        Ok(false)
+    }
+}
+
+impl_has_arena!(SymbolTableToDeclarationStatementsSymbolTrackerTrackSymbol);
 
 pub(super) struct MakeSerializePropertySymbolCreatePropertyDeclaration {
     arena: *const AllArenas,

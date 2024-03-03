@@ -924,11 +924,17 @@ impl NodeBuilder {
             {
                 introduces_error = true;
             } else {
-                context.ref_(self).tracker_ref().track_symbol(
-                    sym,
-                    context.ref_(self).maybe_enclosing_declaration(),
-                    SymbolFlags::All,
-                );
+                context
+                    .ref_(self)
+                    .tracker_ref()
+                    .get_track_symbol()
+                    .map(|track_symbol| {
+                        track_symbol.track_symbol(
+                            sym,
+                            context.ref_(self).maybe_enclosing_declaration(),
+                            SymbolFlags::All,
+                        )
+                    });
                 if let Some(include_private_symbol) = include_private_symbol {
                     include_private_symbol(sym);
                 }

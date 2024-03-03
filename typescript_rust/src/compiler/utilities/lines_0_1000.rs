@@ -41,8 +41,8 @@ use crate::{
     Node, NodeArray, NodeFlags, NodeInterface, OptionInArena, PackageId, ProjectReference,
     ReadonlyCollection, ReadonlyTextRange, ResolvedModuleFull, ResolvedTypeReferenceDirective,
     ScriptKind, SignatureDeclarationInterface, SourceFileLike, SourceTextAsChars, StringOrNumber,
-    Symbol, SymbolFlags, SymbolInterface, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind,
-    TextRange, TokenFlags, Type, UnderscoreEscapedMap,
+    Symbol, SymbolFlags, SymbolInterface, SymbolTable, SymbolTracker, SymbolTrackerTrackSymbol,
+    SymbolWriter, SyntaxKind, TextRange, TokenFlags, Type, UnderscoreEscapedMap,
 };
 
 pub fn resolving_empty_array(arena: &impl HasArena) -> Id<Vec<Id<Type>>> {
@@ -255,17 +255,10 @@ impl SymbolWriter for SingleLineStringWriter {
 }
 
 impl SymbolTracker for SingleLineStringWriter {
-    fn track_symbol(
-        &self,
-        symbol: Id<Symbol>,
-        enclosing_declaration: Option<Id<Node>>,
-        meaning: SymbolFlags,
-    ) -> Option<io::Result<bool>> {
-        self._dyn_symbol_tracker_wrapper.ref_(self).track_symbol(
-            symbol,
-            enclosing_declaration,
-            meaning,
-        )
+    fn get_track_symbol(&self) -> Option<Box<dyn SymbolTrackerTrackSymbol>> {
+        self._dyn_symbol_tracker_wrapper
+            .ref_(self)
+            .get_track_symbol()
     }
 
     fn is_track_symbol_supported(&self) -> bool {
@@ -364,13 +357,8 @@ impl_has_arena!(SingleLineStringWriter);
 struct SingleLineStringWriterSymbolTracker;
 
 impl SymbolTracker for SingleLineStringWriterSymbolTracker {
-    fn track_symbol(
-        &self,
-        _symbol: Id<Symbol>,
-        _enclosing_declaration: Option<Id<Node>>,
-        _meaning: SymbolFlags,
-    ) -> Option<io::Result<bool>> {
-        Some(Ok(false))
+    fn get_track_symbol(&self) -> Option<Box<dyn SymbolTrackerTrackSymbol>> {
+        Some(Box::new(SingleLineStringWriterSymbolTrackerTrackSymbol))
     }
 
     fn is_track_symbol_supported(&self) -> bool {
@@ -421,6 +409,19 @@ impl SymbolTracker for SingleLineStringWriterSymbolTracker {
 
     fn is_track_referenced_ambient_module_supported(&self) -> bool {
         false
+    }
+}
+
+struct SingleLineStringWriterSymbolTrackerTrackSymbol;
+
+impl SymbolTrackerTrackSymbol for SingleLineStringWriterSymbolTrackerTrackSymbol {
+    fn track_symbol(
+        &self,
+        _symbol: Id<Symbol>,
+        _enclosing_declaration: Option<Id<Node>>,
+        _meaning: SymbolFlags,
+    ) -> io::Result<bool> {
+        Ok(false)
     }
 }
 

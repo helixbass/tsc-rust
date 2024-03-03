@@ -27,8 +27,8 @@ use crate::{
     NodeBuilderFlags, NodeFlags, NodeInterface, ObjectFlags, Path, PrinterOptionsBuilder, Program,
     RedirectTargetsMap, ScriptTarget, Signature, SignatureKind, Symbol, SymbolAccessibility,
     SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
-    SymbolVisibilityResult, SymlinkCache, SyntaxKind, Type, TypeChecker, TypeCheckerHost,
-    TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
+    SymbolTrackerTrackSymbol, SymbolVisibilityResult, SymlinkCache, SyntaxKind, Type, TypeChecker,
+    TypeCheckerHost, TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
 };
 
 impl TypeChecker {
@@ -1604,13 +1604,8 @@ impl DefaultNodeBuilderContextSymbolTracker {
 }
 
 impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {
-    fn track_symbol(
-        &self,
-        _symbol: Id<Symbol>,
-        _enclosing_declaration: Option<Id<Node>>,
-        _meaning: SymbolFlags,
-    ) -> Option<io::Result<bool>> {
-        Some(Ok(false))
+    fn get_track_symbol(&self) -> Option<Box<dyn SymbolTrackerTrackSymbol>> {
+        Some(Box::new(DefaultNodeBuilderContextSymbolTrackerTrackSymbol))
     }
 
     fn is_track_symbol_supported(&self) -> bool {
@@ -1662,6 +1657,19 @@ impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {
 
     fn is_track_referenced_ambient_module_supported(&self) -> bool {
         false
+    }
+}
+
+struct DefaultNodeBuilderContextSymbolTrackerTrackSymbol;
+
+impl SymbolTrackerTrackSymbol for DefaultNodeBuilderContextSymbolTrackerTrackSymbol {
+    fn track_symbol(
+        &self,
+        _symbol: Id<Symbol>,
+        _enclosing_declaration: Option<Id<Node>>,
+        _meaning: SymbolFlags,
+    ) -> io::Result<bool> {
+        Ok(false)
     }
 }
 
@@ -1917,29 +1925,10 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
             .is_report_non_serializable_property_supported()
     }
 
-    fn track_symbol(
-        &self,
-        symbol: Id<Symbol>,
-        enclosing_declaration: Option<Id<Node>>,
-        meaning: SymbolFlags,
-    ) -> Option<io::Result<bool>> {
-        if self.is_track_symbol_disabled.get() {
-            return Some(Ok(false));
-        }
-        let result = self
-            .tracker
-            .ref_(self)
-            .track_symbol(symbol, enclosing_declaration, meaning);
-        if matches!(
-            result.as_ref(),
-            Some(result) if matches!(
-                result,
-                Ok(result) if *result
-            )
-        ) {
-            self.mark_context_reported_diagnostic();
-        }
-        result
+    fn get_track_symbol(&self) -> Option<Box<dyn SymbolTrackerTrackSymbol>> {
+        Some(Box::new(
+            NodeBuilderContextWrappedSymbolTrackerTrackSymbol::new(self),
+        ))
     }
 
     fn is_track_symbol_supported(&self) -> bool {
@@ -1992,6 +1981,56 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
 }
 
 impl_has_arena!(NodeBuilderContextWrappedSymbolTracker);
+
+struct NodeBuilderContextWrappedSymbolTrackerTrackSymbol {
+    arena: *const AllArenas,
+    is_track_symbol_disabled: bool,
+    tracker: Id<Box<dyn SymbolTracker>>,
+    context: Id<NodeBuilderContext>,
+}
+
+impl NodeBuilderContextWrappedSymbolTrackerTrackSymbol {
+    fn new(value: &NodeBuilderContextWrappedSymbolTracker) -> Self {
+        Self {
+            arena: value.arena,
+            is_track_symbol_disabled: value.is_track_symbol_disabled.get(),
+            tracker: value.tracker,
+            context: value.context,
+        }
+    }
+
+    fn mark_context_reported_diagnostic(&self) {
+        self.context.ref_(self).reported_diagnostic.set(true);
+    }
+}
+
+impl SymbolTrackerTrackSymbol for NodeBuilderContextWrappedSymbolTrackerTrackSymbol {
+    fn track_symbol(
+        &self,
+        symbol: Id<Symbol>,
+        enclosing_declaration: Option<Id<Node>>,
+        meaning: SymbolFlags,
+    ) -> io::Result<bool> {
+        if self.is_track_symbol_disabled {
+            return Ok(false);
+        }
+        let result = self
+            .tracker
+            .ref_(self)
+            .get_track_symbol()
+            .unwrap()
+            .track_symbol(symbol, enclosing_declaration, meaning);
+        if matches!(
+            result,
+            Ok(result) if result
+        ) {
+            self.mark_context_reported_diagnostic();
+        }
+        result
+    }
+}
+
+impl_has_arena!(NodeBuilderContextWrappedSymbolTrackerTrackSymbol);
 
 pub struct NodeBuilderContext {
     arena: *const AllArenas,
