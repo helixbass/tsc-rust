@@ -851,7 +851,7 @@ impl NodeBuilder {
         released!(context.ref_(self).tracker_ref().get_track_symbol()).map(|track_symbol| {
             track_symbol.track_symbol(
                 symbol,
-                context.ref_(self).maybe_enclosing_declaration(),
+                released!(context.ref_(self).maybe_enclosing_declaration()),
                 // TODO: it looks like this is a place where the Typescript version "lied", I don't
                 // know if we should "bubble down" the "real" Option<SymbolFlags> type into the
                 // signature of .track_symbol()?
