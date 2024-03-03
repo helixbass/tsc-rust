@@ -713,7 +713,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         if template.ref_(self).parent().ref_(self).kind() == SyntaxKind::TaggedTemplateExpression {
             return self.get_contextual_type_for_argument(
-                template.ref_(self).parent(),
+                released!(template.ref_(self).parent()),
                 substitution_expression,
             );
         }

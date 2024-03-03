@@ -978,7 +978,7 @@ impl TypeChecker {
                     None,
                 );
                 self.get_contextual_type_for_substitution_expression(
-                    parent.ref_(self).parent(),
+                    released!(parent.ref_(self).parent()),
                     node,
                 )?
             }

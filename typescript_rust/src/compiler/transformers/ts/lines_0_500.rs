@@ -769,20 +769,19 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
         &self,
         node: Id<Node>, /*ShorthandPropertyAssignment*/
     ) -> io::Result<Id<Node /*ObjectLiteralElementLike*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_shorthand_property_assignment = node_ref.as_shorthand_property_assignment();
         if self
             .transform_type_script()
             .enabled_substitutions()
             .intersects(TypeScriptSubstitutionFlags::NamespaceExports)
         {
-            let name = node_as_shorthand_property_assignment.name();
+            let name = node.ref_(self).as_shorthand_property_assignment().name();
             let exported_name = self.try_substitute_namespace_exported_name(name)?;
             if let Some(exported_name) = exported_name {
-                if let Some(node_object_assignment_initializer) =
-                    node_as_shorthand_property_assignment
-                        .object_assignment_initializer
-                        .as_ref()
+                if let Some(node_object_assignment_initializer) = node
+                    .ref_(self)
+                    .as_shorthand_property_assignment()
+                    .object_assignment_initializer
+                    .as_ref()
                 {
                     let initializer = self
                         .transform_type_script()

@@ -517,11 +517,11 @@ impl Printer {
             None,
         )?;
         Ok(
-            if let Some(node_object_assignment_initializer) = node
-                .ref_(self)
-                .as_shorthand_property_assignment()
-                .object_assignment_initializer
-            {
+            if let Some(node_object_assignment_initializer) = released!(
+                node.ref_(self)
+                    .as_shorthand_property_assignment()
+                    .object_assignment_initializer
+            ) {
                 self.write_space();
                 self.write_punctuation("=");
                 self.write_space();

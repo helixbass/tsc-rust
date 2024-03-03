@@ -224,7 +224,7 @@ impl TransformSystemModule {
                             .ref_(self)
                             .create_class_expression(
                                 try_maybe_visit_nodes(
-                                    node.ref_(self).maybe_decorators(),
+                                    released!(node.ref_(self).maybe_decorators()),
                                     Some(|node: Id<Node>| self.visitor(node)),
                                     Some(|node: Id<Node>| is_decorator(&node.ref_(self))),
                                     None,
@@ -232,12 +232,13 @@ impl TransformSystemModule {
                                     self,
                                 )?,
                                 Option::<Id<NodeArray>>::None,
-                                node.ref_(self).as_class_declaration().maybe_name(),
+                                released!(node.ref_(self).as_class_declaration().maybe_name()),
                                 Option::<Id<NodeArray>>::None,
                                 try_maybe_visit_nodes(
-                                    node.ref_(self)
+                                    released!(node
+                                        .ref_(self)
                                         .as_class_declaration()
-                                        .maybe_heritage_clauses(),
+                                        .maybe_heritage_clauses()),
                                     Some(|node: Id<Node>| self.visitor(node)),
                                     Some(|node: Id<Node>| is_heritage_clause(&node.ref_(self))),
                                     None,
@@ -245,7 +246,7 @@ impl TransformSystemModule {
                                     self,
                                 )?,
                                 try_visit_nodes(
-                                    node.ref_(self).as_class_declaration().members(),
+                                    released!(node.ref_(self).as_class_declaration().members()),
                                     Some(|node: Id<Node>| self.visitor(node)),
                                     Some(|node: Id<Node>| is_class_element(&node.ref_(self))),
                                     None,

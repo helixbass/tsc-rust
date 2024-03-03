@@ -124,16 +124,14 @@ impl Printer {
         &self,
         node: Id<Node>, /*PropertySignature*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_property_signature = node_ref.as_property_signature();
         self.emit_decorators(node, node.ref_(self).maybe_decorators())?;
         self.emit_modifiers(node, node.ref_(self).maybe_modifiers())?;
         self.emit_node_with_writer(
-            Some(node_as_property_signature.name()),
+            Some(node.ref_(self).as_property_signature().name()),
             Printer::write_property,
         )?;
-        self.emit(node_as_property_signature.question_token, None)?;
-        self.emit_type_annotation(node_as_property_signature.maybe_type())?;
+        self.emit(node.ref_(self).as_property_signature().question_token, None)?;
+        self.emit_type_annotation(node.ref_(self).as_property_signature().maybe_type())?;
         self.write_trailing_semicolon();
 
         Ok(())
@@ -193,13 +191,16 @@ impl Printer {
         self.push_name_generation_scope(Some(node));
         self.emit_decorators(node, node.ref_(self).maybe_decorators())?;
         self.emit_modifiers(node, node.ref_(self).maybe_modifiers())?;
-        let node_ref = node.ref_(self);
-        let node_as_method_signature = node_ref.as_method_signature();
-        self.emit(node_as_method_signature.maybe_name(), None)?;
-        self.emit(node_as_method_signature.question_token, None)?;
-        self.emit_type_parameters(node, node_as_method_signature.maybe_type_parameters())?;
-        self.emit_parameters(node, node_as_method_signature.parameters())?;
-        self.emit_type_annotation(node_as_method_signature.maybe_type())?;
+        self.emit(node.ref_(self).as_method_signature().maybe_name(), None)?;
+        self.emit(node.ref_(self).as_method_signature().question_token, None)?;
+        self.emit_type_parameters(
+            node,
+            node.ref_(self)
+                .as_method_signature()
+                .maybe_type_parameters(),
+        )?;
+        self.emit_parameters(node, node.ref_(self).as_method_signature().parameters())?;
+        self.emit_type_annotation(node.ref_(self).as_method_signature().maybe_type())?;
         self.write_trailing_semicolon();
         self.pop_name_generation_scope(Some(node));
 
@@ -506,7 +507,7 @@ impl Printer {
         };
         self.emit_list(
             Some(node),
-            Some(node.ref_(self).as_type_literal_node().members),
+            released!(Some(node.ref_(self).as_type_literal_node().members)),
             flags | ListFormat::NoSpaceIfEmpty,
             None,
             None,

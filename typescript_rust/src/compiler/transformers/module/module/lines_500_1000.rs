@@ -747,14 +747,12 @@ impl TransformModule {
                     {
                         variables.push(
                             self.factory.ref_(self).create_variable_declaration(
-                                Some(
-                                    self.factory.ref_(self).clone_node(
-                                        namespace_declaration
+                                Some(self.factory.ref_(self).clone_node(
+                                    released!(namespace_declaration
                                             .ref_(self)
                                             .as_named_declaration()
-                                            .name(),
-                                    ),
-                                ),
+                                            .name()),
+                                )),
                                 None,
                                 None,
                                 Some(

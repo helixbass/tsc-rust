@@ -850,8 +850,6 @@ impl TransformClassFields {
         &self,
         name: Id<Node>, /*ComputedPropertyName*/
     ) -> VisitResult {
-        let name_ref = name.ref_(self);
-        let name_as_computed_property_name = name_ref.as_computed_property_name();
         let mut node = visit_each_child(
             name,
             |node: Id<Node>| self.visitor(node),
@@ -860,7 +858,12 @@ impl TransformClassFields {
         );
         if self.maybe_pending_expressions().as_ref().is_non_empty() {
             let mut expressions = self.pending_expressions().clone();
-            expressions.push(name_as_computed_property_name.expression.clone());
+            expressions.push(
+                name.ref_(self)
+                    .as_computed_property_name()
+                    .expression
+                    .clone(),
+            );
             self.set_pending_expressions(Some(_d()));
             node = self.factory.ref_(self).update_computed_property_name(
                 node,

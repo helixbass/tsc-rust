@@ -823,7 +823,7 @@ impl TypeChecker {
 
         if node.ref_(self).kind() == SyntaxKind::TaggedTemplateExpression {
             self.check_expression(
-                node.ref_(self).as_tagged_template_expression().template,
+                released!(node.ref_(self).as_tagged_template_expression().template),
                 None,
                 None,
             )?;

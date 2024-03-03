@@ -130,7 +130,7 @@ impl TypeChecker {
         check_mode: CheckMode,
     ) -> io::Result<Id<Signature>> {
         let tag_type = self.check_expression(
-            node.ref_(self).as_tagged_template_expression().tag,
+            released!(node.ref_(self).as_tagged_template_expression().tag),
             None,
             None,
         )?;
@@ -169,7 +169,7 @@ impl TypeChecker {
             }
 
             self.invocation_error(
-                node.ref_(self).as_tagged_template_expression().tag,
+                released!(node.ref_(self).as_tagged_template_expression().tag),
                 apparent_type,
                 SignatureKind::Call,
                 None,

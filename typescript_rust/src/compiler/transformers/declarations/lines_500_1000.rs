@@ -1121,7 +1121,7 @@ impl TransformDeclarations {
                             input,
                             Option::<Id<NodeArray>>::None,
                             self.ensure_modifiers(input),
-                            input.ref_(self).as_set_accessor_declaration().name(),
+                            released!(input.ref_(self).as_set_accessor_declaration().name()),
                             self.update_accessor_params_list(
                                 input,
                                 has_effective_modifier(input, ModifierFlags::Private, self),

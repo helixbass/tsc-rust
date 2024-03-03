@@ -465,7 +465,8 @@ impl TransformGenerators {
         self.factory
             .ref_(self)
             .create_assignment(
-                self.factory
+                released!(self
+                    .factory
                     .ref_(self)
                     .clone_node(released!(node.ref_(self).as_variable_declaration().name()))
                     .set_source_map_range(
@@ -473,12 +474,13 @@ impl TransformGenerators {
                             (&*node.ref_(self).as_variable_declaration().name().ref_(self)).into(),
                         )),
                         self,
-                    ),
+                    )),
                 visit_node(
-                    node.ref_(self)
+                    released!(node
+                        .ref_(self)
                         .as_variable_declaration()
                         .maybe_initializer()
-                        .unwrap(),
+                        .unwrap()),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

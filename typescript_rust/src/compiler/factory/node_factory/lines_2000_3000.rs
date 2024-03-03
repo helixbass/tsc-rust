@@ -1077,15 +1077,15 @@ impl NodeFactory {
         type_arguments: Option<impl Into<NodeArrayOrVec> /*<TypeNode>*/>,
         template: Id<Node /*TemplateLiteral*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_tagged_template_expression = node_ref.as_tagged_template_expression();
         let type_arguments = type_arguments.map(Into::into);
-        if node_as_tagged_template_expression.tag != tag
+        if node.ref_(self).as_tagged_template_expression().tag != tag
             || has_option_node_array_changed(
-                node_as_tagged_template_expression.maybe_type_arguments(),
+                node.ref_(self)
+                    .as_tagged_template_expression()
+                    .maybe_type_arguments(),
                 type_arguments.as_ref(),
             )
-            || node_as_tagged_template_expression.template != template
+            || node.ref_(self).as_tagged_template_expression().template != template
         {
             self.update(
                 self.create_tagged_template_expression(tag, type_arguments, template),

@@ -718,7 +718,7 @@ impl TransformES2015 {
                     expressions.push(self.transform_shorthand_property_assignment_to_expression(
                         property,
                         receiver,
-                        node.ref_(self).as_object_literal_expression().multi_line,
+                        released!(node.ref_(self).as_object_literal_expression().multi_line),
                     )?);
                 }
                 _ => Debug_.fail_bad_syntax_kind(&node.ref_(self), None),
@@ -773,9 +773,6 @@ impl TransformES2015 {
         receiver: Id<Node>, /*Expression*/
         starts_on_new_line: Option<bool>,
     ) -> io::Result<Id<Node>> {
-        let property_ref = property.ref_(self);
-        let property_as_shorthand_property_assignment =
-            property_ref.as_shorthand_property_assignment();
         let expression = self
             .factory
             .ref_(self)
@@ -784,16 +781,20 @@ impl TransformES2015 {
                     &self.factory.ref_(self),
                     receiver,
                     try_visit_node(
-                        property_as_shorthand_property_assignment.name(),
+                        released!(property
+                            .ref_(self)
+                            .as_shorthand_property_assignment()
+                            .name()),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node: Id<Node>| is_property_name(&node.ref_(self))),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     Option::<&Node>::None,
                 ),
-                self.factory
+                self.factory.ref_(self).clone_node(released!(property
                     .ref_(self)
-                    .clone_node(property_as_shorthand_property_assignment.name()),
+                    .as_shorthand_property_assignment()
+                    .name())),
             )
             .set_text_range(Some(&*property.ref_(self)), self);
         if starts_on_new_line == Some(true) {

@@ -205,7 +205,7 @@ impl TransformES2015 {
             .clone())
         {
             let mut args = vec![try_visit_node(
-                span.ref_(self).as_template_span().expression,
+                released!(span.ref_(self).as_template_span().expression),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -273,10 +273,10 @@ impl TransformES2015 {
     }
 
     pub(super) fn visit_meta_property(&self, node: Id<Node> /*MetaProperty*/) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_meta_property = node_ref.as_meta_property();
-        if node_as_meta_property.keyword_token == SyntaxKind::NewKeyword
-            && node_as_meta_property
+        if node.ref_(self).as_meta_property().keyword_token == SyntaxKind::NewKeyword
+            && node
+                .ref_(self)
+                .as_meta_property()
                 .name
                 .ref_(self)
                 .as_identifier()
