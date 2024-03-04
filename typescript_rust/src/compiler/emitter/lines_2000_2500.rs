@@ -130,7 +130,7 @@ impl Printer {
         self.emit_decorators(node, node.ref_(self).maybe_decorators())?;
         self.emit_modifiers(node, node.ref_(self).maybe_modifiers())?;
         self.emit_node_with_writer(
-            Some(node.ref_(self).as_property_signature().name()),
+            released!(Some(node.ref_(self).as_property_signature().name())),
             Printer::write_property,
         )?;
         self.emit(node.ref_(self).as_property_signature().question_token, None)?;
@@ -194,7 +194,10 @@ impl Printer {
         self.push_name_generation_scope(Some(node));
         self.emit_decorators(node, node.ref_(self).maybe_decorators())?;
         self.emit_modifiers(node, node.ref_(self).maybe_modifiers())?;
-        self.emit(node.ref_(self).as_method_signature().maybe_name(), None)?;
+        self.emit(
+            released!(node.ref_(self).as_method_signature().maybe_name()),
+            None,
+        )?;
         self.emit(node.ref_(self).as_method_signature().question_token, None)?;
         self.emit_type_parameters(
             node,

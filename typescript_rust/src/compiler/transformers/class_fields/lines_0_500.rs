@@ -922,9 +922,13 @@ impl TransformClassFields {
                     function_name.clone(),
                     self.factory.ref_(self).create_function_expression(
                         maybe_filter(
-                            released!(node.ref_(self).maybe_modifiers())
+                            released!(node
+                                .ref_(self)
+                                .maybe_modifiers()
                                 .refed(self)
-                                .as_double_deref(),
+                                .as_deref()
+                                .cloned())
+                            .as_deref(),
                             |m: &Id<Node>| !is_static_modifier(&m.ref_(self)),
                         ),
                         released!(node
@@ -1066,7 +1070,7 @@ impl TransformClassFields {
 
     pub(super) fn create_private_identifier_access(
         &self,
-        info: &PrivateIdentifierInfo,
+        info: Id<PrivateIdentifierInfo>,
         receiver: Id<Node>, /*Expression*/
     ) -> Id<Node /*Expression*/> {
         self.create_private_identifier_access_helper(
@@ -1082,7 +1086,7 @@ impl TransformClassFields {
 
     pub(super) fn create_private_identifier_access_helper(
         &self,
-        info: &PrivateIdentifierInfo,
+        info: Id<PrivateIdentifierInfo>,
         receiver: Id<Node>, /*Expression*/
     ) -> Id<Node /*Expression*/> {
         set_comment_range(
@@ -1091,7 +1095,7 @@ impl TransformClassFields {
             self,
         );
 
-        match info.kind() {
+        match info.ref_(self).kind() {
             PrivateIdentifierKind::Accessor => self
                 .context
                 .ref_(self)
@@ -1099,9 +1103,10 @@ impl TransformClassFields {
                 .ref_(self)
                 .create_class_private_field_get_helper(
                     receiver,
-                    info.brand_check_identifier(),
-                    info.kind(),
-                    info.as_private_identifier_accessor_info()
+                    info.ref_(self).brand_check_identifier(),
+                    info.ref_(self).kind(),
+                    info.ref_(self)
+                        .as_private_identifier_accessor_info()
                         .getter_name
                         .clone(),
                 ),
@@ -1112,9 +1117,14 @@ impl TransformClassFields {
                 .ref_(self)
                 .create_class_private_field_get_helper(
                     receiver,
-                    info.brand_check_identifier(),
-                    info.kind(),
-                    Some(info.as_private_identifier_method_info().method_name.clone()),
+                    info.ref_(self).brand_check_identifier(),
+                    info.ref_(self).kind(),
+                    Some(
+                        info.ref_(self)
+                            .as_private_identifier_method_info()
+                            .method_name
+                            .clone(),
+                    ),
                 ),
             PrivateIdentifierKind::Field => self
                 .context
@@ -1123,9 +1133,9 @@ impl TransformClassFields {
                 .ref_(self)
                 .create_class_private_field_get_helper(
                     receiver,
-                    info.brand_check_identifier(),
-                    info.kind(),
-                    info.maybe_variable_name(),
+                    info.ref_(self).brand_check_identifier(),
+                    info.ref_(self).kind(),
+                    info.ref_(self).maybe_variable_name(),
                 ),
             // default:
             //     Debug.assertNever(info, "Unknown private element type");

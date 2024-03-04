@@ -629,7 +629,7 @@ impl TypeChecker {
                 .unwrap()),
             |yield_expression: Id<Node>| -> io::Result<_> {
                 let yield_expression_type = if let Some(yield_expression_expression) =
-                    yield_expression.ref_(self).as_yield_expression().expression
+                    released!(yield_expression.ref_(self).as_yield_expression().expression)
                 {
                     self.check_expression(yield_expression_expression, check_mode, None)?
                 } else {
@@ -657,7 +657,7 @@ impl TypeChecker {
                         } else {
                             IterationUse::YieldStar
                         },
-                        yield_expression.ref_(self).as_yield_expression().expression,
+                        released!(yield_expression.ref_(self).as_yield_expression().expression),
                     )?;
                     next_type = iteration_types
                         .map(|iteration_types| iteration_types.ref_(self).next_type());

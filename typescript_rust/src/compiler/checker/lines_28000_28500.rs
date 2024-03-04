@@ -222,7 +222,7 @@ impl TypeChecker {
                 node.ref_(self).as_qualified_name().left,
             )?
         } else {
-            self.check_non_null_expression(node.ref_(self).as_qualified_name().left)?
+            self.check_non_null_expression(released!(node.ref_(self).as_qualified_name().left))?
         };
         self.check_property_access_expression_or_qualified_name(
             node,
@@ -957,8 +957,7 @@ impl TypeChecker {
         let value_declaration = value_declaration.unwrap();
 
         let mut diagnostic_message: Option<Id<Diagnostic>> = None;
-        let right_ref = right.ref_(self);
-        let declaration_name = id_text(&right_ref);
+        let ref declaration_name = id_text(&right.ref_(self)).to_owned();
         if self.is_in_property_initializer_or_class_static_block(node)
             && !self.is_optional_property_declaration(value_declaration)
             && !(is_access_expression(&node.ref_(self))

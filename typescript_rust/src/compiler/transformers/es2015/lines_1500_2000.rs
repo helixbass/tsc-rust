@@ -91,7 +91,7 @@ impl TransformES2015 {
             .intersects(HierarchyFacts::NewTarget)
         {
             let new_target: Id<Node /*Expression*/>;
-            match node.ref_(self).kind() {
+            match released!(node.ref_(self).kind()) {
                 SyntaxKind::ArrowFunction => {
                     return statements;
                 }

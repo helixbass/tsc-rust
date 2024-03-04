@@ -1173,7 +1173,7 @@ impl NodeBuilder {
             {
                 if self.type_checker.ref_(self).is_value_symbol_accessible(
                     type_.ref_(self).symbol(),
-                    context.ref_(self).maybe_enclosing_declaration(),
+                    released!(context.ref_(self).maybe_enclosing_declaration()),
                 )? {
                     context.ref_(self).increment_approximate_length_by(6);
                     return Ok(Some(self.symbol_to_type_node(

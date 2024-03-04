@@ -501,8 +501,7 @@ impl TypeChecker {
         &self,
         union_type: Id<Type>, /*UnionType*/
     ) -> io::Result<Option<__String>> {
-        let union_type_ref = union_type.ref_(self);
-        let types = union_type_ref.as_union_type().types();
+        let ref types = union_type.ref_(self).as_union_type().types().to_owned();
         if types.len() < 10
             || get_object_flags(&union_type.ref_(self)).intersects(ObjectFlags::PrimitiveUnion)
             || count_where(Some(types), |&t: &Id<Type>, _| {
@@ -942,10 +941,11 @@ impl TypeChecker {
         }
         if flags.intersects(TypeFlags::Union) {
             return try_reduce_left(
-                type_
+                &released!(type_
                     .ref_(self)
                     .as_union_or_intersection_type_interface()
-                    .types(),
+                    .types()
+                    .to_owned()),
                 |facts, &t: &Id<Type>, _| -> io::Result<_> {
                     Ok(facts | self.get_type_facts(t, Some(ignore_objects))?)
                 },

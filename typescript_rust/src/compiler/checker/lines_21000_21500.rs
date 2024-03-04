@@ -1165,23 +1165,24 @@ impl TypeChecker {
                 self.create_tuple_type(
                     &element_types,
                     Some(&element_flags),
-                    Some(
+                    Some(released!(
                         source
                             .ref_(self)
                             .as_type_reference()
                             .target
                             .ref_(self)
                             .as_tuple_type()
-                            .readonly,
-                    ),
-                    source
+                            .readonly
+                    )),
+                    released!(source
                         .ref_(self)
                         .as_type_reference()
                         .target
                         .ref_(self)
                         .as_tuple_type()
                         .labeled_element_declarations
-                        .as_deref(),
+                        .clone())
+                    .as_deref(),
                 )?,
             ));
         }

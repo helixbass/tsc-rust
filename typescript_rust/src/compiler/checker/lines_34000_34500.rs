@@ -38,7 +38,7 @@ impl TypeChecker {
         self.get_base_constraint_of_type(type_parameter)?;
         if !self.has_non_circular_type_parameter_default(type_parameter)? {
             self.error(
-                node.ref_(self).as_type_parameter_declaration().default,
+                released!(node.ref_(self).as_type_parameter_declaration().default),
                 &Diagnostics::Type_parameter_0_has_a_circular_default,
                 Some(vec![self.type_to_string_(
                     type_parameter,
@@ -237,7 +237,7 @@ impl TypeChecker {
         let type_predicate =
             return_ok_default_if_none!(self.get_type_predicate_of_signature(signature)?);
 
-        self.check_source_element(node.ref_(self).as_type_predicate_node().type_)?;
+        self.check_source_element(released!(node.ref_(self).as_type_predicate_node().type_))?;
 
         let parameter_name = node.ref_(self).as_type_predicate_node().parameter_name;
         if matches!(

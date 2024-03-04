@@ -410,11 +410,12 @@ impl TypeChecker {
             ) > 0
             {
                 try_maybe_for_each(
-                    node.ref_(self)
+                    released!(node
+                        .ref_(self)
                         .as_jsx_opening_like_element()
-                        .maybe_type_arguments()
-                        .refed(self)
-                        .as_deref(),
+                        .maybe_type_arguments())
+                    .refed(self)
+                    .as_deref(),
                     |&type_argument: &Id<Node>, _| -> io::Result<Option<()>> {
                         self.check_source_element(Some(type_argument))?;
                         Ok(None)

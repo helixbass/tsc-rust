@@ -308,8 +308,8 @@ impl TypeChecker {
         mapper: Id<TypeMapper>,
     ) -> io::Result<Id<Type>> {
         let tuple_type_target = tuple_type.ref_(self).as_type_reference_interface().target();
-        let tuple_type_target_ref = tuple_type_target.ref_(self);
-        let element_flags = &tuple_type_target_ref.as_tuple_type().element_flags;
+        let tuple_type_target_ref = ;
+        let ref element_flags = tuple_type_target.ref_(self)tuple_type_target_ref.as_tuple_type().element_flags.clone();
         let element_types = try_map(&self.get_type_arguments(tuple_type), |_, i| {
             self.instantiate_mapped_type_template(
                 mapped_type,
@@ -774,7 +774,7 @@ impl TypeChecker {
                 alias_type_arguments.map(ToOwned::to_owned)
             } else {
                 self.instantiate_types(
-                    type_.ref_(self).maybe_alias_type_arguments().as_deref(),
+                    released!(type_.ref_(self).maybe_alias_type_arguments()).as_deref(),
                     Some(mapper.clone()),
                 )?
             };
@@ -818,7 +818,7 @@ impl TypeChecker {
         }
         if flags.intersects(TypeFlags::Substitution) {
             let maybe_variable = self.instantiate_type(
-                type_.ref_(self).as_substitution_type().base_type,
+                released!(type_.ref_(self).as_substitution_type().base_type),
                 Some(mapper.clone()),
             )?;
             if maybe_variable

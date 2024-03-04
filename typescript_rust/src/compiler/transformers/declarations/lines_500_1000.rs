@@ -514,11 +514,13 @@ impl TransformDeclarations {
                 self.factory.ref_(self).update_import_declaration(
                     decl,
                     Option::<Id<NodeArray>>::None,
-                    decl.ref_(self).maybe_modifiers().clone(),
-                    decl.ref_(self).as_import_declaration().import_clause,
+                    released!(decl.ref_(self).maybe_modifiers()),
+                    released!(decl.ref_(self).as_import_declaration().import_clause),
                     self.rewrite_module_specifier(
                         decl,
-                        Some(decl.ref_(self).as_import_declaration().module_specifier),
+                        released!(Some(
+                            decl.ref_(self).as_import_declaration().module_specifier
+                        )),
                     )?
                     .unwrap(),
                     None,
@@ -1422,33 +1424,35 @@ impl TransformDeclarations {
                     )?
                 }
                 SyntaxKind::ConditionalType => {
-                    let input_ref = input.ref_(self);
-                    let input_as_conditional_type_node = input_ref.as_conditional_type_node();
                     let check_type = try_visit_node(
-                        input_as_conditional_type_node.check_type,
+                        input.ref_(self).as_conditional_type_node().check_type,
                         Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                         Option::<fn(Id<Node>) -> bool>::None,
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?;
                     let extends_type = try_visit_node(
-                        input_as_conditional_type_node.extends_type,
+                        input.ref_(self).as_conditional_type_node().extends_type,
                         Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                         Option::<fn(Id<Node>) -> bool>::None,
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?;
                     let old_enclosing_decl = self.maybe_enclosing_declaration();
                     self.set_enclosing_declaration(Some(
-                        input_as_conditional_type_node.true_type.clone(),
+                        input
+                            .ref_(self)
+                            .as_conditional_type_node()
+                            .true_type
+                            .clone(),
                     ));
                     let true_type = try_visit_node(
-                        input_as_conditional_type_node.true_type,
+                        input.ref_(self).as_conditional_type_node().true_type,
                         Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                         Option::<fn(Id<Node>) -> bool>::None,
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?;
                     self.set_enclosing_declaration(old_enclosing_decl);
                     let false_type = try_visit_node(
-                        input_as_conditional_type_node.false_type,
+                        input.ref_(self).as_conditional_type_node().false_type,
                         Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                         Option::<fn(Id<Node>) -> bool>::None,
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

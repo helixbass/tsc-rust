@@ -166,7 +166,11 @@ impl TypeChecker {
                 continue;
             }
             let value = if merged_exports.ref_(self).contains_key(name) {
-                self.merge_symbol(*merged_exports.ref_(self).get(name).unwrap(), s, None)?
+                self.merge_symbol(
+                    released!(*merged_exports.ref_(self).get(name).unwrap()),
+                    s,
+                    None,
+                )?
             } else {
                 s
             };

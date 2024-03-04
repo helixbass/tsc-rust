@@ -1133,7 +1133,7 @@ impl TransformDeclarations {
                 self.factory.ref_(self).update_array_binding_pattern(
                     name,
                     try_visit_nodes(
-                        name.ref_(self).as_array_binding_pattern().elements,
+                        released!(name.ref_(self).as_array_binding_pattern().elements),
                         Some(|node: Id<Node>| -> io::Result<_> {
                             Ok(Some(self.visit_binding_element(node)?.into()))
                         }),

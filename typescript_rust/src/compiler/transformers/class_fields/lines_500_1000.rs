@@ -104,23 +104,19 @@ impl TransformClassFields {
         node: Id<Node>, /*PrefixUnaryExpression | PostfixUnaryExpression*/
         value_is_discarded: bool,
     ) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_unary_expression = node_ref.as_unary_expression();
         if matches!(
-            node_as_unary_expression.operator(),
+            node.ref_(self).as_unary_expression().operator(),
             SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
         ) {
-            let node_operand = node_as_unary_expression.operand();
+            let node_operand = node.ref_(self).as_unary_expression().operand();
             if self.should_transform_private_elements_or_class_static_blocks
                 && is_private_identifier_property_access_expression(node_operand, self)
             {
-                if let Some(info) = self.access_private_identifier(
-                    node_operand
-                        .ref_(self)
-                        .as_property_access_expression()
-                        .name(),
-                ) {
-                    let info = info.ref_(self);
+                if let Some(info) = self.access_private_identifier(released!(node_operand
+                    .ref_(self)
+                    .as_property_access_expression()
+                    .name()))
+                {
                     let receiver = visit_node(
                         node_operand
                             .ref_(self)
@@ -136,7 +132,7 @@ impl TransformClassFields {
                     } = self.create_copiable_receiver_expr(receiver);
 
                     let mut expression: Id<Node /*Expression*/> =
-                        self.create_private_identifier_access(&info, read_expression);
+                        self.create_private_identifier_access(info, read_expression);
                     let temp = (!(is_prefix_unary_expression(&node.ref_(self))
                         || value_is_discarded))
                         .then(|| {
@@ -158,7 +154,7 @@ impl TransformClassFields {
                     );
                     expression = self
                         .create_private_identifier_assignment(
-                            &info,
+                            info,
                             initialize_expression.unwrap_or(read_expression),
                             expression,
                             SyntaxKind::EqualsToken,
@@ -431,7 +427,7 @@ impl TransformClassFields {
             )
         {
             let CallBinding { this_arg, target } = self.factory.ref_(self).create_call_binding(
-                node.ref_(self).as_call_expression().expression,
+                released!(node.ref_(self).as_call_expression().expression),
                 |node: Id<Node>| {
                     self.context.ref_(self).hoist_variable_declaration(node);
                 },
@@ -497,7 +493,7 @@ impl TransformClassFields {
                             "call",
                         ),
                         Option::<Id<NodeArray>>::None,
-                        vec![visit_node(
+                        released!(vec![visit_node(
                             this_arg,
                             Some(|node: Id<Node>| self.visitor(node)),
                             Some(|node| is_expression(node, self)),
@@ -515,7 +511,7 @@ impl TransformClassFields {
                             .ref_(self)
                             .iter()
                             .copied(),
-                        ),
+                        )),
                     )
                     .into(),
             );
@@ -794,10 +790,9 @@ impl TransformClassFields {
                     node_left.ref_(self).as_property_access_expression().name,
                 );
                 if let Some(info) = info {
-                    let info = info.ref_(self);
                     return Some(
                         self.create_private_identifier_assignment(
-                            &info,
+                            info,
                             released!(
                                 node_left
                                     .ref_(self)
@@ -880,16 +875,14 @@ impl TransformClassFields {
                                     .name
                                     .ref_(self),
                             ) {
-                                Some(
-                                    self.factory.ref_(self).create_string_literal_from_node(
-                                        node.ref_(self)
+                                Some(self.factory.ref_(self).create_string_literal_from_node(
+                                    released!(node.ref_(self)
                                             .as_binary_expression()
                                             .left
                                             .ref_(self)
                                             .as_property_access_expression()
-                                            .name,
-                                    ),
-                                )
+                                            .name),
+                                ))
                             } else {
                                 None
                             };
@@ -1029,7 +1022,7 @@ impl TransformClassFields {
 
     pub(super) fn create_private_identifier_assignment(
         &self,
-        info: &PrivateIdentifierInfo,
+        info: Id<PrivateIdentifierInfo>,
         receiver: Id<Node>,   /*Expression*/
         right: Id<Node>,      /*Expression*/
         operator: SyntaxKind, /*AssignmentOperator*/
@@ -1068,7 +1061,7 @@ impl TransformClassFields {
             self,
         );
 
-        match info.kind() {
+        match info.ref_(self).kind() {
             PrivateIdentifierKind::Accessor => self
                 .context
                 .ref_(self)
@@ -1076,10 +1069,11 @@ impl TransformClassFields {
                 .ref_(self)
                 .create_class_private_field_set_helper(
                     receiver,
-                    info.brand_check_identifier(),
+                    info.ref_(self).brand_check_identifier(),
                     right,
-                    info.kind(),
-                    info.as_private_identifier_accessor_info()
+                    info.ref_(self).kind(),
+                    info.ref_(self)
+                        .as_private_identifier_accessor_info()
                         .setter_name
                         .clone(),
                 ),
@@ -1090,9 +1084,9 @@ impl TransformClassFields {
                 .ref_(self)
                 .create_class_private_field_set_helper(
                     receiver,
-                    info.brand_check_identifier(),
+                    info.ref_(self).brand_check_identifier(),
                     right,
-                    info.kind(),
+                    info.ref_(self).kind(),
                     None,
                 ),
             PrivateIdentifierKind::Field => self
@@ -1102,10 +1096,10 @@ impl TransformClassFields {
                 .ref_(self)
                 .create_class_private_field_set_helper(
                     receiver,
-                    info.brand_check_identifier(),
+                    info.ref_(self).brand_check_identifier(),
                     right,
-                    info.kind(),
-                    info.maybe_variable_name(),
+                    info.ref_(self).kind(),
+                    info.ref_(self).maybe_variable_name(),
                 ),
             // default:
             // Debug.assertNever(info, "Unknown private element type");

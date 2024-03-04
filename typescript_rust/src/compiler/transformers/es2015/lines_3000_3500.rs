@@ -382,18 +382,18 @@ impl TransformES2015 {
         contains_yield: bool,
     ) -> Vec<Id<Node /*Statement*/>> {
         let mut statements: Vec<Id<Node /*Statement*/>> = _d();
-        let state = state.ref_(self);
         let is_simple_loop = !state
+            .ref_(self)
             .non_local_jumps
             .unwrap_or_default()
             .intersects(!Jump::Continue)
-            && state.labeled_non_local_breaks.is_none()
-            && state.labeled_non_local_continues.is_none();
+            && state.ref_(self).labeled_non_local_breaks.is_none()
+            && state.ref_(self).labeled_non_local_continues.is_none();
 
         let call = self.factory.ref_(self).create_call_expression(
             loop_function_expression_name,
             Option::<Id<NodeArray>>::None,
-            Some(map(&state.loop_parameters, |p: &Id<Node>, _| {
+            Some(map(&state.ref_(self).loop_parameters, |p: &Id<Node>, _| {
                 p.ref_(self).as_parameter_declaration().name()
             })),
         );
@@ -416,7 +416,7 @@ impl TransformES2015 {
                     .create_expression_statement(call_result),
             );
             self.copy_out_parameters(
-                &state.loop_out_parameters,
+                &state.ref_(self).loop_out_parameters,
                 LoopOutParameterFlags::Body,
                 CopyDirection::ToOriginal,
                 &mut statements,
@@ -437,13 +437,14 @@ impl TransformES2015 {
             );
             statements.push(state_variable);
             self.copy_out_parameters(
-                &state.loop_out_parameters,
+                &state.ref_(self).loop_out_parameters,
                 LoopOutParameterFlags::Body,
                 CopyDirection::ToOriginal,
                 &mut statements,
             );
 
             if state
+                .ref_(self)
                 .non_local_jumps
                 .unwrap_or_default()
                 .intersects(Jump::Return)
@@ -477,6 +478,7 @@ impl TransformES2015 {
             }
 
             if state
+                .ref_(self)
                 .non_local_jumps
                 .unwrap_or_default()
                 .intersects(Jump::Break)
@@ -499,19 +501,19 @@ impl TransformES2015 {
                 );
             }
 
-            if state.labeled_non_local_breaks.is_some()
-                || state.labeled_non_local_continues.is_some()
+            if state.ref_(self).labeled_non_local_breaks.is_some()
+                || state.ref_(self).labeled_non_local_continues.is_some()
             {
                 let mut case_clauses: Vec<Id<Node /*CaseClause*/>> = _d();
                 self.process_labeled_jumps(
-                    state.labeled_non_local_breaks.as_ref(),
+                    state.ref_(self).labeled_non_local_breaks.as_ref(),
                     true,
                     loop_result_name,
                     outer_state.clone(),
                     &mut case_clauses,
                 );
                 self.process_labeled_jumps(
-                    state.labeled_non_local_continues.as_ref(),
+                    state.ref_(self).labeled_non_local_continues.as_ref(),
                     false,
                     loop_result_name,
                     outer_state,
@@ -693,7 +695,8 @@ impl TransformES2015 {
                             receiver,
                             &accessors,
                             node,
-                            node.ref_(self).as_object_literal_expression().multi_line == Some(true),
+                            released!(node.ref_(self).as_object_literal_expression().multi_line)
+                                == Some(true),
                         )?);
                     }
                 }

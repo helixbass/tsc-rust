@@ -211,7 +211,7 @@ impl TypeChecker {
             }
             let mut combined_mapper: Option<Id<TypeMapper>> = None;
             if let Some(root_infer_type_parameters) =
-                root.ref_(self).infer_type_parameters.clone().as_ref()
+                released!(root.ref_(self).infer_type_parameters.clone()).as_ref()
             {
                 let context = self.create_inference_context(
                     root_infer_type_parameters,
@@ -263,18 +263,14 @@ impl TypeChecker {
                         if extra_types.is_none() {
                             extra_types = Some(vec![]);
                         }
-                        extra_types.as_mut().unwrap().push(
-                            self.instantiate_type(
-                                self.get_type_from_type_node_(
-                                    root.ref_(self)
+                        extra_types.as_mut().unwrap().push(self.instantiate_type(
+                            self.get_type_from_type_node_(released!(root.ref_(self)
                                         .node
                                         .ref_(self)
                                         .as_conditional_type_node()
-                                        .true_type,
-                                )?,
-                                combined_mapper.clone().or_else(|| mapper.clone()),
-                            )?,
-                        );
+                                        .true_type))?,
+                            combined_mapper.clone().or_else(|| mapper.clone()),
+                        )?);
                     }
                     let false_type = self.get_type_from_type_node_(released!(
                         root.ref_(self)
@@ -531,25 +527,21 @@ impl TypeChecker {
             .maybe_resolved_inferred_true_type()
             .is_none()
         {
-            let resolved_inferred_true_type = if let Some(type_combined_mapper) = type_
-                .ref_(self)
-                .as_conditional_type()
-                .combined_mapper
-                .clone()
+            let resolved_inferred_true_type = if let Some(type_combined_mapper) =
+                released!(type_.ref_(self).as_conditional_type().combined_mapper)
             {
                 self.instantiate_type(
-                    self.get_type_from_type_node_(
+                    self.get_type_from_type_node_(released!(
                         type_
                             .ref_(self)
                             .as_conditional_type()
                             .root
                             .ref_(self)
                             .node
-                            .clone()
                             .ref_(self)
                             .as_conditional_type_node()
-                            .true_type,
-                    )?,
+                            .true_type
+                    ))?,
                     Some(type_combined_mapper),
                 )?
             } else {
@@ -698,10 +690,12 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if links.ref_(self).resolved_type.is_none() {
-            let node_ref = node.ref_(self);
-            let node_as_import_type_node = node_ref.as_import_type_node();
-            if node_as_import_type_node.is_type_of()
-                && node_as_import_type_node.maybe_type_arguments().is_some()
+            if node.ref_(self).as_import_type_node().is_type_of()
+                && node
+                    .ref_(self)
+                    .as_import_type_node()
+                    .maybe_type_arguments()
+                    .is_some()
             {
                 self.error(
                     Some(node),
@@ -716,7 +710,7 @@ impl TypeChecker {
             }
             if !is_literal_import_type_node(node, self) {
                 self.error(
-                    Some(node_as_import_type_node.argument),
+                    Some(node.ref_(self).as_import_type_node().argument),
                     &Diagnostics::String_literal_expected,
                     None,
                 );
@@ -726,7 +720,7 @@ impl TypeChecker {
                 links.resolved_type = Some(ret.clone());
                 return Ok(ret);
             }
-            let target_meaning = if node_as_import_type_node.is_type_of() {
+            let target_meaning = if node.ref_(self).as_import_type_node().is_type_of() {
                 SymbolFlags::Value
             } else if node.ref_(self).flags().intersects(NodeFlags::JSDoc) {
                 SymbolFlags::Value | SymbolFlags::Type
@@ -735,7 +729,8 @@ impl TypeChecker {
             };
             let inner_module_symbol = self.resolve_external_module_name_(
                 node,
-                node_as_import_type_node
+                node.ref_(self)
+                    .as_import_type_node()
                     .argument
                     .ref_(self)
                     .as_literal_type_node()
@@ -753,9 +748,15 @@ impl TypeChecker {
             let module_symbol = self
                 .resolve_external_module_symbol(Some(inner_module_symbol), Some(false))?
                 .unwrap();
-            if !node_is_missing(node_as_import_type_node.qualifier.refed(self).as_deref()) {
-                let mut name_stack: Vec<Id<Node /*Identifier*/>> =
-                    self.get_identifier_chain(node_as_import_type_node.qualifier.unwrap());
+            if !node_is_missing(
+                node.ref_(self)
+                    .as_import_type_node()
+                    .qualifier
+                    .refed(self)
+                    .as_deref(),
+            ) {
+                let mut name_stack: Vec<Id<Node /*Identifier*/>> = self
+                    .get_identifier_chain(node.ref_(self).as_import_type_node().qualifier.unwrap());
                 let mut current_namespace = module_symbol.clone();
                 let mut current: Option<Id<Node /*Identifier*/>>;
                 while {
@@ -775,7 +776,7 @@ impl TypeChecker {
                     let merged_resolved_symbol = self
                         .get_merged_symbol(self.resolve_symbol(Some(current_namespace), None)?)
                         .unwrap();
-                    let next = if node_as_import_type_node.is_type_of() {
+                    let next = if node.ref_(self).as_import_type_node().is_type_of() {
                         self.get_property_of_type_(
                             self.get_type_of_symbol(merged_resolved_symbol)?,
                             &current.ref_(self).as_identifier().escaped_text,
@@ -835,7 +836,9 @@ impl TypeChecker {
                     self.error(
                         Some(node),
                         error_message,
-                        Some(vec![node_as_import_type_node
+                        Some(vec![node
+                            .ref_(self)
+                            .as_import_type_node()
                             .argument
                             .ref_(self)
                             .as_literal_type_node()
@@ -1035,8 +1038,7 @@ impl TypeChecker {
                     .into(),
                 );
                 let result_links = result.ref_(self).as_transient_symbol().symbol_links();
-                let mut result_links = result_links.ref_mut(self);
-                result_links.type_ = Some(if is_setonly_accessor {
+                result_links.ref_mut(self).type_ = Some(if is_setonly_accessor {
                     self.undefined_type()
                 } else {
                     self.add_optionality(self.get_type_of_symbol(prop)?, Some(true), None)?
@@ -1048,8 +1050,9 @@ impl TypeChecker {
                         .ref_(self)
                         .set_declarations(prop_declarations.clone());
                 }
-                result_links.name_type = self.get_symbol_links(prop).ref_(self).name_type;
-                result_links.synthetic_origin = Some(prop.clone());
+                result_links.ref_mut(self).name_type =
+                    self.get_symbol_links(prop).ref_(self).name_type;
+                result_links.ref_mut(self).synthetic_origin = Some(prop.clone());
                 members.insert(prop.ref_(self).escaped_name().to_owned(), result);
             }
         }

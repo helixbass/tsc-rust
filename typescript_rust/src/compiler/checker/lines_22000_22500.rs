@@ -316,7 +316,11 @@ impl InferTypes {
                     .ref_(self)
                     .get_false_type_from_conditional_type(target)?,
             ];
-            self.infer_to_multiple_types(source, &target_types, target.ref_(self).flags())?;
+            self.infer_to_multiple_types(
+                source,
+                &target_types,
+                released!(target.ref_(self).flags()),
+            )?;
             self.set_priority(save_priority);
         }
 
@@ -663,7 +667,7 @@ impl InferTypes {
         for target_prop in properties {
             let source_prop = self.type_checker.ref_(self).get_property_of_type_(
                 source,
-                target_prop.ref_(self).escaped_name(),
+                &released!(target_prop.ref_(self).escaped_name().to_owned()),
                 None,
             )?;
             if let Some(source_prop) = source_prop {

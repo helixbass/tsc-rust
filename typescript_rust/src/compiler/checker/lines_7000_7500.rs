@@ -1329,7 +1329,9 @@ impl SymbolTableToDeclarationStatements {
                             get_factory(self).create_identifier(local_name),
                             get_factory(self).create_qualified_name(
                                 unique_name,
-                                initializer.ref_(self).as_property_access_expression().name,
+                                released!(
+                                    initializer.ref_(self).as_property_access_expression().name
+                                ),
                             ),
                         ),
                         modifier_flags,

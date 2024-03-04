@@ -844,7 +844,7 @@ impl TypeChecker {
                     .as_indexed_access_type()
                     .object_type;
                 let new_mapped_type = self.replace_indexed_access(
-                    type_.ref_(self).as_reverse_mapped_type().mapped_type,
+                    released!(type_.ref_(self).as_reverse_mapped_type().mapped_type),
                     type_constraint_type_type,
                     new_type_param,
                 )?;
@@ -931,10 +931,11 @@ impl TypeChecker {
         if type_.ref_(self).flags().intersects(TypeFlags::Intersection) {
             return self.get_intersection_type(
                 &try_map(
-                    type_
+                    &released!(type_
                         .ref_(self)
                         .as_union_or_intersection_type_interface()
-                        .types(),
+                        .types()
+                        .to_owned()),
                     |&type_: &Id<Type>, _| self.get_lower_bound_of_key_type(type_),
                 )?,
                 Option::<Id<Symbol>>::None,
@@ -1271,7 +1272,7 @@ impl TypeChecker {
             let prop_type = self.instantiate_type(
                 template_type,
                 Some(self.append_type_mapping(
-                    type_.ref_(self).as_mapped_type().maybe_mapper(),
+                    released!(type_.ref_(self).as_mapped_type().maybe_mapper()),
                     type_parameter,
                     key_type,
                 )),
@@ -1292,15 +1293,15 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>, /*MappedSymbol*/
     ) -> io::Result<Id<Type>> {
-        let symbol_ref = symbol.ref_(self);
-        let symbol_as_mapped_symbol = symbol_ref.as_mapped_symbol();
-        if symbol_as_mapped_symbol
+        if symbol
+            .ref_(self)
+            .as_mapped_symbol()
             .symbol_links()
             .ref_(self)
             .type_
             .is_none()
         {
-            let mapped_type = symbol_as_mapped_symbol.mapped_type;
+            let mapped_type = symbol.ref_(self).as_mapped_symbol().mapped_type;
             if !self.push_type_resolution(&symbol.into(), TypeSystemPropertyName::Type) {
                 mapped_type
                     .ref_(self)
@@ -1318,7 +1319,7 @@ impl TypeChecker {
             let mapper = self.append_type_mapping(
                 mapped_type.ref_(self).as_mapped_type().maybe_mapper(),
                 self.get_type_parameter_from_mapped_type(mapped_type)?,
-                symbol_as_mapped_symbol.key_type(),
+                symbol.ref_(self).as_mapped_symbol().key_type(),
             );
             let prop_type = self.instantiate_type(template_type, Some(mapper))?;
             let mut type_ = if self.strict_null_checks
@@ -1326,7 +1327,9 @@ impl TypeChecker {
                 && !self.maybe_type_of_kind(prop_type, TypeFlags::Undefined | TypeFlags::Void)
             {
                 self.get_optional_type_(prop_type, Some(true))?
-            } else if symbol_as_mapped_symbol
+            } else if symbol
+                .ref_(self)
+                .as_mapped_symbol()
                 .check_flags()
                 .intersects(CheckFlags::StripOptional)
             {
@@ -1345,9 +1348,16 @@ impl TypeChecker {
                 );
                 type_ = self.error_type();
             }
-            symbol_as_mapped_symbol.symbol_links().ref_mut(self).type_ = Some(type_);
+            symbol
+                .ref_(self)
+                .as_mapped_symbol()
+                .symbol_links()
+                .ref_mut(self)
+                .type_ = Some(type_);
         }
-        Ok(symbol_as_mapped_symbol
+        Ok(symbol
+            .ref_(self)
+            .as_mapped_symbol()
             .symbol_links()
             .ref_(self)
             .type_

@@ -909,7 +909,7 @@ impl TransformES2015 {
             }
         }
 
-        if let Some(state_this_name) = state.ref_(self).this_name {
+        if let Some(state_this_name) = released!(state.ref_(self).this_name) {
             if let Some(outer_state) = outer_state {
                 outer_state.ref_mut(self).this_name = Some(state_this_name);
             } else {

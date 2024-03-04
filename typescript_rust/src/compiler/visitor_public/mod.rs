@@ -740,14 +740,16 @@ fn add_default_value_assignment_for_binding_pattern(
                 .ref_(arena)
                 .get_generated_name_for_node(Some(parameter), None),
         ),
-        parameter
+        released!(
+            parameter
+                .ref_(arena)
+                .as_parameter_declaration()
+                .question_token
+        ),
+        released!(parameter
             .ref_(arena)
             .as_parameter_declaration()
-            .question_token,
-        parameter
-            .ref_(arena)
-            .as_parameter_declaration()
-            .maybe_type(),
+            .maybe_type()),
         None,
     )
 }
@@ -801,24 +803,28 @@ fn add_default_value_assignment_for_initializer(
     );
     factory.ref_(arena).update_parameter_declaration(
         parameter,
-        parameter.ref_(arena).maybe_decorators(),
-        parameter.ref_(arena).maybe_modifiers(),
-        parameter
+        released!(parameter.ref_(arena).maybe_decorators()),
+        released!(parameter.ref_(arena).maybe_modifiers()),
+        released!(
+            parameter
+                .ref_(arena)
+                .as_parameter_declaration()
+                .dot_dot_dot_token
+        ),
+        released!(parameter
             .ref_(arena)
             .as_parameter_declaration()
-            .dot_dot_dot_token,
-        parameter
+            .maybe_name()),
+        released!(
+            parameter
+                .ref_(arena)
+                .as_parameter_declaration()
+                .question_token
+        ),
+        released!(parameter
             .ref_(arena)
             .as_parameter_declaration()
-            .maybe_name(),
-        parameter
-            .ref_(arena)
-            .as_parameter_declaration()
-            .question_token,
-        parameter
-            .ref_(arena)
-            .as_parameter_declaration()
-            .maybe_type(),
+            .maybe_type()),
         None,
     )
 }

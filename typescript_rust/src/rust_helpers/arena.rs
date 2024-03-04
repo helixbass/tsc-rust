@@ -7938,7 +7938,11 @@ impl OptionInArena for Option<Id<CompilerOptions>> {
     type Item = CompilerOptions;
 
     fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<Ref<'a, CompilerOptions>> {
-        self.map(|compiler_options| has_arena.compiler_options(compiler_options))
+        // self.map(|compiler_options| has_arena.compiler_options(compiler_options))
+        match self {
+            None => None,
+            Some(compiler_options) => Some(has_arena.compiler_options(compiler_options)),
+        }
     }
 }
 

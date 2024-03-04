@@ -12,15 +12,13 @@ impl TransformClassFields {
         node: Id<Node>, /*AssignmentPattern*/
     ) -> VisitResult {
         if is_array_literal_expression(&node.ref_(self)) {
-            let node_ref = node.ref_(self);
-            let node_as_array_literal_expression = node_ref.as_array_literal_expression();
             Some(
                 self.factory
                     .ref_(self)
                     .update_array_literal_expression(
                         node,
                         visit_nodes(
-                            node_as_array_literal_expression.elements,
+                            released!(node.ref_(self).as_array_literal_expression().elements),
                             Some(|node: Id<Node>| self.visit_array_assignment_target(node)),
                             Some(|node| is_expression(node, self)),
                             None,

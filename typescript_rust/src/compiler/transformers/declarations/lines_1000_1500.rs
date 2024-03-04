@@ -857,20 +857,23 @@ impl TransformDeclarations {
                     );
                     let heritage_clauses = self.factory.ref_(self).create_node_array(
                         try_maybe_map(
-                            input
+                            released!(input
                                 .ref_(self)
                                 .as_class_declaration()
                                 .maybe_heritage_clauses()
                                 .refed(self)
-                                .as_deref(),
+                                .as_deref()
+                                .cloned())
+                            .as_deref(),
                             |&clause: &Id<Node>, _| -> io::Result<_> {
-                                let clause_ref = clause.ref_(self);
-                                let clause_as_heritage_clause = clause_ref.as_heritage_clause();
-                                if clause_as_heritage_clause.token == SyntaxKind::ExtendsKeyword {
+                                if clause.ref_(self).as_heritage_clause().token
+                                    == SyntaxKind::ExtendsKeyword
+                                {
                                     let old_diag = self.get_symbol_accessibility_diagnostic();
                                     self.set_get_symbol_accessibility_diagnostic(
                                         create_get_symbol_accessibility_diagnostic_for_node(
-                                            clause_as_heritage_clause.types.ref_(self)[0],
+                                            clause.ref_(self).as_heritage_clause().types.ref_(self)
+                                                [0],
                                             self,
                                         ),
                                     );
@@ -878,7 +881,12 @@ impl TransformDeclarations {
                                         self.factory.ref_(self).update_heritage_clause(
                                             clause,
                                             try_map(
-                                                &*clause_as_heritage_clause.types.ref_(self),
+                                                &*released!(clause
+                                                    .ref_(self)
+                                                    .as_heritage_clause()
+                                                    .types
+                                                    .ref_(self)
+                                                    .clone()),
                                                 |&t: &Id<Node>, _| -> io::Result<_> {
                                                     Ok(self
                                                         .factory
@@ -887,9 +895,10 @@ impl TransformDeclarations {
                                                         t,
                                                         new_id.clone(),
                                                         try_maybe_visit_nodes(
-                                                            t.ref_(self)
+                                                            released!(t
+                                                                .ref_(self)
                                                                 .as_expression_with_type_arguments()
-                                                                .maybe_type_arguments(),
+                                                                .maybe_type_arguments()),
                                                             Some(|node: Id<Node>| {
                                                                 self.visit_declaration_subtree(node)
                                                             }),
@@ -910,28 +919,27 @@ impl TransformDeclarations {
                                     try_visit_nodes(
                                         self.factory.ref_(self).create_node_array(
                                             Some(
-                                                clause_as_heritage_clause
-                                                    .types
-                                                    .ref_(self)
-                                                    .iter()
-                                                    .filter(|t| {
-                                                        let t_ref = t.ref_(self);
-                                                        let t_as_expression_with_type_arguments =
-                                                            t_ref
-                                                                .as_expression_with_type_arguments(
-                                                                );
-                                                        is_entity_name_expression(
-                                                            t_as_expression_with_type_arguments
-                                                                .expression,
-                                                            self,
-                                                        ) || t_as_expression_with_type_arguments
-                                                            .expression
-                                                            .ref_(self)
-                                                            .kind()
-                                                            == SyntaxKind::NullKeyword
-                                                    })
-                                                    .cloned()
-                                                    .collect::<Vec<_>>(),
+                                                released!(
+                                                    clause.ref_(self).as_heritage_clause().types
+                                                )
+                                                .ref_(self)
+                                                .iter()
+                                                .filter(|t| {
+                                                    let t_ref = t.ref_(self);
+                                                    let t_as_expression_with_type_arguments =
+                                                        t_ref.as_expression_with_type_arguments();
+                                                    is_entity_name_expression(
+                                                        t_as_expression_with_type_arguments
+                                                            .expression,
+                                                        self,
+                                                    ) || t_as_expression_with_type_arguments
+                                                        .expression
+                                                        .ref_(self)
+                                                        .kind()
+                                                        == SyntaxKind::NullKeyword
+                                                })
+                                                .cloned()
+                                                .collect::<Vec<_>>(),
                                             ),
                                             None,
                                         ),
@@ -1078,22 +1086,26 @@ impl TransformDeclarations {
     ) -> io::Result<Option<Vec<Id<Node>>>> {
         let mut elems: Option<Vec<Id<Node /*PropertyDeclaration*/>>> = Default::default();
         for &elem in &*released!(pattern.ref_(self).as_has_elements().elements()).ref_(self) {
-            let elem_ref = elem.ref_(self);
-            let elem_as_binding_element = elem_ref.as_binding_element();
             if is_omitted_expression(&elem.ref_(self)) {
                 continue;
             }
-            if is_binding_pattern(elem_as_binding_element.maybe_name().refed(self).as_deref()) {
+            if is_binding_pattern(
+                elem.ref_(self)
+                    .as_binding_element()
+                    .maybe_name()
+                    .refed(self)
+                    .as_deref(),
+            ) {
                 elems = maybe_concatenate(
                     elems,
-                    self.walk_binding_pattern(param, elem_as_binding_element.name())?,
+                    self.walk_binding_pattern(param, elem.ref_(self).as_binding_element().name())?,
                 );
             }
             elems.get_or_insert_default_().push(
                 self.factory.ref_(self).create_property_declaration(
                     Option::<Id<NodeArray>>::None,
                     self.ensure_modifiers(param),
-                    elem_as_binding_element.name(),
+                    released!(elem.ref_(self).as_binding_element().name()),
                     None,
                     self.ensure_type(elem, None, None)?,
                     None,

@@ -282,7 +282,8 @@ impl CheckTypeRelatedTo {
                 && self_.ref_(arena).maybe_error_node().is_some()
             {
                 if result == Ternary::False {
-                    if let Some(source_symbol) = self_.ref_(arena).source.ref_(arena).maybe_symbol()
+                    if let Some(source_symbol) =
+                        released!(self_.ref_(arena).source.ref_(arena).maybe_symbol())
                     {
                         let links = self_
                             .ref_(arena)
@@ -296,18 +297,14 @@ impl CheckTypeRelatedTo {
                                 },
                             )
                         {
-                            let helpful_retry = self_
-                                .ref_(arena)
-                                .type_checker
+                            let helpful_retry = released!(self_.ref_(arena).type_checker)
                                 .ref_(arena)
                                 .check_type_related_to(
-                                    self_
-                                        .ref_(arena)
-                                        .type_checker
+                                    released!(self_.ref_(arena).type_checker)
                                         .ref_(arena)
                                         .get_type_of_symbol(links.ref_(arena).target.unwrap())?,
-                                    self_.ref_(arena).target,
-                                    self_.ref_(arena).relation.clone(),
+                                    released!(self_.ref_(arena).target),
+                                    released!(self_.ref_(arena).relation.clone()),
                                     Option::<Id<Node>>::None,
                                     None,
                                     None,
@@ -579,9 +576,7 @@ impl CheckTypeRelatedTo {
         if !self_.ref_(arena).incompatible_stack().is_empty() {
             Self::report_incompatible_stack(self_, arena)?;
         }
-        let (source_type, target_type) = self_
-            .ref_(arena)
-            .type_checker
+        let (source_type, target_type) = released!(self_.ref_(arena).type_checker)
             .ref_(arena)
             .get_type_names_for_error_display(source, target)?;
         let mut generalized_source = source;
@@ -592,9 +587,7 @@ impl CheckTypeRelatedTo {
             .type_checker
             .ref_(arena)
             .is_literal_type(source)
-            && !self_
-                .ref_(arena)
-                .type_checker
+            && !released!(self_.ref_(arena).type_checker)
                 .ref_(arena)
                 .type_could_have_top_level_singleton_types(target)?
         {

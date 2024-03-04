@@ -69,7 +69,7 @@ impl TypeChecker {
     pub(super) fn check_do_statement(&self, node: Id<Node> /*DoStatement*/) -> io::Result<()> {
         self.check_grammar_statement_in_ambient_context(node);
 
-        self.check_source_element(Some(node.ref_(self).as_do_statement().statement))?;
+        self.check_source_element(Some(released!(node.ref_(self).as_do_statement().statement)))?;
         self.check_truthiness_expression(node.ref_(self).as_do_statement().expression, None)?;
 
         Ok(())
@@ -147,7 +147,7 @@ impl TypeChecker {
             }
         }
 
-        if let Some(node_condition) = node.ref_(self).as_for_statement().condition {
+        if let Some(node_condition) = released!(node.ref_(self).as_for_statement().condition) {
             self.check_truthiness_expression(node_condition, None)?;
         }
         if let Some(node_incrementor) = node.ref_(self).as_for_statement().incrementor {
@@ -335,7 +335,7 @@ impl TypeChecker {
             )?
         {
             self.error(
-                Some(node.ref_(self).as_for_in_statement().expression),
+                released!(Some(node.ref_(self).as_for_in_statement().expression)),
                 &Diagnostics::The_right_hand_side_of_a_for_in_statement_must_be_of_type_any_an_object_type_or_a_type_parameter_but_here_has_type_0,
                 Some(vec![
                     self.type_to_string_(

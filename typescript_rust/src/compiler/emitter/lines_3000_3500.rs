@@ -78,7 +78,10 @@ impl Printer {
             None,
         );
         self.write_space();
-        self.emit(Some(node.ref_(self).as_labeled_statement().statement), None)?;
+        self.emit(
+            Some(released!(node.ref_(self).as_labeled_statement().statement)),
+            None,
+        )?;
 
         Ok(())
     }
@@ -180,7 +183,10 @@ impl Printer {
             node.ref_(self).as_variable_declaration().exclamation_token,
             None,
         )?;
-        self.emit_type_annotation(node.ref_(self).as_variable_declaration().maybe_type())?;
+        self.emit_type_annotation(released!(node
+            .ref_(self)
+            .as_variable_declaration()
+            .maybe_type()))?;
         self.emit_initializer(
             released!(node
                 .ref_(self)
@@ -324,11 +330,17 @@ impl Printer {
         &self,
         node: Id<Node>, /*FunctionDeclaration | FunctionExpression | MethodDeclaration | AccessorDeclaration | ConstructorDeclaration*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_signature_declaration = node_ref.as_signature_declaration();
-        self.emit_type_parameters(node, node_as_signature_declaration.maybe_type_parameters())?;
-        self.emit_parameters(node, node_as_signature_declaration.parameters())?;
-        self.emit_type_annotation(node_as_signature_declaration.maybe_type())?;
+        self.emit_type_parameters(
+            node,
+            node.ref_(self)
+                .as_signature_declaration()
+                .maybe_type_parameters(),
+        )?;
+        self.emit_parameters(
+            node,
+            node.ref_(self).as_signature_declaration().parameters(),
+        )?;
+        self.emit_type_annotation(node.ref_(self).as_signature_declaration().maybe_type())?;
 
         Ok(())
     }
@@ -566,9 +578,10 @@ impl Printer {
         )?;
         self.emit_list(
             Some(node),
-            node.ref_(self)
+            released!(node
+                .ref_(self)
                 .as_interface_declaration()
-                .maybe_heritage_clauses(),
+                .maybe_heritage_clauses()),
             ListFormat::HeritageClauses,
             None,
             None,
@@ -578,7 +591,7 @@ impl Printer {
         self.write_punctuation("{");
         self.emit_list(
             Some(node),
-            Some(node.ref_(self).as_interface_declaration().members),
+            released!(Some(node.ref_(self).as_interface_declaration().members)),
             ListFormat::InterfaceMembers,
             None,
             None,
@@ -896,9 +909,7 @@ impl Printer {
             None,
         );
         self.write_space();
-        let node_ref = node.ref_(self);
-        let node_as_export_assignment = node_ref.as_export_assignment();
-        if node_as_export_assignment.is_export_equals == Some(true) {
+        if node.ref_(self).as_export_assignment().is_export_equals == Some(true) {
             self.emit_token_with_comment(
                 SyntaxKind::EqualsToken,
                 next_pos,
@@ -917,8 +928,8 @@ impl Printer {
         }
         self.write_space();
         self.emit_expression(
-            Some(node_as_export_assignment.expression),
-            if node_as_export_assignment.is_export_equals == Some(true) {
+            Some(node.ref_(self).as_export_assignment().expression),
+            if node.ref_(self).as_export_assignment().is_export_equals == Some(true) {
                 Some(self.alloc_current_parenthesizer_rule(Box::new(
                     ParenthesizeRightSideOfBinaryCurrentParenthesizerRule::new(
                         self.parenthesizer(),

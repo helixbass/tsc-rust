@@ -46,9 +46,7 @@ impl NodeFactory {
         node: Id<Node>, /*InferTypeNode*/
         type_parameter: Id<Node /*TypeParameterDeclaration*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_infer_type_node = node_ref.as_infer_type_node();
-        if node_as_infer_type_node.type_parameter != type_parameter {
+        if node.ref_(self).as_infer_type_node().type_parameter != type_parameter {
             self.update(self.create_infer_type_node(type_parameter), node)
         } else {
             node
@@ -128,17 +126,16 @@ impl NodeFactory {
         type_arguments: Option<impl Into<NodeArrayOrVec /*<TypeNode>*/>>,
         is_type_of: Option<bool>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_import_type_node = node_ref.as_import_type_node();
-        let is_type_of = is_type_of.unwrap_or_else(|| node_as_import_type_node.is_type_of());
+        let is_type_of =
+            is_type_of.unwrap_or_else(|| node.ref_(self).as_import_type_node().is_type_of());
         let type_arguments = type_arguments.map(Into::into);
-        if node_as_import_type_node.argument != argument
-            || node_as_import_type_node.qualifier != qualifier
+        if node.ref_(self).as_import_type_node().argument != argument
+            || node.ref_(self).as_import_type_node().qualifier != qualifier
             || has_option_node_array_changed(
-                node_as_import_type_node.maybe_type_arguments(),
+                node.ref_(self).as_import_type_node().maybe_type_arguments(),
                 type_arguments.as_ref(),
             )
-            || node_as_import_type_node.is_type_of() != is_type_of
+            || node.ref_(self).as_import_type_node().is_type_of() != is_type_of
         {
             self.update(
                 self.create_import_type_node(argument, qualifier, type_arguments, Some(is_type_of)),
@@ -203,11 +200,12 @@ impl NodeFactory {
         node: Id<Node>, /*TypeOperatorNode*/
         type_: Id<Node /*TypeNode*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_type_operator_node = node_ref.as_type_operator_node();
-        if node_as_type_operator_node.type_ != type_ {
+        if node.ref_(self).as_type_operator_node().type_ != type_ {
             self.update(
-                self.create_type_operator_node(node_as_type_operator_node.operator, type_),
+                self.create_type_operator_node(
+                    released!(node.ref_(self).as_type_operator_node().operator),
+                    type_,
+                ),
                 node,
             )
         } else {
@@ -285,13 +283,11 @@ impl NodeFactory {
         type_: Option<Id<Node /*TypeNode*/>>,
         members: Option<Id<NodeArray /*<TypeElement>*/>>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_mapped_type_node = node_ref.as_mapped_type_node();
-        if node_as_mapped_type_node.readonly_token != readonly_token
-            || node_as_mapped_type_node.name_type != name_type
-            || node_as_mapped_type_node.question_token != question_token
-            || node_as_mapped_type_node.type_ != type_
-            || node_as_mapped_type_node.members != members
+        if node.ref_(self).as_mapped_type_node().readonly_token != readonly_token
+            || node.ref_(self).as_mapped_type_node().name_type != name_type
+            || node.ref_(self).as_mapped_type_node().question_token != question_token
+            || node.ref_(self).as_mapped_type_node().type_ != type_
+            || node.ref_(self).as_mapped_type_node().members != members
         {
             self.update(
                 self.create_mapped_type_node(

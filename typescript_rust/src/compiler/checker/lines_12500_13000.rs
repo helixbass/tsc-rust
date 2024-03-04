@@ -500,19 +500,21 @@ impl TypeChecker {
             .maybe_resolved_type_predicate()
             .is_none()
         {
-            if let Some(signature_target) = signature.ref_(self).target {
+            if let Some(signature_target) = released!(signature.ref_(self).target) {
                 let target_type_predicate =
                     self.get_type_predicate_of_signature(signature_target)?;
-                signature.ref_(self).set_resolved_type_predicate(Some(
+                let resolved_type_predicate =
                     if let Some(target_type_predicate) = target_type_predicate {
                         self.alloc_type_predicate(self.instantiate_type_predicate(
                             target_type_predicate,
-                            signature.ref_(self).mapper.clone().unwrap(),
+                            released!(signature.ref_(self).mapper.unwrap()),
                         )?)
                     } else {
                         self.no_type_predicate()
-                    },
-                ));
+                    };
+                signature
+                    .ref_(self)
+                    .set_resolved_type_predicate(Some(resolved_type_predicate));
             } else if let Some(signature_composite_signatures) =
                 signature.ref_(self).composite_signatures.as_ref()
             {
@@ -1205,28 +1207,26 @@ impl TypeChecker {
                                 if self.is_valid_index_key_type(key_type)?
                                     && self.find_index_info(&index_infos, key_type).is_none()
                                 {
-                                    index_infos.push(
-                                        self.alloc_index_info(
-                                            self.create_index_info(
-                                                key_type,
-                                                if let Some(declaration_type) = declaration
+                                    index_infos.push(self.alloc_index_info(
+                                        self.create_index_info(
+                                            key_type,
+                                            if let Some(declaration_type) = released!(declaration
                                                     .ref_(self)
                                                     .as_index_signature_declaration()
-                                                    .maybe_type()
-                                                {
-                                                    self.get_type_from_type_node_(declaration_type)?
-                                                } else {
-                                                    self.any_type()
-                                                },
-                                                has_effective_modifier(
-                                                    declaration,
-                                                    ModifierFlags::Readonly,
-                                                    self,
-                                                ),
-                                                Some(declaration.clone()),
+                                                    .maybe_type())
+                                            {
+                                                self.get_type_from_type_node_(declaration_type)?
+                                            } else {
+                                                self.any_type()
+                                            },
+                                            has_effective_modifier(
+                                                declaration,
+                                                ModifierFlags::Readonly,
+                                                self,
                                             ),
+                                            Some(declaration.clone()),
                                         ),
-                                    );
+                                    ));
                                 }
                                 Ok(Option::<()>::None)
                             },

@@ -1117,7 +1117,8 @@ impl CheckTypeRelatedTo {
                                 &save_error_info,
                                 &mut variance_check_failed,
                                 Some(source_alias_type_arguments),
-                                target.ref_(arena).maybe_alias_type_arguments().as_deref(),
+                                released!(target.ref_(arena).maybe_alias_type_arguments())
+                                    .as_deref(),
                                 &variances,
                                 intersection_state,
                             )?;
@@ -1288,7 +1289,7 @@ impl CheckTypeRelatedTo {
                     self_,
                     arena,
                     target_type,
-                    source.ref_(arena).as_index_type().type_,
+                    released!(source.ref_(arena).as_index_type().type_),
                     Some(RecursionFlags::Both),
                     Some(false),
                     None,
@@ -1708,10 +1709,12 @@ impl CheckTypeRelatedTo {
                                 self_,
                                 arena,
                                 source,
-                                non_null_component
-                                    .ref_(arena)
-                                    .as_indexed_access_type()
-                                    .object_type,
+                                released!(
+                                    non_null_component
+                                        .ref_(arena)
+                                        .as_indexed_access_type()
+                                        .object_type
+                                ),
                                 Some(RecursionFlags::Target),
                                 Some(report_errors),
                                 None,
@@ -1803,43 +1806,34 @@ impl CheckTypeRelatedTo {
                         &c.ref_(arena).as_conditional_type().root.ref_(arena),
                     )?
             {
-                let skip_true = !self_
-                    .ref_(arena)
-                    .type_checker
+                let skip_true = !released!(self_.ref_(arena).type_checker)
                     .ref_(arena)
                     .is_type_assignable_to(
-                        self_
-                            .ref_(arena)
-                            .type_checker
+                        released!(self_.ref_(arena).type_checker)
                             .ref_(arena)
                             .get_permissive_instantiation(released!(
                                 c.ref_(arena).as_conditional_type().check_type
                             ))?,
-                        self_
-                            .ref_(arena)
-                            .type_checker
+                        released!(self_.ref_(arena).type_checker)
                             .ref_(arena)
                             .get_permissive_instantiation(
                                 c.ref_(arena).as_conditional_type().extends_type,
                             )?,
                     )?;
                 let skip_false = !skip_true
-                    && released!(self_.ref_(arena))
-                        .type_checker
+                    && released!(self_.ref_(arena).type_checker)
                         .ref_(arena)
                         .is_type_assignable_to(
-                            released!(self_.ref_(arena))
-                                .type_checker
+                            released!(self_.ref_(arena).type_checker)
                                 .ref_(arena)
                                 .get_restrictive_instantiation(released!(
                                     c.ref_(arena).as_conditional_type().check_type
                                 ))?,
-                            released!(self_.ref_(arena))
-                                .type_checker
+                            released!(self_.ref_(arena).type_checker)
                                 .ref_(arena)
-                                .get_restrictive_instantiation(
-                                    c.ref_(arena).as_conditional_type().extends_type,
-                                )?,
+                                .get_restrictive_instantiation(released!(
+                                    c.ref_(arena).as_conditional_type().extends_type
+                                ))?,
                         )?;
                 result = if skip_true {
                     Ternary::True
@@ -1930,9 +1924,7 @@ impl CheckTypeRelatedTo {
                         ),
                     )?;
             }
-            if self_
-                .ref_(arena)
-                .type_checker
+            if released!(self_.ref_(arena).type_checker)
                 .ref_(arena)
                 .is_type_matched_by_template_literal_type(source, target)?
             {
@@ -1954,9 +1946,7 @@ impl CheckTypeRelatedTo {
                     .flags()
                     .intersects(TypeFlags::IndexedAccess))
             {
-                let constraint = self_
-                    .ref_(arena)
-                    .type_checker
+                let constraint = released!(self_.ref_(arena).type_checker)
                     .ref_(arena)
                     .get_constraint_of_type(source)?;
                 if match constraint {
@@ -1972,14 +1962,10 @@ impl CheckTypeRelatedTo {
                     result = Self::is_related_to(
                         self_,
                         arena,
-                        self_
-                            .ref_(arena)
-                            .type_checker
+                        released!(self_.ref_(arena).type_checker)
                             .ref_(arena)
                             .empty_object_type(),
-                        self_
-                            .ref_(arena)
-                            .type_checker
+                        released!(self_.ref_(arena).type_checker)
                             .ref_(arena)
                             .extract_types_of_kind(target, !TypeFlags::NonPrimitive),
                         Some(RecursionFlags::Both),
@@ -2033,9 +2019,7 @@ impl CheckTypeRelatedTo {
             result = Self::is_related_to(
                 self_,
                 arena,
-                self_
-                    .ref_(arena)
-                    .type_checker
+                released!(self_.ref_(arena).type_checker)
                     .ref_(arena)
                     .keyof_constraint_type(),
                 target,
@@ -2226,21 +2210,15 @@ impl CheckTypeRelatedTo {
                     result = Self::is_related_to(
                         self_,
                         arena,
-                        self_
-                            .ref_(arena)
-                            .type_checker
+                        released!(self_.ref_(arena).type_checker)
                             .ref_(arena)
                             .instantiate_type(
-                                self_
-                                    .ref_(arena)
-                                    .type_checker
+                                released!(self_.ref_(arena).type_checker)
                                     .ref_(arena)
                                     .get_true_type_from_conditional_type(source)?,
                                 mapper,
                             )?,
-                        self_
-                            .ref_(arena)
-                            .type_checker
+                        released!(self_.ref_(arena).type_checker)
                             .ref_(arena)
                             .get_true_type_from_conditional_type(target)?,
                         Some(RecursionFlags::Both),
@@ -2295,9 +2273,7 @@ impl CheckTypeRelatedTo {
                 }
             }
 
-            let default_constraint = self_
-                .ref_(arena)
-                .type_checker
+            let default_constraint = released!(self_.ref_(arena).type_checker)
                 .ref_(arena)
                 .get_default_constraint_of_conditional_type(source)?;
             // if (defaultConstraint) {
@@ -2366,9 +2342,7 @@ impl CheckTypeRelatedTo {
                 &self_.ref_(arena).relation,
                 &self_.ref_(arena).type_checker.ref_(arena).identity_relation,
             ) {
-                source = self_
-                    .ref_(arena)
-                    .type_checker
+                source = released!(self_.ref_(arena).type_checker)
                     .ref_(arena)
                     .get_apparent_type(source)?;
             } else if self_
@@ -2466,24 +2440,24 @@ impl CheckTypeRelatedTo {
                     return Self::is_related_to(
                         self_,
                         arena,
-                        self_
-                            .ref_(arena)
-                            .type_checker
+                        released!(self_.ref_(arena).type_checker)
                             .ref_(arena)
                             .get_index_type_of_type_(
                                 source,
-                                self_.ref_(arena).type_checker.ref_(arena).number_type(),
+                                released!(self_.ref_(arena).type_checker)
+                                    .ref_(arena)
+                                    .number_type(),
                             )?
                             .unwrap_or_else(|| {
                                 self_.ref_(arena).type_checker.ref_(arena).any_type()
                             }),
-                        self_
-                            .ref_(arena)
-                            .type_checker
+                        released!(self_.ref_(arena).type_checker)
                             .ref_(arena)
                             .get_index_type_of_type_(
                                 target,
-                                self_.ref_(arena).type_checker.ref_(arena).number_type(),
+                                released!(self_.ref_(arena).type_checker)
+                                    .ref_(arena)
+                                    .number_type(),
                             )?
                             .unwrap_or_else(|| {
                                 self_.ref_(arena).type_checker.ref_(arena).any_type()

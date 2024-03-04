@@ -509,7 +509,7 @@ impl TypeChecker {
         }
 
         try_for_each(
-            &*node_decorators.ref_(self),
+            &*released!(node_decorators.ref_(self).clone()),
             |&decorator: &Id<Node>, _| -> io::Result<Option<()>> {
                 self.check_decorator(decorator)?;
                 Ok(None)

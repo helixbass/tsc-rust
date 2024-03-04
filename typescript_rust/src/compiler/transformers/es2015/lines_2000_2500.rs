@@ -268,10 +268,10 @@ impl TransformES2015 {
                     &mut converted_loop_state.ref_mut(self),
                     decl,
                 );
-                if let Some(decl_initializer) = decl
+                if let Some(decl_initializer) = released!(decl
                     .ref_(self)
                     .as_variable_declaration()
-                    .maybe_initializer()
+                    .maybe_initializer())
                 {
                     let assignment: Id<Node /*Expression*/>;
                     if is_binding_pattern(

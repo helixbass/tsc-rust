@@ -335,7 +335,7 @@ impl TypeChecker {
                 signature.clone(),
                 |source: Id<Type>, target: Id<Type>| {
                     self.infer_types(
-                        &context.ref_(self).inferences(),
+                        &released!(context.ref_(self).inferences().clone()),
                         source,
                         target,
                         Some(InferencePriority::ReturnType),
@@ -561,7 +561,7 @@ impl TypeChecker {
                     check_mode,
                 )?;
                 self.infer_types(
-                    &context.ref_(self).inferences(),
+                    &released!(context.ref_(self).inferences().clone()),
                     arg_type,
                     param_type,
                     None,
@@ -820,7 +820,7 @@ impl TypeChecker {
             return Ok(JsxReferenceKind::Mixed);
         }
         let tag_type = self.get_apparent_type(self.check_expression(
-            node.ref_(self).as_jsx_opening_like_element().tag_name(),
+            released!(node.ref_(self).as_jsx_opening_like_element().tag_name()),
             None,
             None,
         )?)?;

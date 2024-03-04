@@ -965,9 +965,7 @@ impl MakeSerializePropertySymbol {
                             .into(),
                     ),
                     name.clone().into(),
-                    p.ref_(self)
-                        .flags()
-                        .intersects(SymbolFlags::Optional)
+                    released!(p.ref_(self).flags().intersects(SymbolFlags::Optional))
                         .then(|| get_factory(self).create_token(SyntaxKind::QuestionToken)),
                     if !is_private {
                         Some(
@@ -1086,11 +1084,11 @@ impl MakeSerializePropertySymbol {
                         self.context,
                         Some(SignatureToSignatureDeclarationOptions {
                             name: Some(name.clone()),
-                            question_token: p
+                            question_token: released!(p
                                 .ref_(self)
                                 .flags()
-                                .intersects(SymbolFlags::Optional)
-                                .then(|| get_factory(self).create_token(SyntaxKind::QuestionToken)),
+                                .intersects(SymbolFlags::Optional))
+                            .then(|| get_factory(self).create_token(SyntaxKind::QuestionToken)),
                             modifiers: (flag != ModifierFlags::None).then(|| {
                                 get_factory(self).create_modifiers_from_modifier_flags(flag)
                             }),

@@ -279,12 +279,10 @@ impl TypeChecker {
                 elem_instance_type,
                 combined,
                 self.assignable_relation.clone(),
-                Some(
-                    opening_like_element
-                        .ref_(self)
-                        .as_jsx_opening_like_element()
-                        .tag_name(),
-                ),
+                Some(released!(opening_like_element
+                    .ref_(self)
+                    .as_jsx_opening_like_element()
+                    .tag_name())),
                 Some(Cow::Borrowed(
                     &Diagnostics::Its_element_type_0_is_not_a_valid_JSX_element,
                 )),

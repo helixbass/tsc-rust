@@ -634,11 +634,11 @@ impl TypeChecker {
                                     )
                                     .unwrap(),
                                 );
-                                let uninitialized_ref = uninitialized.ref_(self);
-                                let uninitialized_as_property_declaration =
-                                    uninitialized_ref.as_property_declaration();
-                                let prop_name = uninitialized_as_property_declaration.name();
-                                if uninitialized_as_property_declaration
+                                let prop_name =
+                                    uninitialized.ref_(self).as_property_declaration().name();
+                                if uninitialized
+                                    .ref_(self)
+                                    .as_property_declaration()
                                     .exclamation_token
                                     .is_some()
                                     || constructor.is_none()

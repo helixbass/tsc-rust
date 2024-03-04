@@ -128,7 +128,7 @@ impl TransformES2016 {
                         ),
                         self,
                     )),
-                    set_text_range_id_node(
+                    released!(set_text_range_id_node(
                         self.factory.ref_(self).create_assignment(
                             argument_expression_temp.clone(),
                             released!(
@@ -145,7 +145,7 @@ impl TransformES2016 {
                                 .ref_(self),
                         ),
                         self,
-                    ),
+                    )),
                 ),
                 Some(&*left.ref_(self)),
                 self,

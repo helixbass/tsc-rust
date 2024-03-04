@@ -25,7 +25,7 @@ use crate::{
     is_export_namespace_as_default_declaration, is_file_level_unique_name, is_generated_identifier,
     is_property_assignment, is_property_name, is_shorthand_property_assignment,
     is_spread_assignment, map, out_file, push_if_unique_eq, released, HasArena, InArena,
-    ModuleKind,
+    ModuleKind, ReadonlyTextRangeConcrete,
 };
 
 pub fn create_empty_exports(factory: &NodeFactory) -> Id<Node> {
@@ -248,10 +248,10 @@ pub fn create_for_of_binding_statement(
         );
         let updated_declaration = factory.update_variable_declaration(
             first_declaration,
-            first_declaration
+            released!(first_declaration
                 .ref_(factory)
                 .as_variable_declaration()
-                .maybe_name(),
+                .maybe_name()),
             None,
             None,
             Some(bound_value),
@@ -428,17 +428,21 @@ fn create_expression_for_property_assignment(
     property: Id<Node>, /*PropertyAssignment*/
     receiver: Id<Node>, /*Expression*/
 ) -> Id<Node> {
-    let property_ref = property.ref_(factory);
-    let property_as_property_assignment = property_ref.as_property_assignment();
     factory
         .create_assignment(
             create_member_access_for_property_name(
                 factory,
                 receiver,
-                property_as_property_assignment.name(),
-                Some(&*property_as_property_assignment.name().ref_(factory)),
+                released!(property.ref_(factory).as_property_assignment().name()),
+                Some(&released!(ReadonlyTextRangeConcrete::from(
+                    &*property
+                        .ref_(factory)
+                        .as_property_assignment()
+                        .name()
+                        .ref_(factory)
+                ))),
             ),
-            property_as_property_assignment.initializer.clone(),
+            released!(property.ref_(factory).as_property_assignment().initializer),
         )
         .set_text_range(Some(&*property.ref_(factory)), factory)
         .set_original_node(Some(property), factory)
@@ -507,8 +511,6 @@ pub fn create_expression_for_object_literal_element_like(
     property: Id<Node>, /*ObjectLiteralElementLike*/
     receiver: Id<Node>, /*Expression*/
 ) -> Option<Id<Node /*Expression*/>> {
-    let node_ref = node.ref_(factory);
-    let node_as_object_literal_expression = node_ref.as_object_literal_expression();
     if property
         .ref_(factory)
         .as_named_declaration()
@@ -524,14 +526,14 @@ pub fn create_expression_for_object_literal_element_like(
             Some("Private identifiers are not allowed in object literals."),
         );
     }
-    match property.ref_(factory).kind() {
+    match released!(property.ref_(factory).kind()) {
         SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
             create_expression_for_accessor_declaration(
                 factory,
-                node_as_object_literal_expression.properties,
+                node.ref_(factory).as_object_literal_expression().properties,
                 property,
                 receiver,
-                node_as_object_literal_expression.multi_line == Some(true),
+                node.ref_(factory).as_object_literal_expression().multi_line == Some(true),
             )
         }
         SyntaxKind::PropertyAssignment => Some(create_expression_for_property_assignment(
@@ -1013,12 +1015,12 @@ pub fn try_get_module_name_from_file(
     options: &CompilerOptions,
 ) -> Option<Id<Node /*StringLiteral*/>> {
     let file = file?;
-    if let Some(file_module_name) = file
+    if let Some(file_module_name) = released!(file
         .ref_(factory)
         .as_source_file()
         .maybe_module_name()
         .clone()
-        .non_empty()
+        .non_empty())
     {
         return Some(factory.create_string_literal(file_module_name, None, None));
     }

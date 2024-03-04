@@ -77,7 +77,7 @@ impl TypeChecker {
             {
                 self.pad_tuple_type(
                     type_,
-                    declaration.ref_(self).as_parameter_declaration().name(),
+                    released!(declaration.ref_(self).as_parameter_declaration().name()),
                 )?
             } else {
                 type_
@@ -90,8 +90,7 @@ impl TypeChecker {
         type_: Id<Type>,   /*TupleTypeReference*/
         pattern: Id<Node>, /*ArrayBindingPattern*/
     ) -> io::Result<Id<Type>> {
-        let pattern_ref = pattern.ref_(self);
-        let pattern_elements = &pattern_ref.as_array_binding_pattern().elements;
+        let pattern_elements = pattern.ref_(self).as_array_binding_pattern().elements;
         let mut element_types = self.get_type_arguments(type_)?;
         let type_target = type_.ref_(self).as_type_reference().target;
         let mut element_flags = type_target.ref_(self).as_tuple_type().element_flags.clone();
@@ -120,7 +119,7 @@ impl TypeChecker {
         self.create_tuple_type(
             &element_types,
             Some(&element_flags),
-            Some(type_target.ref_(self).as_tuple_type().readonly),
+            released!(Some(type_target.ref_(self).as_tuple_type().readonly)),
             None,
         )
     }

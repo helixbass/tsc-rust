@@ -294,12 +294,21 @@ impl TransformGenerators {
         &self,
         node: Id<Node>, /*BinaryExpression*/
     ) -> Id<Node /*Expression*/> {
-        let node_ref = node.ref_(self);
-        let node_as_binary_expression = node_ref.as_binary_expression();
-        if self.contains_yield(Some(node_as_binary_expression.right)) {
-            if is_logical_operator(node_as_binary_expression.operator_token.ref_(self).kind()) {
+        if self.contains_yield(Some(node.ref_(self).as_binary_expression().right)) {
+            if is_logical_operator(
+                node.ref_(self)
+                    .as_binary_expression()
+                    .operator_token
+                    .ref_(self)
+                    .kind(),
+            ) {
                 return self.visit_logical_binary_expression(node);
-            } else if node_as_binary_expression.operator_token.ref_(self).kind()
+            } else if node
+                .ref_(self)
+                .as_binary_expression()
+                .operator_token
+                .ref_(self)
+                .kind()
                 == SyntaxKind::CommaToken
             {
                 return self.visit_comma_expression(node);
@@ -308,14 +317,14 @@ impl TransformGenerators {
             return self.factory.ref_(self).update_binary_expression(
                 node,
                 self.cache_expression(visit_node(
-                    node_as_binary_expression.left,
+                    released!(node.ref_(self).as_binary_expression().left),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )),
-                node_as_binary_expression.operator_token,
+                released!(node.ref_(self).as_binary_expression().operator_token),
                 visit_node(
-                    node_as_binary_expression.right,
+                    released!(node.ref_(self).as_binary_expression().right),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -335,13 +344,14 @@ impl TransformGenerators {
         &self,
         node: Id<Node>, /*BinaryExpression*/
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_binary_expression = node_ref.as_binary_expression();
         let mut pending_expressions: Vec<Id<Node /*Expression*/>> = _d();
-        self.visit_comma_expression_visit(&mut pending_expressions, node_as_binary_expression.left);
         self.visit_comma_expression_visit(
             &mut pending_expressions,
-            node_as_binary_expression.right,
+            node.ref_(self).as_binary_expression().left,
+        );
+        self.visit_comma_expression_visit(
+            &mut pending_expressions,
+            node.ref_(self).as_binary_expression().right,
         );
         self.factory
             .ref_(self)
@@ -362,10 +372,14 @@ impl TransformGenerators {
                 .kind()
                 == SyntaxKind::CommaToken
         {
-            let node_ref = node.ref_(self);
-            let node_as_binary_expression = node_ref.as_binary_expression();
-            self.visit_comma_expression_visit(pending_expressions, node_as_binary_expression.left);
-            self.visit_comma_expression_visit(pending_expressions, node_as_binary_expression.right);
+            self.visit_comma_expression_visit(
+                pending_expressions,
+                released!(node.ref_(self).as_binary_expression().left),
+            );
+            self.visit_comma_expression_visit(
+                pending_expressions,
+                released!(node.ref_(self).as_binary_expression().right),
+            );
         } else {
             if self.contains_yield(Some(node)) && !pending_expressions.is_empty() {
                 self.emit_worker(
@@ -524,7 +538,7 @@ impl TransformGenerators {
             self.emit_assignment(
                 result_local.clone(),
                 visit_node(
-                    node.ref_(self).as_conditional_expression().when_true,
+                    released!(node.ref_(self).as_conditional_expression().when_true),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

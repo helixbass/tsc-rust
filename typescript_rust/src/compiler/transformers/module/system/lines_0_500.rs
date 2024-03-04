@@ -333,7 +333,8 @@ impl TransformSystemModule {
             .ref_(self)
             .update_source_file(
                 node,
-                self.factory
+                released!(self
+                    .factory
                     .ref_(self)
                     .create_node_array(
                         Some(vec![self.factory.ref_(self).create_expression_statement(
@@ -360,7 +361,7 @@ impl TransformSystemModule {
                     .set_text_range(
                         Some(&*node.ref_(self).as_source_file().statements().ref_(self)),
                         self,
-                    ),
+                    )),
                 None,
                 None,
                 None,

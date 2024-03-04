@@ -129,8 +129,12 @@ impl TypeChecker {
                     }
                 }
                 try_for_each(
-                    &*released!(clause.ref_(self).as_case_or_default_clause().statements())
-                        .ref_(self),
+                    &*released!(clause
+                        .ref_(self)
+                        .as_case_or_default_clause()
+                        .statements()
+                        .ref_(self)
+                        .clone()),
                     |&statement: &Id<Node>, _| -> io::Result<Option<()>> {
                         self.check_source_element(Some(statement))?;
                         Ok(None)
@@ -214,7 +218,9 @@ impl TypeChecker {
             );
         }
 
-        self.check_source_element(Some(node.ref_(self).as_labeled_statement().statement))?;
+        self.check_source_element(Some(released!(
+            node.ref_(self).as_labeled_statement().statement
+        )))?;
 
         return Ok(());
     }
@@ -560,7 +566,7 @@ impl TypeChecker {
                                     Ok(self
                                         .get_index_info_of_type_(
                                             base,
-                                            check_info.ref_(self).key_type,
+                                            released!(check_info.ref_(self).key_type),
                                         )?
                                         .is_some()
                                         && self
@@ -1057,9 +1063,7 @@ impl TypeChecker {
                     )? {
                         if !self.check_type_argument_constraints(
                             base_type_node,
-                            constructor
-                                .ref_(self)
-                                .maybe_type_parameters()
+                            released!(constructor.ref_(self).maybe_type_parameters().clone())
                                 .as_ref()
                                 .unwrap(),
                         )? {

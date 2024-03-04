@@ -792,15 +792,16 @@ impl TypeChecker {
             .maybe_final_array_type()
             .is_none()
         {
+            let final_array_type = self.create_final_array_type(released!(
+                evolving_array_type
+                    .ref_(self)
+                    .as_evolving_array_type()
+                    .element_type
+            ))?;
             evolving_array_type
                 .ref_(self)
                 .as_evolving_array_type()
-                .set_final_array_type(Some(self.create_final_array_type(
-                    released!(evolving_array_type
-                            .ref_(self)
-                            .as_evolving_array_type()
-                            .element_type),
-                )?));
+                .set_final_array_type(Some(final_array_type));
         }
         Ok(evolving_array_type
             .ref_(self)

@@ -142,22 +142,25 @@ impl NodeFactory {
         if let Some(original_modifiers) = original.ref_(self).maybe_modifiers() {
             updated.set_modifiers(Some(original_modifiers));
         }
-        let original_ref = original.ref_(self);
-        let original_as_shorthand_property_assignment =
-            original_ref.as_shorthand_property_assignment();
-        if let Some(original_equals_token) = original_as_shorthand_property_assignment
+        if let Some(original_equals_token) = original
+            .ref_(self)
+            .as_shorthand_property_assignment()
             .equals_token
             .as_ref()
         {
             updated.equals_token = Some(original_equals_token.clone());
         }
-        if let Some(original_question_token) = original_as_shorthand_property_assignment
+        if let Some(original_question_token) = original
+            .ref_(self)
+            .as_shorthand_property_assignment()
             .question_token
             .as_ref()
         {
             updated.question_token = Some(original_question_token.clone());
         }
-        if let Some(original_exclamation_token) = original_as_shorthand_property_assignment
+        if let Some(original_exclamation_token) = original
+            .ref_(self)
+            .as_shorthand_property_assignment()
             .exclamation_token
             .as_ref()
         {
@@ -172,10 +175,11 @@ impl NodeFactory {
         name: Id<Node>, /*Identifier*/
         object_assignment_initializer: Option<Id<Node /*Expression*/>>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_shorthand_property_assignment = node_ref.as_shorthand_property_assignment();
-        if node_as_shorthand_property_assignment.name() != name
-            || node_as_shorthand_property_assignment.object_assignment_initializer
+        if node.ref_(self).as_shorthand_property_assignment().name() != name
+            || node
+                .ref_(self)
+                .as_shorthand_property_assignment()
+                .object_assignment_initializer
                 != object_assignment_initializer
         {
             self.finish_update_shorthand_property_assignment(
@@ -1106,10 +1110,8 @@ impl NodeFactory {
                 .ref_(self)
                 .parenthesize_left_side_of_access(callee);
         } else if is_property_access_expression(&callee.ref_(self)) {
-            let callee_ref = callee.ref_(self);
-            let callee_as_property_access_expression = callee_ref.as_property_access_expression();
             if self.should_be_captured_in_temp_variable(
-                callee_as_property_access_expression.expression,
+                callee.ref_(self).as_property_access_expression().expression,
                 cache_identifiers,
             ) {
                 this_arg = self.create_temp_variable(
@@ -1120,19 +1122,32 @@ impl NodeFactory {
                 );
                 target = self
                     .create_property_access_expression(
-                        self.create_assignment(
-                            this_arg.clone(),
-                            callee_as_property_access_expression.expression.clone(),
-                        )
-                        .set_text_range(
-                            Some(&*callee_as_property_access_expression.expression.ref_(self)),
-                            self,
-                        ),
-                        callee_as_property_access_expression.name.clone(),
+                        released!(self
+                            .create_assignment(
+                                this_arg.clone(),
+                                released!(
+                                    callee.ref_(self).as_property_access_expression().expression
+                                ),
+                            )
+                            .set_text_range(
+                                Some(
+                                    &*callee
+                                        .ref_(self)
+                                        .as_property_access_expression()
+                                        .expression
+                                        .ref_(self)
+                                ),
+                                self,
+                            )),
+                        released!(callee.ref_(self).as_property_access_expression().name),
                     )
                     .set_text_range(Some(&*callee.ref_(self)), self);
             } else {
-                this_arg = callee_as_property_access_expression.expression.clone();
+                this_arg = callee
+                    .ref_(self)
+                    .as_property_access_expression()
+                    .expression
+                    .clone();
                 target = callee.clone();
             }
         } else if is_element_access_expression(&callee.ref_(self)) {

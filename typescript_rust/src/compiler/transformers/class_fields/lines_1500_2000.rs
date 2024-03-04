@@ -523,7 +523,7 @@ impl TransformClassFields {
         let ret = self.factory.ref_(self).create_assignment_target_wrapper(
             parameter,
             self.create_private_identifier_assignment(
-                &info.ref_(self),
+                info,
                 receiver,
                 parameter,
                 SyntaxKind::EqualsToken,
@@ -719,8 +719,6 @@ impl TransformClassFields {
                 }
             }
             if is_property_assignment(&node.ref_(self)) {
-                let node_ref = node.ref_(self);
-                let node_as_property_assignment = node_ref.as_property_assignment();
                 let initializer = get_initializer_of_binding_or_assignment_element(node, self);
                 return Some(
                     self.factory
@@ -728,7 +726,7 @@ impl TransformClassFields {
                         .update_property_assignment(
                             node,
                             visit_node(
-                                node_as_property_assignment.name(),
+                                released!(node.ref_(self).as_property_assignment().name()),
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node: Id<Node>| is_property_name(&node.ref_(self))),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -749,7 +747,7 @@ impl TransformClassFields {
                                 }
                             } else {
                                 visit_node(
-                                    node_as_property_assignment.initializer,
+                                    released!(node.ref_(self).as_property_assignment().initializer),
                                     Some(|node: Id<Node>| self.visitor_destructuring_target(node)),
                                     Some(|node| is_expression(node, self)),
                                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

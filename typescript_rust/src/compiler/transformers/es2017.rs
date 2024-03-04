@@ -485,7 +485,7 @@ impl TransformES2017 {
             node.ref_(self).as_variable_statement().declaration_list,
         )) {
             let expression = self.visit_variable_declaration_list_with_colliding_names(
-                node.ref_(self).as_variable_statement().declaration_list,
+                released!(node.ref_(self).as_variable_statement().declaration_list),
                 false,
             )?;
             return Ok(expression.map(|expression| {
@@ -867,8 +867,6 @@ impl TransformES2017 {
         node: Id<Node>, /*VariableDeclarationList*/
         has_receiver: bool,
     ) -> io::Result<Option<Id<Node>>> {
-        let node_ref = node.ref_(self);
-        let node_as_variable_declaration_list = node_ref.as_variable_declaration_list();
         self.hoist_variable_declaration_list(node);
 
         let variables = get_initialized_variables(node, self);
@@ -880,7 +878,10 @@ impl TransformES2017 {
                             .ref_(self)
                             .converters()
                             .convert_to_assignment_element_target(
-                                node_as_variable_declaration_list.declarations.ref_(self)[0]
+                                node.ref_(self)
+                                    .as_variable_declaration_list()
+                                    .declarations
+                                    .ref_(self)[0]
                                     .ref_(self)
                                     .as_variable_declaration()
                                     .name(),
@@ -902,13 +903,12 @@ impl TransformES2017 {
 
     fn hoist_variable_declaration_list(&self, node: Id<Node> /*VariableDeclarationList*/) {
         for_each(
-            &*node
-                .ref_(self)
-                .as_variable_declaration_list()
-                .declarations
-                .ref_(self),
+            &*released!(node.ref_(self).as_variable_declaration_list().declarations).ref_(self),
             |declaration: &Id<Node>, _| -> Option<()> {
-                self.hoist_variable(declaration.ref_(self).as_named_declaration().name());
+                self.hoist_variable(released!(declaration
+                    .ref_(self)
+                    .as_named_declaration()
+                    .name()));
                 None
             },
         );

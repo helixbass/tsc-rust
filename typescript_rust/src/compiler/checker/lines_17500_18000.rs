@@ -389,9 +389,9 @@ impl TypeChecker {
                     .as_literal_type()
                     .is_value_eq(&target.ref_(self))
                 && self.is_enum_type_related_to(
-                    self.get_parent_of_symbol(source.ref_(self).symbol())?
+                    self.get_parent_of_symbol(released!(source.ref_(self).symbol()))?
                         .unwrap(),
-                    self.get_parent_of_symbol(target.ref_(self).symbol())?
+                    self.get_parent_of_symbol(released!(target.ref_(self).symbol()))?
                         .unwrap(),
                     &mut error_reporter,
                 )?

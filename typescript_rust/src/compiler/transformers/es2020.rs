@@ -286,19 +286,22 @@ impl TransformES2020 {
                 self,
             );
             if is_synthetic_reference(&expression.ref_(self)) {
-                let expression_ref = expression.ref_(self);
-                let expression_as_synthetic_reference_expression =
-                    expression_ref.as_synthetic_reference_expression();
                 return self
                     .factory
                     .ref_(self)
                     .create_function_call_call(
-                        expression_as_synthetic_reference_expression
-                            .expression
-                            .clone(),
-                        expression_as_synthetic_reference_expression
-                            .this_arg
-                            .clone(),
+                        released!(
+                            expression
+                                .ref_(self)
+                                .as_synthetic_reference_expression()
+                                .expression
+                        ),
+                        released!(
+                            expression
+                                .ref_(self)
+                                .as_synthetic_reference_expression()
+                                .this_arg
+                        ),
                         args,
                     )
                     .set_text_range(Some(&*node.ref_(self)), self);

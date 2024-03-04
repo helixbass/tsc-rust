@@ -579,7 +579,7 @@ impl TypeChecker {
             IterationUse::Spread,
             array_or_iterable_type,
             self.undefined_type(),
-            Some(node.ref_(self).as_spread_element().expression),
+            released!(Some(node.ref_(self).as_spread_element().expression)),
         )
     }
 
@@ -651,7 +651,7 @@ impl TypeChecker {
                     )?;
                 }
                 let spread_type = self.check_expression(
-                    e.ref_(self).as_spread_element().expression,
+                    released!(e.ref_(self).as_spread_element().expression),
                     check_mode,
                     force_tuple,
                 )?;
@@ -1051,17 +1051,14 @@ impl TypeChecker {
         let mut has_computed_number_property = false;
         let mut has_computed_symbol_property = false;
 
-        for elem in &*node
-            .ref_(self)
-            .as_object_literal_expression()
-            .properties
-            .ref_(self)
+        for elem in
+            &*released!(node.ref_(self).as_object_literal_expression().properties).ref_(self)
         {
-            if let Some(elem_name) = elem
+            if let Some(elem_name) = released!(elem
                 .ref_(self)
                 .as_named_declaration()
                 .maybe_name()
-                .filter(|elem_name| is_computed_property_name(&elem_name.ref_(self)))
+                .filter(|elem_name| is_computed_property_name(&elem_name.ref_(self))))
             {
                 self.check_computed_property_name(elem_name)?;
             }
@@ -1095,21 +1092,25 @@ impl TypeChecker {
                 {
                     self.check_property_assignment(member_decl, check_mode)?
                 } else if member_decl.ref_(self).kind() == SyntaxKind::ShorthandPropertyAssignment {
-                    let member_decl_ref = member_decl.ref_(self);
-                    let member_decl_as_shorthand_property_assignment =
-                        member_decl_ref.as_shorthand_property_assignment();
                     self.check_expression_for_mutable_location(
                         if !in_destructuring_pattern
-                            && member_decl_as_shorthand_property_assignment
+                            && member_decl
+                                .ref_(self)
+                                .as_shorthand_property_assignment()
                                 .object_assignment_initializer
                                 .is_some()
                         {
-                            member_decl_as_shorthand_property_assignment
+                            member_decl
+                                .ref_(self)
+                                .as_shorthand_property_assignment()
                                 .object_assignment_initializer
                                 .clone()
                                 .unwrap()
                         } else {
-                            member_decl_as_shorthand_property_assignment.name()
+                            member_decl
+                                .ref_(self)
+                                .as_shorthand_property_assignment()
+                                .name()
                         },
                         check_mode,
                         None,
@@ -1219,7 +1220,7 @@ impl TypeChecker {
                             .is_none()
                     {
                         self.error(
-                            member_decl.ref_(self).as_named_declaration().maybe_name(),
+                            released!(member_decl.ref_(self).as_named_declaration().maybe_name()),
                             &Diagnostics::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1,
                             Some(vec![
                                 self.symbol_to_string_(
@@ -1374,7 +1375,11 @@ impl TypeChecker {
             for prop in self.get_properties_of_type(contextual_type.unwrap())? {
                 if !properties_table.contains_key(prop.ref_(self).escaped_name())
                     && self
-                        .get_property_of_type_(spread, prop.ref_(self).escaped_name(), None)?
+                        .get_property_of_type_(
+                            spread,
+                            &released!(prop.ref_(self).escaped_name().to_owned()),
+                            None,
+                        )?
                         .is_none()
                 {
                     if !prop.ref_(self).flags().intersects(SymbolFlags::Optional) {

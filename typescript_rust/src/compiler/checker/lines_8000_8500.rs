@@ -857,7 +857,7 @@ impl TypeChecker {
                 && self.is_spreadable_property(prop)
             {
                 members.insert(
-                    prop.ref_(self).escaped_name().to_owned(),
+                    released!(prop.ref_(self).escaped_name().to_owned()),
                     self.get_spread_symbol(prop, false)?,
                 );
             }

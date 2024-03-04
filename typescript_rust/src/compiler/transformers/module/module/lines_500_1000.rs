@@ -266,7 +266,7 @@ impl TransformModule {
                 .update_parenthesized_expression(
                     node,
                     try_visit_node(
-                        node.ref_(self).as_parenthesized_expression().expression,
+                        released!(node.ref_(self).as_parenthesized_expression().expression),
                         Some(|node: Id<Node>| {
                             if value_is_discarded {
                                 self.discarded_value_visitor(node)
@@ -287,15 +287,13 @@ impl TransformModule {
         node: Id<Node>, /*PartiallyEmittedExpression*/
         value_is_discarded: bool,
     ) -> io::Result<VisitResult> {
-        let node_ref = node.ref_(self);
-        let node_as_partially_emitted_expression = node_ref.as_partially_emitted_expression();
         Ok(Some(
             self.factory
                 .ref_(self)
                 .update_partially_emitted_expression(
                     node,
                     try_visit_node(
-                        node_as_partially_emitted_expression.expression,
+                        released!(node.ref_(self).as_partially_emitted_expression().expression),
                         Some(|node: Id<Node>| {
                             if value_is_discarded {
                                 self.discarded_value_visitor(node)
@@ -316,21 +314,23 @@ impl TransformModule {
         node: Id<Node>, /*PrefixUnaryExpression | PostfixUnaryExpression*/
         value_is_discarded: bool,
     ) -> io::Result<VisitResult> {
-        let node_ref = node.ref_(self);
-        let node_as_unary_expression = node_ref.as_unary_expression();
         if matches!(
-            node_as_unary_expression.operator(),
+            node.ref_(self).as_unary_expression().operator(),
             SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
-        ) && is_identifier(&node_as_unary_expression.operand().ref_(self))
-            && !is_generated_identifier(&node_as_unary_expression.operand().ref_(self))
-            && !is_local_name(node_as_unary_expression.operand(), self)
-            && !is_declaration_name_of_enum_or_namespace(node_as_unary_expression.operand(), self)
+        ) && is_identifier(&node.ref_(self).as_unary_expression().operand().ref_(self))
+            && !is_generated_identifier(&node.ref_(self).as_unary_expression().operand().ref_(self))
+            && !is_local_name(node.ref_(self).as_unary_expression().operand(), self)
+            && !is_declaration_name_of_enum_or_namespace(
+                node.ref_(self).as_unary_expression().operand(),
+                self,
+            )
         {
-            let exported_names = self.get_exports(node_as_unary_expression.operand())?;
+            let exported_names =
+                self.get_exports(node.ref_(self).as_unary_expression().operand())?;
             if let Some(exported_names) = exported_names {
                 let mut temp: Option<Id<Node /*Identifier*/>> = _d();
                 let mut expression/*: Expression*/ = try_visit_node(
-                    node_as_unary_expression.operand(),
+                    node.ref_(self).as_unary_expression().operand(),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

@@ -1061,37 +1061,39 @@ impl TransformES2018 {
     }
 
     fn visit_catch_clause(&self, node: Id<Node> /*CatchClause*/) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_catch_clause = node_ref.as_catch_clause();
-        if let Some(node_variable_declaration) =
-            node_as_catch_clause
-                .variable_declaration
-                .filter(|node_variable_declaration| {
-                    let node_variable_declaration_ref = node_variable_declaration.ref_(self);
-                    let node_variable_declaration_as_variable_declaration =
-                        node_variable_declaration_ref.as_variable_declaration();
-                    is_binding_pattern(
-                        node_variable_declaration_as_variable_declaration
-                            .maybe_name()
-                            .refed(self)
-                            .as_deref(),
-                    ) && node_variable_declaration_as_variable_declaration
-                        .name()
-                        .ref_(self)
-                        .transform_flags()
-                        .intersects(TransformFlags::ContainsObjectRestOrSpread)
-                })
+        if let Some(node_variable_declaration) = node
+            .ref_(self)
+            .as_catch_clause()
+            .variable_declaration
+            .filter(|node_variable_declaration| {
+                let node_variable_declaration_ref = node_variable_declaration.ref_(self);
+                let node_variable_declaration_as_variable_declaration =
+                    node_variable_declaration_ref.as_variable_declaration();
+                is_binding_pattern(
+                    node_variable_declaration_as_variable_declaration
+                        .maybe_name()
+                        .refed(self)
+                        .as_deref(),
+                ) && node_variable_declaration_as_variable_declaration
+                    .name()
+                    .ref_(self)
+                    .transform_flags()
+                    .intersects(TransformFlags::ContainsObjectRestOrSpread)
+            })
         {
-            let node_variable_declaration_ref = node_variable_declaration.ref_(self);
-            let node_variable_declaration_as_variable_declaration =
-                node_variable_declaration_ref.as_variable_declaration();
             let name = self.factory.ref_(self).get_generated_name_for_node(
-                node_variable_declaration_as_variable_declaration.maybe_name(),
+                node_variable_declaration
+                    .ref_(self)
+                    .as_variable_declaration()
+                    .maybe_name(),
                 None,
             );
             let updated_decl = self.factory.ref_(self).update_variable_declaration(
                 node_variable_declaration,
-                node_variable_declaration_as_variable_declaration.maybe_name(),
+                released!(node_variable_declaration
+                    .ref_(self)
+                    .as_variable_declaration()
+                    .maybe_name()),
                 None,
                 None,
                 Some(name.clone()),
@@ -1107,7 +1109,7 @@ impl TransformES2018 {
                 self,
             );
             let mut block = visit_node(
-                node_as_catch_clause.block,
+                node.ref_(self).as_catch_clause().block,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node: Id<Node>| is_block(&node.ref_(self))),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -1418,11 +1420,9 @@ impl TransformES2018 {
         node: Id<Node>,        /*ForOfStatement*/
         bound_value: Id<Node>, /*Expression*/
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_for_of_statement = node_ref.as_for_of_statement();
         let binding = create_for_of_binding_statement(
             &self.factory.ref_(self),
-            node_as_for_of_statement.initializer,
+            node.ref_(self).as_for_of_statement().initializer,
             bound_value,
         );
 
@@ -1435,7 +1435,7 @@ impl TransformES2018 {
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )];
         let statement = visit_iteration_body(
-            node_as_for_of_statement.statement,
+            node.ref_(self).as_for_of_statement().statement,
             |node: Id<Node>| self.visitor(node),
             &*self.context.ref_(self),
             self,
@@ -2312,8 +2312,12 @@ impl TransformES2018 {
         mut statements: Option<Vec<Id<Node /*Statement*/>>>,
         node: Id<Node>, /*FunctionLikeDeclaration*/
     ) -> Option<Vec<Id<Node /*Statement*/>>> {
-        for &parameter in
-            &*released!(node.ref_(self).as_function_like_declaration().parameters()).ref_(self)
+        for &parameter in &*released!(node
+            .ref_(self)
+            .as_function_like_declaration()
+            .parameters()
+            .ref_(self)
+            .clone())
         {
             if parameter
                 .ref_(self)

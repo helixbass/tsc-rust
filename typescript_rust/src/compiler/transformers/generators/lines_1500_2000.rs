@@ -13,13 +13,11 @@ impl TransformGenerators {
         &self,
         node: Id<Node>, /*ForInStatement*/
     ) {
-        let node_ref = node.ref_(self);
-        let node_as_for_in_statement = node_ref.as_for_in_statement();
         if self.contains_yield(Some(node)) {
             let keys_array = self.declare_local(None);
             let key = self.declare_local(None);
             let keys_index = self.factory.ref_(self).create_loop_variable(None);
-            let initializer = node_as_for_in_statement.initializer;
+            let initializer = node.ref_(self).as_for_in_statement().initializer;
             self.context
                 .ref_(self)
                 .hoist_variable_declaration(keys_index);
@@ -35,7 +33,7 @@ impl TransformGenerators {
                 self.factory.ref_(self).create_for_in_statement(
                     key.clone(),
                     visit_node(
-                        node_as_for_in_statement.expression,
+                        released!(node.ref_(self).as_for_in_statement().expression),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -114,7 +112,9 @@ impl TransformGenerators {
                     .create_element_access_expression(keys_array, keys_index.clone()),
                 Option::<&Node>::None,
             );
-            self.transform_and_emit_embedded_statement(node_as_for_in_statement.statement);
+            self.transform_and_emit_embedded_statement(
+                node.ref_(self).as_for_in_statement().statement,
+            );
 
             self.mark_label(increment_label);
             self.emit_statement(self.factory.ref_(self).create_expression_statement(
@@ -487,9 +487,9 @@ impl TransformGenerators {
             self.begin_labeled_block(
                 id_text(&node.ref_(self).as_labeled_statement().label.ref_(self)).to_owned(),
             );
-            self.transform_and_emit_embedded_statement(
-                node.ref_(self).as_labeled_statement().statement,
-            );
+            self.transform_and_emit_embedded_statement(released!(
+                node.ref_(self).as_labeled_statement().statement
+            ));
             self.end_labeled_block();
         } else {
             self.emit_statement(visit_node(
@@ -547,9 +547,9 @@ impl TransformGenerators {
     pub(super) fn transform_and_emit_try_statement(&self, node: Id<Node> /*TryStatement*/) {
         if self.contains_yield(Some(node)) {
             self.begin_exception_block();
-            self.transform_and_emit_embedded_statement(
-                node.ref_(self).as_try_statement().try_block,
-            );
+            self.transform_and_emit_embedded_statement(released!(
+                node.ref_(self).as_try_statement().try_block
+            ));
             if let Some(node_catch_clause) =
                 node.ref_(self).as_try_statement().catch_clause.as_ref()
             {

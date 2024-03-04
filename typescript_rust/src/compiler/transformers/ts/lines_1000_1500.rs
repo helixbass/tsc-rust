@@ -323,7 +323,7 @@ impl TransformTypeScript {
         decorator: Id<Node>, /*Decorator*/
     ) -> io::Result<Id<Node>> {
         try_visit_node(
-            decorator.ref_(self).as_decorator().expression,
+            released!(decorator.ref_(self).as_decorator().expression),
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -606,7 +606,7 @@ impl TransformTypeScript {
                     .is_some()
                 {
                     expressions.push(self.serialize_type_node(get_rest_parameter_element_type(
-                        parameter.ref_(self).as_parameter_declaration().maybe_type(),
+                        released!(parameter.ref_(self).as_parameter_declaration().maybe_type()),
                         self,
                     ))?);
                 } else {
@@ -763,19 +763,16 @@ impl TransformTypeScript {
 
             SyntaxKind::ConditionalType => {
                 return self.serialize_type_list(&[
-                    node.ref_(self).as_conditional_type_node().true_type.clone(),
-                    node.ref_(self)
-                        .as_conditional_type_node()
-                        .false_type
-                        .clone(),
+                    released!(node.ref_(self).as_conditional_type_node().true_type),
+                    released!(node.ref_(self).as_conditional_type_node().false_type),
                 ]);
             }
 
             SyntaxKind::TypeOperator => {
-                let node_ref = node.ref_(self);
-                let node_as_type_operator_node = node_ref.as_type_operator_node();
-                if node_as_type_operator_node.operator == SyntaxKind::ReadonlyKeyword {
-                    return self.serialize_type_node(Some(node_as_type_operator_node.type_));
+                if node.ref_(self).as_type_operator_node().operator == SyntaxKind::ReadonlyKeyword {
+                    return self.serialize_type_node(Some(released!(
+                        node.ref_(self).as_type_operator_node().type_
+                    )));
                 }
             }
 

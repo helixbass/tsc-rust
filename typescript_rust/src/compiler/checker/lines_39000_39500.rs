@@ -614,7 +614,7 @@ impl TypeChecker {
                         expr,
                         self.get_symbol_of_node(released!(member.ref_(self).parent()))?
                             .unwrap(),
-                        &expr.ref_(self).as_identifier().escaped_text,
+                        &released!(expr.ref_(self).as_identifier().escaped_text.clone()),
                     )?
                 });
             }

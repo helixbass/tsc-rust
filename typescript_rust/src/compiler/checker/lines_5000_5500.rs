@@ -118,11 +118,15 @@ impl NodeBuilder {
             .as_mapped_type_node()
             .readonly_token
             .map(|readonly_token| get_factory(self).create_token(readonly_token.ref_(self).kind()));
-        let question_token: Option<Id<Node>> = type_declaration
-            .ref_(self)
-            .as_mapped_type_node()
-            .question_token
-            .map(|question_token| get_factory(self).create_token(question_token.ref_(self).kind()));
+        let question_token: Option<Id<Node>> = released!(
+            type_declaration
+                .ref_(self)
+                .as_mapped_type_node()
+                .question_token
+        )
+        .map(|question_token| {
+            get_factory(self).create_token(released!(question_token.ref_(self).kind()))
+        });
         let appropriate_constraint_type_node: Id<Node /*TypeNode*/>;
         if self
             .type_checker

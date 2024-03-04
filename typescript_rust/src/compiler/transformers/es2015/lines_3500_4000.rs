@@ -121,7 +121,7 @@ impl TransformES2015 {
                 node,
                 Some(new_variable_declaration),
                 self.add_statement_to_start_of_block(
-                    node.ref_(self).as_catch_clause().block,
+                    released!(node.ref_(self).as_catch_clause().block),
                     destructure,
                 )?,
             );
@@ -143,10 +143,8 @@ impl TransformES2015 {
         block: Id<Node>, /*Block*/
         statement: Id<Node /*Statement*/>,
     ) -> io::Result<Id<Node /*Block*/>> {
-        let block_ref = block.ref_(self);
-        let block_as_block = block_ref.as_block();
         let transformed_statements = try_visit_nodes(
-            block_as_block.statements,
+            block.ref_(self).as_block().statements,
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_statement(node, self)),
             None,

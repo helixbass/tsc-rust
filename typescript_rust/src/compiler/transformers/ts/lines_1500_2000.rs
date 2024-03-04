@@ -198,12 +198,15 @@ impl TransformTypeScript {
         }
         if node.ref_(self).as_qualified_name().left.ref_(self).kind() == SyntaxKind::Identifier {
             return self.create_checked_value(
-                self.serialize_entity_name_as_expression(node.ref_(self).as_qualified_name().left),
+                self.serialize_entity_name_as_expression(released!(
+                    node.ref_(self).as_qualified_name().left
+                )),
                 self.serialize_entity_name_as_expression(node),
             );
         }
-        let left = self
-            .serialize_entity_name_as_expression_fallback(node.ref_(self).as_qualified_name().left);
+        let left = self.serialize_entity_name_as_expression_fallback(released!(
+            node.ref_(self).as_qualified_name().left
+        ));
         let temp = self.factory.ref_(self).create_temp_variable(
             Some(|node: Id<Node>| self.context.ref_(self).hoist_variable_declaration(node)),
             None,
@@ -253,9 +256,9 @@ impl TransformTypeScript {
         node: Id<Node>, /*QualifiedName*/
     ) -> Id<Node /*SerializedEntityNameAsExpression*/> {
         self.factory.ref_(self).create_property_access_expression(
-            released!(
-                self.serialize_entity_name_as_expression(node.ref_(self).as_qualified_name().left)
-            ),
+            self.serialize_entity_name_as_expression(released!(
+                node.ref_(self).as_qualified_name().left
+            )),
             released!(node.ref_(self).as_qualified_name().right),
         )
     }
@@ -340,10 +343,8 @@ impl TransformTypeScript {
                     .as_double_deref()
                     .is_non_empty())
         {
-            let name_ref = name.ref_(self);
-            let name_as_computed_property_name = name_ref.as_computed_property_name();
             let expression = try_visit_node(
-                name_as_computed_property_name.expression,
+                name.ref_(self).as_computed_property_name().expression,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

@@ -614,8 +614,11 @@ impl TypeChecker {
             }
             let flags = self.get_tuple_element_flags(e);
             if flags.intersects(ElementFlags::Variadic) {
-                let type_ = self
-                    .get_type_from_type_node_(e.ref_(self).as_has_type().maybe_type().unwrap())?;
+                let type_ = self.get_type_from_type_node_(released!(e
+                    .ref_(self)
+                    .as_has_type()
+                    .maybe_type()
+                    .unwrap()))?;
                 if !self.is_array_like_type(type_)? {
                     self.error(
                         Some(e),
@@ -667,7 +670,7 @@ impl TypeChecker {
             }
         }
         try_for_each(
-            &*node.ref_(self).as_tuple_type_node().elements.ref_(self),
+            &*released!(node.ref_(self).as_tuple_type_node().elements).ref_(self),
             |&element: &Id<Node>, _| -> io::Result<Option<()>> {
                 self.check_source_element(Some(element))?;
                 Ok(None)
@@ -827,7 +830,7 @@ impl TypeChecker {
             self.check_type_assignable_to(
                 name_type,
                 self.keyof_constraint_type(),
-                node.ref_(self).as_mapped_type_node().name_type,
+                released!(node.ref_(self).as_mapped_type_node().name_type),
                 None,
                 None,
                 None,
@@ -878,7 +881,9 @@ impl TypeChecker {
         node: Id<Node>, /*TypeOperatorNode*/
     ) -> io::Result<()> {
         self.check_grammar_type_operator_node(node);
-        self.check_source_element(Some(node.ref_(self).as_type_operator_node().type_))?;
+        self.check_source_element(Some(released!(
+            node.ref_(self).as_type_operator_node().type_
+        )))?;
 
         Ok(())
     }
@@ -1010,7 +1015,9 @@ impl TypeChecker {
                 None,
             );
         }
-        self.check_source_element(Some(node.ref_(self).as_named_tuple_member().type_))?;
+        self.check_source_element(Some(released!(
+            node.ref_(self).as_named_tuple_member().type_
+        )))?;
         self.get_type_from_type_node_(node)?;
 
         Ok(())

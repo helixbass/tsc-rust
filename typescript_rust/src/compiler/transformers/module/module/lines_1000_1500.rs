@@ -725,18 +725,18 @@ impl TransformModule {
                     released!(node
                         .ref_(self)
                         .as_variable_declaration()
-                        .maybe_initializer()
-                        .try_map_or_else(
-                            || Ok(self.factory.ref_(self).create_void_zero()),
-                            |node_initializer| {
-                                try_visit_node(
-                                    node_initializer,
-                                    Some(|node: Id<Node>| self.visitor(node)),
-                                    Option::<fn(Id<Node>) -> bool>::None,
-                                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
-                                )
-                            },
-                        )?),
+                        .maybe_initializer())
+                    .try_map_or_else(
+                        || Ok(self.factory.ref_(self).create_void_zero()),
+                        |node_initializer| {
+                            try_visit_node(
+                                node_initializer,
+                                Some(|node: Id<Node>| self.visitor(node)),
+                                Option::<fn(Id<Node>) -> bool>::None,
+                                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
+                            )
+                        },
+                    )?,
                 )
             },
         )

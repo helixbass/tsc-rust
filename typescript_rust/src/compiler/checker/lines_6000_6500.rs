@@ -1041,7 +1041,7 @@ impl NodeBuilder {
                 get_factory(self)
                     .create_union_type_node(vec![
                         try_visit_node(
-                            node.ref_(self).as_base_jsdoc_unary_type().type_.unwrap(),
+                            released!(node.ref_(self).as_base_jsdoc_unary_type().type_.unwrap()),
                             Some(|node: Id<Node>| {
                                 self.visit_existing_node_tree_symbols(
                                     context,
@@ -1254,13 +1254,14 @@ impl NodeBuilder {
                             None,
                         )],
                         try_maybe_visit_node(
-                            node.ref_(self)
+                            released!(node
+                                .ref_(self)
                                 .as_has_type_arguments()
                                 .maybe_type_arguments()
                                 .unwrap()
                                 .ref_(self)
                                 .get(1)
-                                .copied(),
+                                .copied()),
                             Some(|node: Id<Node>| {
                                 self.visit_existing_node_tree_symbols(
                                     context,

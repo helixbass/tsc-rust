@@ -17,31 +17,33 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*MappedType*/
     ) -> io::Result<Option<Id<Type>>> {
-        type_
-            .ref_(self)
-            .as_mapped_type()
-            .declaration
-            .ref_(self)
-            .as_mapped_type_node()
-            .name_type
-            .try_map(|type_declaration_name_type| -> io::Result<_> {
-                if type_
+        released!(
+            type_
+                .ref_(self)
+                .as_mapped_type()
+                .declaration
+                .ref_(self)
+                .as_mapped_type_node()
+                .name_type
+        )
+        .try_map(|type_declaration_name_type| -> io::Result<_> {
+            if type_
+                .ref_(self)
+                .as_mapped_type()
+                .maybe_name_type()
+                .is_none()
+            {
+                let name_type = self.instantiate_type(
+                    self.get_type_from_type_node_(type_declaration_name_type)?,
+                    type_.ref_(self).as_mapped_type().maybe_mapper(),
+                )?;
+                type_
                     .ref_(self)
                     .as_mapped_type()
-                    .maybe_name_type()
-                    .is_none()
-                {
-                    let name_type = self.instantiate_type(
-                        self.get_type_from_type_node_(type_declaration_name_type)?,
-                        type_.ref_(self).as_mapped_type().maybe_mapper(),
-                    )?;
-                    type_
-                        .ref_(self)
-                        .as_mapped_type()
-                        .set_name_type(Some(name_type));
-                }
-                Ok(type_.ref_(self).as_mapped_type().maybe_name_type().unwrap())
-            })
+                    .set_name_type(Some(name_type));
+            }
+            Ok(type_.ref_(self).as_mapped_type().maybe_name_type().unwrap())
+        })
     }
 
     pub(super) fn get_template_type_from_mapped_type(
@@ -143,7 +145,7 @@ impl TypeChecker {
                             .as_type_operator_node()
                             .type_,
                     )?,
-                    type_.ref_(self).as_mapped_type().maybe_mapper(),
+                    released!(type_.ref_(self).as_mapped_type().maybe_mapper()),
                 )?;
                 type_
                     .ref_(self)
@@ -665,8 +667,10 @@ impl TypeChecker {
             .is_distributive
             && type_.ref_(self).maybe_restrictive_instantiation() != Some(type_)
         {
-            let simplified =
-                self.get_simplified_type(type_.ref_(self).as_conditional_type().check_type, false)?;
+            let simplified = self.get_simplified_type(
+                released!(type_.ref_(self).as_conditional_type().check_type),
+                false,
+            )?;
             let constraint = if simplified == type_.ref_(self).as_conditional_type().check_type {
                 self.get_constraint_of_type(simplified)?
             } else {
@@ -678,12 +682,14 @@ impl TypeChecker {
                 let instantiated = self.get_conditional_type_instantiation(
                     type_,
                     self.prepend_type_mapping(
-                        {
-                            let root = type_.ref_(self).as_conditional_type().root.clone();
-                            root
-                        }
-                        .ref_(self)
-                        .check_type,
+                        released!(
+                            type_
+                                .ref_(self)
+                                .as_conditional_type()
+                                .root
+                                .ref_(self)
+                                .check_type
+                        ),
                         constraint,
                         {
                             let mapper = type_.ref_(self).as_conditional_type().mapper.clone();
@@ -1006,8 +1012,10 @@ impl TypeChecker {
             }));
         }
         if t.ref_(self).flags().intersects(TypeFlags::IndexedAccess) {
-            let base_object_type =
-                self.get_base_constraint(stack, t.ref_(self).as_indexed_access_type().object_type)?;
+            let base_object_type = self.get_base_constraint(
+                stack,
+                released!(t.ref_(self).as_indexed_access_type().object_type),
+            )?;
             let base_index_type = self.get_base_constraint(
                 stack,
                 released!(t.ref_(self).as_indexed_access_type().index_type),

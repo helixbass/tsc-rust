@@ -206,7 +206,7 @@ impl TransformGenerators {
             )
         {
             let CallBinding { target, this_arg } = self.factory.ref_(self).create_call_binding(
-                node.ref_(self).as_call_expression().expression,
+                released!(node.ref_(self).as_call_expression().expression),
                 |node: Id<Node>| {
                     self.context.ref_(self).hoist_variable_declaration(node);
                 },
@@ -225,7 +225,7 @@ impl TransformGenerators {
                         )),
                         this_arg,
                         self.visit_elements(
-                            node.ref_(self).as_call_expression().arguments,
+                            released!(node.ref_(self).as_call_expression().arguments),
                             Option::<Id<Node>>::None,
                             Option::<&Node>::None,
                             None,
@@ -321,7 +321,7 @@ impl TransformGenerators {
     pub(super) fn transform_and_emit_embedded_statement(&self, node: Id<Node>) {
         if is_block(&node.ref_(self)) {
             self.transform_and_emit_statements(
-                &node.ref_(self).as_block().statements.ref_(self),
+                &released!(node.ref_(self).as_block().statements).ref_(self),
                 None,
             );
         } else {
@@ -491,32 +491,36 @@ impl TransformGenerators {
     }
 
     pub(super) fn transform_and_emit_if_statement(&self, node: Id<Node> /*IfStatement*/) {
-        let node_ref = node.ref_(self);
-        let node_as_if_statement = node_ref.as_if_statement();
         if self.contains_yield(Some(node)) {
-            if self.contains_yield(Some(node_as_if_statement.then_statement))
-                || self.contains_yield(node_as_if_statement.else_statement)
+            if self.contains_yield(Some(node.ref_(self).as_if_statement().then_statement))
+                || self.contains_yield(node.ref_(self).as_if_statement().else_statement)
             {
                 let end_label = self.define_label();
-                let else_label = node_as_if_statement
+                let else_label = node
+                    .ref_(self)
+                    .as_if_statement()
                     .else_statement
                     .as_ref()
                     .map(|_| self.define_label());
                 self.emit_break_when_false(
-                    node_as_if_statement
+                    node.ref_(self)
+                        .as_if_statement()
                         .else_statement
                         .as_ref()
                         .map_or(end_label, |_| else_label.unwrap()),
                     visit_node(
-                        node_as_if_statement.expression,
+                        node.ref_(self).as_if_statement().expression,
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     ),
-                    Some(&*node_as_if_statement.expression.ref_(self)),
+                    Some(&*node.ref_(self).as_if_statement().expression.ref_(self)),
                 );
-                self.transform_and_emit_embedded_statement(node_as_if_statement.then_statement);
-                if let Some(node_else_statement) = node_as_if_statement.else_statement {
+                self.transform_and_emit_embedded_statement(
+                    node.ref_(self).as_if_statement().then_statement,
+                );
+                if let Some(node_else_statement) = node.ref_(self).as_if_statement().else_statement
+                {
                     self.emit_break(end_label, Option::<&Node>::None);
                     self.mark_label(else_label.unwrap());
                     self.transform_and_emit_embedded_statement(node_else_statement);
@@ -541,19 +545,17 @@ impl TransformGenerators {
     }
 
     pub(super) fn transform_and_emit_do_statement(&self, node: Id<Node> /*DoStatement*/) {
-        let node_ref = node.ref_(self);
-        let node_as_do_statement = node_ref.as_do_statement();
         if self.contains_yield(Some(node)) {
             let condition_label = self.define_label();
             let loop_label = self.define_label();
             self.begin_loop_block(condition_label);
             self.mark_label(loop_label);
-            self.transform_and_emit_embedded_statement(node_as_do_statement.statement);
+            self.transform_and_emit_embedded_statement(node.ref_(self).as_do_statement().statement);
             self.mark_label(condition_label);
             self.emit_break_when_true(
                 loop_label,
                 visit_node(
-                    node_as_do_statement.expression,
+                    node.ref_(self).as_do_statement().expression,
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -600,8 +602,6 @@ impl TransformGenerators {
         &self,
         node: Id<Node>, /*WhileStatement*/
     ) {
-        let node_ref = node.ref_(self);
-        let node_as_while_statement = node_ref.as_while_statement();
         if self.contains_yield(Some(node)) {
             let loop_label = self.define_label();
             let end_label = self.begin_loop_block(loop_label);
@@ -609,14 +609,16 @@ impl TransformGenerators {
             self.emit_break_when_false(
                 end_label,
                 visit_node(
-                    node_as_while_statement.expression,
+                    node.ref_(self).as_while_statement().expression,
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
                 Option::<&Node>::None,
             );
-            self.transform_and_emit_embedded_statement(node_as_while_statement.statement);
+            self.transform_and_emit_embedded_statement(
+                node.ref_(self).as_while_statement().statement,
+            );
             self.emit_break(loop_label, Option::<&Node>::None);
             self.end_loop_block();
         } else {
@@ -657,13 +659,11 @@ impl TransformGenerators {
     }
 
     pub(super) fn transform_and_emit_for_statement(&self, node: Id<Node> /*ForStatement*/) {
-        let node_ref = node.ref_(self);
-        let node_as_for_statement = node_ref.as_for_statement();
         if self.contains_yield(Some(node)) {
             let condition_label = self.define_label();
             let increment_label = self.define_label();
             let end_label = self.begin_loop_block(increment_label);
-            if let Some(node_initializer) = node_as_for_statement.initializer {
+            if let Some(node_initializer) = node.ref_(self).as_for_statement().initializer {
                 let initializer = node_initializer;
                 if is_variable_declaration_list(&initializer.ref_(self)) {
                     self.transform_and_emit_variable_declaration_list(initializer);
@@ -683,7 +683,7 @@ impl TransformGenerators {
             }
 
             self.mark_label(condition_label);
-            if let Some(node_condition) = node_as_for_statement.condition {
+            if let Some(node_condition) = node.ref_(self).as_for_statement().condition {
                 self.emit_break_when_false(
                     end_label,
                     visit_node(
@@ -696,10 +696,12 @@ impl TransformGenerators {
                 );
             }
 
-            self.transform_and_emit_embedded_statement(node_as_for_statement.statement);
+            self.transform_and_emit_embedded_statement(
+                node.ref_(self).as_for_statement().statement,
+            );
 
             self.mark_label(increment_label);
-            if let Some(node_incrementor) = node_as_for_statement.incrementor {
+            if let Some(node_incrementor) = node.ref_(self).as_for_statement().incrementor {
                 self.emit_statement(
                     self.factory
                         .ref_(self)

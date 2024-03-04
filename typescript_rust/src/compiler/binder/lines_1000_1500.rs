@@ -504,11 +504,11 @@ impl Binder {
                     }
                 }
                 if let Some(current_exception_target) = self.maybe_current_exception_target() {
-                    if let Some(exception_label_antecedents) = exception_label
+                    if let Some(exception_label_antecedents) = released!(exception_label
                         .ref_(self)
                         .as_flow_label()
                         .maybe_antecedents()
-                        .clone()
+                        .clone())
                     {
                         self.add_antecedent(
                             current_exception_target,

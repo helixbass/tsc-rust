@@ -1205,13 +1205,15 @@ impl NodeFactory {
         parameters: Id<NodeArray /*<ParameterDeclaration>*/>,
         type_: Option<Id<Node /*TypeNode*/>>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_constructor_type_node = node_ref.as_constructor_type_node();
         let modifiers = modifiers.map(Into::into);
         if has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
-            || node_as_constructor_type_node.maybe_type_parameters() != type_parameters
-            || node_as_constructor_type_node.parameters() != parameters
-            || node_as_constructor_type_node.maybe_type() != type_
+            || node
+                .ref_(self)
+                .as_constructor_type_node()
+                .maybe_type_parameters()
+                != type_parameters
+            || node.ref_(self).as_constructor_type_node().parameters() != parameters
+            || node.ref_(self).as_constructor_type_node().maybe_type() != type_
         {
             self.update_base_signature_declaration(
                 self.create_constructor_type_node(modifiers, type_parameters, parameters, type_),
@@ -1306,10 +1308,8 @@ impl NodeFactory {
         node: Id<Node>, /*TupleTypeNode*/
         elements: impl Into<NodeArrayOrVec>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_tuple_type_node = node_ref.as_tuple_type_node();
         let elements = elements.into();
-        if has_node_array_changed(node_as_tuple_type_node.elements, &elements) {
+        if has_node_array_changed(node.ref_(self).as_tuple_type_node().elements, &elements) {
             self.update(self.create_tuple_type_node(Some(elements)), node)
         } else {
             node

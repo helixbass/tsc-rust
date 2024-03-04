@@ -220,10 +220,9 @@ impl TransformSystemModule {
         statements.get_or_insert_default_().push(
             self.factory
                 .ref_(self)
-                .create_expression_statement(
-                    self.factory.ref_(self).create_assignment(
-                        name,
-                        self.factory
+                .create_expression_statement(self.factory.ref_(self).create_assignment(
+                    name,
+                    released!(self.factory
                             .ref_(self)
                             .create_class_expression(
                                 try_maybe_visit_nodes(
@@ -257,9 +256,8 @@ impl TransformSystemModule {
                                     self,
                                 )?,
                             )
-                            .set_text_range(Some(&*node.ref_(self)), self),
-                    ),
-                )
+                            .set_text_range(Some(&*node.ref_(self)), self)),
+                ))
                 .set_text_range(Some(&*node.ref_(self)), self),
         );
 
@@ -495,7 +493,7 @@ impl TransformSystemModule {
             );
             self.append_exports_of_variable_statement(
                 self.deferred_exports_mut().entry(id).or_default(),
-                node.ref_(self).maybe_original().unwrap(),
+                released!(node.ref_(self).maybe_original().unwrap()),
                 is_exported_declaration,
             );
         }
@@ -534,31 +532,25 @@ impl TransformSystemModule {
         statements: &mut Option<Vec<Id<Node /*Statement*/>>>,
         decl: Id<Node>, /*ImportDeclaration*/
     ) {
-        let decl_ref = decl.ref_(self);
-        let decl_as_import_declaration = decl_ref.as_import_declaration();
         if self.module_info().ref_(self).export_equals.is_some() {
             return /*statements*/;
         }
 
-        let import_clause = return_if_none!(decl_as_import_declaration.import_clause);
-        let import_clause_ref = import_clause.ref_(self);
-        let import_clause_as_import_clause = import_clause_ref.as_import_clause();
-        if import_clause_as_import_clause.name.is_some() {
+        let import_clause = return_if_none!(decl.ref_(self).as_import_declaration().import_clause);
+        if import_clause.ref_(self).as_import_clause().name.is_some() {
             self.append_exports_of_declaration(statements, import_clause, None);
         }
 
-        let named_bindings = import_clause_as_import_clause.named_bindings;
+        let named_bindings = import_clause.ref_(self).as_import_clause().named_bindings;
         if let Some(named_bindings) = named_bindings {
-            match named_bindings.ref_(self).kind() {
+            match released!(named_bindings.ref_(self).kind()) {
                 SyntaxKind::NamespaceImport => {
                     self.append_exports_of_declaration(statements, named_bindings, None);
                 }
                 SyntaxKind::NamedImports => {
-                    for &import_binding in &*named_bindings
-                        .ref_(self)
-                        .as_named_imports()
-                        .elements
-                        .ref_(self)
+                    for &import_binding in
+                        &*released!(named_bindings.ref_(self).as_named_imports().elements)
+                            .ref_(self)
                     {
                         self.append_exports_of_declaration(statements, import_binding, None);
                     }

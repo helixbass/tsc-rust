@@ -829,13 +829,9 @@ impl NodeBuilder {
             None,
         )?;
         if let Some(name) = name {
-            context
-                .ref_(self)
-                .tracker_ref()
-                .get_track_symbol()
-                .map(|track_symbol| {
-                    track_symbol.track_symbol(name, enclosing_declaration, SymbolFlags::Value)
-                });
+            released!(context.ref_(self).tracker_ref().get_track_symbol()).map(|track_symbol| {
+                track_symbol.track_symbol(name, enclosing_declaration, SymbolFlags::Value)
+            });
         }
 
         Ok(())
@@ -1294,7 +1290,7 @@ impl NodeBuilder {
                             .ref_(self)
                             .get_common_source_directory(),
                     ),
-                    ..(*self.type_checker.ref_(self).compiler_options.ref_(self)).clone()
+                    ..released!((*self.type_checker.ref_(self).compiler_options.ref_(self)).clone())
                 })
             } else {
                 self.type_checker.ref_(self).compiler_options.clone()
@@ -1360,12 +1356,9 @@ impl NodeBuilder {
             symbol,
             context,
             Some(meaning),
-            Some(
-                !context
-                    .ref_(self)
-                    .flags()
-                    .intersects(NodeBuilderFlags::UseAliasDefinedOutsideCurrentScope),
-            ),
+            Some(released!(!context.ref_(self).flags().intersects(
+                NodeBuilderFlags::UseAliasDefinedOutsideCurrentScope
+            ))),
         )?;
 
         let is_type_of = meaning == SymbolFlags::Value;

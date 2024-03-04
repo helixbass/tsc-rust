@@ -323,9 +323,11 @@ impl TypeChecker {
                     || target.ref_(self).flags().intersects(SymbolFlags::Value)
                 {
                     self.check_expression_cached(
-                        node.ref_(self)
-                            .as_import_equals_declaration()
-                            .module_reference,
+                        released!(
+                            node.ref_(self)
+                                .as_import_equals_declaration()
+                                .module_reference
+                        ),
                         None,
                     )?;
                 }

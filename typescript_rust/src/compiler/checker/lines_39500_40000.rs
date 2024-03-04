@@ -581,7 +581,7 @@ impl TypeChecker {
                     .filter(|&module_symbol| self.has_export_assignment_symbol(module_symbol))
                 {
                     self.error(
-                        node.ref_(self).as_export_declaration().module_specifier,
+                        released!(node.ref_(self).as_export_declaration().module_specifier),
                         &Diagnostics::Module_0_uses_export_and_cannot_be_used_with_export_Asterisk,
                         Some(vec![self.symbol_to_string_(
                             module_symbol,
@@ -852,10 +852,11 @@ impl TypeChecker {
                     }
                 } {
                     self.check_expression_cached(
-                        node.ref_(self)
+                        released!(node
+                            .ref_(self)
                             .as_export_specifier()
                             .property_name
-                            .unwrap_or(node.ref_(self).as_export_specifier().name),
+                            .unwrap_or_else(|| node.ref_(self).as_export_specifier().name)),
                         None,
                     )?;
                 }
@@ -937,11 +938,11 @@ impl TypeChecker {
         if let Some(type_annotation_node) = type_annotation_node {
             self.check_type_assignable_to(
                 self.check_expression_cached(
-                    node.ref_(self).as_export_assignment().expression,
+                    released!(node.ref_(self).as_export_assignment().expression),
                     None,
                 )?,
                 self.get_type_from_type_node_(type_annotation_node)?,
-                Some(node.ref_(self).as_export_assignment().expression),
+                released!(Some(node.ref_(self).as_export_assignment().expression)),
                 None,
                 None,
                 None,
@@ -988,7 +989,10 @@ impl TypeChecker {
                 )?;
             }
         } else {
-            self.check_expression_cached(node.ref_(self).as_export_assignment().expression, None)?;
+            self.check_expression_cached(
+                released!(node.ref_(self).as_export_assignment().expression),
+                None,
+            )?;
         }
 
         self.check_external_module_exports(container)?;

@@ -135,7 +135,9 @@ impl Printer {
         )?;
         self.write_space();
         self.emit_expression(
-            Some(node.ref_(self).as_tagged_template_expression().template),
+            released!(Some(
+                node.ref_(self).as_tagged_template_expression().template
+            )),
             None,
         )?;
 
@@ -505,7 +507,9 @@ impl Printer {
         self.emit(Some(node.ref_(self).as_template_expression().head), None)?;
         self.emit_list(
             Some(node),
-            Some(node.ref_(self).as_template_expression().template_spans),
+            released!(Some(
+                node.ref_(self).as_template_expression().template_spans
+            )),
             ListFormat::TemplateExpressionSpans,
             None,
             None,
@@ -660,7 +664,10 @@ impl Printer {
         &self,
         node: Id<Node>, /*TemplateSpan*/
     ) -> io::Result<()> {
-        self.emit_expression(Some(node.ref_(self).as_template_span().expression), None)?;
+        self.emit_expression(
+            Some(released!(node.ref_(self).as_template_span().expression)),
+            None,
+        )?;
         self.emit(Some(node.ref_(self).as_template_span().literal), None)?;
 
         Ok(())

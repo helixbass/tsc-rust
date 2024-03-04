@@ -1039,21 +1039,19 @@ impl TypeChecker {
                             main_module,
                             MembersOrExportsResolutionKind::resolved_exports,
                         )?;
-                        let resolved_exports = resolved_exports.ref_(self);
-                        let main_module_exports = main_module.ref_(self).exports();
-                        let main_module_exports = main_module_exports.ref_(self);
                         for (key, &value) in &*released!(module_augmentation
                             .ref_(self)
                             .symbol()
                             .ref_(self)
-                            .exports())
-                        .ref_(self)
+                            .exports()
+                            .ref_(self)
+                            .clone())
                         {
-                            if resolved_exports.contains_key(key)
-                                && !main_module_exports.contains_key(key)
+                            if resolved_exports.ref_(self).contains_key(key)
+                                && !main_module_exports.ref_(self).contains_key(key)
                             {
                                 self.merge_symbol(
-                                    *resolved_exports.get(key).unwrap(),
+                                    *resolved_exports.ref_(self).get(key).unwrap(),
                                     value,
                                     None,
                                 )?;
@@ -1468,8 +1466,8 @@ impl TypeChecker {
                                         prop_name,
                                         type_,
                                         static_blocks,
-                                        declaration.ref_(self).parent().ref_(self).pos(),
-                                        current.ref_(self).pos(),
+                                        released!(declaration.ref_(self).parent().ref_(self).pos()),
+                                        released!(current.ref_(self).pos()),
                                     )? {
                                         return Ok(true.into());
                                     }

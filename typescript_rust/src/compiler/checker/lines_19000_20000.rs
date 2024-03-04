@@ -767,11 +767,11 @@ impl CheckTypeRelatedTo {
                         .ref_(arena)
                         .as_named_declaration()
                         .name();
-                let unmatched_property_value_declaration_name_ref =
-                    unmatched_property_value_declaration_name.ref_(arena);
-                let private_identifier_description = &unmatched_property_value_declaration_name_ref
+                let ref private_identifier_description = unmatched_property_value_declaration_name
+                    .ref_(arena)
                     .as_private_identifier()
-                    .escaped_text;
+                    .escaped_text
+                    .clone();
                 let symbol_table_key = get_symbol_name_for_private_identifier(
                     &source_symbol.ref_(arena),
                     private_identifier_description,

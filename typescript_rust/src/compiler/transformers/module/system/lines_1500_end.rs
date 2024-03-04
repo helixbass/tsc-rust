@@ -245,11 +245,9 @@ impl TransformSystemModule {
         node: Id<Node>, /*PrefixUnaryExpression | PostfixUnaryExpression*/
         value_is_discarded: bool,
     ) -> io::Result<VisitResult> {
-        let node_ref = node.ref_(self);
-        let node_as_unary_expression = node_ref.as_unary_expression();
-        let node_operand = node_as_unary_expression.operand();
+        let node_operand = node.ref_(self).as_unary_expression().operand();
         if matches!(
-            node_as_unary_expression.operator(),
+            node.ref_(self).as_unary_expression().operator(),
             SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
         ) && is_identifier(&node_operand.ref_(self))
             && !is_generated_identifier(&node_operand.ref_(self))

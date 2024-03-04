@@ -1212,7 +1212,7 @@ impl TypeChecker {
             Some(exports) if exports.ref_(self).contains_key(node.ref_(self).symbol().ref_(self).escaped_name())
         ) {
             self.error(
-                node.ref_(self).as_import_clause().name,
+                released!(node.ref_(self).as_import_clause().name),
                 &Diagnostics::Module_0_has_no_default_export_Did_you_mean_to_use_import_1_from_0_instead,
                 Some(vec![
                     self.symbol_to_string_(module_symbol, Option::<Id<Node>>::None, None, None, None)?,
@@ -1373,7 +1373,7 @@ impl TypeChecker {
         }
         if let Some(type_symbol_members) = type_symbol.ref_(self).maybe_members().as_ref() {
             result.ref_(self).set_members(Some(
-                self.alloc_symbol_table(type_symbol_members.ref_(self).clone()),
+                self.alloc_symbol_table(released!(type_symbol_members.ref_(self).clone())),
             ));
         }
         if let Some(value_symbol_exports) = value_symbol.ref_(self).maybe_exports().as_ref() {

@@ -152,7 +152,12 @@ impl TypeChecker {
         let mut object_flags =
             ObjectFlags::ObjectLiteral | ObjectFlags::ContainsObjectOrArrayLiteral;
         try_for_each(
-            &*released!(pattern.ref_(self).as_object_binding_pattern().elements).ref_(self),
+            &*released!(pattern
+                .ref_(self)
+                .as_object_binding_pattern()
+                .elements
+                .ref_(self)
+                .clone()),
             |&e: &Id<Node>, _| -> io::Result<_> {
                 let name = e
                     .ref_(self)

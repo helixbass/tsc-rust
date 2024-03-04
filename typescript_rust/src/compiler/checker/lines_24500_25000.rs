@@ -752,7 +752,7 @@ impl TypeChecker {
                 let annotation_includes_undefined = self.strict_null_checks
                     && declaration.ref_(self).kind() == SyntaxKind::Parameter
                     && matches!(
-                        declaration.ref_(self).as_has_initializer().maybe_initializer(),
+                        released!(declaration.ref_(self).as_has_initializer().maybe_initializer()),
                         Some(declaration_initializer) if self.get_falsy_flags(declared_type).intersects(TypeFlags::Undefined) &&
                             !self.get_falsy_flags(self.check_expression(declaration_initializer, None, None)?).intersects(TypeFlags::Undefined)
                     );

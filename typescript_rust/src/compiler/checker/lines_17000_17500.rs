@@ -134,12 +134,16 @@ impl TypeChecker {
                 );
             }
             SyntaxKind::BinaryExpression => {
-                let node_ref = node.ref_(self);
-                let node_as_binary_expression = node_ref.as_binary_expression();
-                match node_as_binary_expression.operator_token.ref_(self).kind() {
+                match released!(node
+                    .ref_(self)
+                    .as_binary_expression()
+                    .operator_token
+                    .ref_(self)
+                    .kind())
+                {
                     SyntaxKind::EqualsToken | SyntaxKind::CommaToken => {
                         return self.elaborate_error(
-                            Some(node_as_binary_expression.right),
+                            released!(Some(node.ref_(self).as_binary_expression().right)),
                             source,
                             target,
                             relation,
@@ -766,7 +770,12 @@ impl TypeChecker {
         }
         let mut member_offset = 0;
         try_flat_map(
-            Some(&*released!(node.ref_(self).as_jsx_element().children).ref_(self)),
+            Some(&*released!(node
+                .ref_(self)
+                .as_jsx_element()
+                .children
+                .ref_(self)
+                .clone())),
             |&child, i| -> io::Result<_> {
                 let name_type =
                     self.get_number_literal_type(Number::new((i - member_offset) as f64));
@@ -1027,7 +1036,7 @@ impl TypeChecker {
                 )? {
                     result = true;
                     let diag = self.error(
-                        Some(containing_element.ref_(self).as_jsx_element().opening_element.ref_(self).as_jsx_opening_element().tag_name),
+                        released!(Some(containing_element.ref_(self).as_jsx_element().opening_element.ref_(self).as_jsx_opening_element().tag_name)),
                         &Diagnostics::This_JSX_tag_s_0_prop_expects_type_1_which_requires_multiple_children_but_only_a_single_child_was_provided,
                         Some(vec![
                             children_prop_name,

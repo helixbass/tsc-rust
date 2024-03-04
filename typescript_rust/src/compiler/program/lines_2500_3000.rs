@@ -995,17 +995,18 @@ impl Program {
 
             if resolved_type_reference_directive.ref_(self).primary {
                 self.process_source_file(
-                    resolved_type_reference_directive
+                    &released!(resolved_type_reference_directive
                         .ref_(self)
                         .resolved_file_name
-                        .as_ref()
-                        .unwrap(),
+                        .clone()
+                        .unwrap()),
                     false,
                     false,
-                    resolved_type_reference_directive
+                    released!(resolved_type_reference_directive
                         .ref_(self)
                         .package_id
-                        .as_ref(),
+                        .clone())
+                    .as_ref(),
                     reason,
                 )?;
             } else {
@@ -1054,17 +1055,18 @@ impl Program {
                     save_resolution = false;
                 } else {
                     self.process_source_file(
-                        resolved_type_reference_directive
+                        &released!(resolved_type_reference_directive
                             .ref_(self)
                             .resolved_file_name
-                            .as_ref()
-                            .unwrap(),
+                            .clone()
+                            .unwrap()),
                         false,
                         false,
-                        resolved_type_reference_directive
+                        released!(resolved_type_reference_directive
                             .ref_(self)
                             .package_id
-                            .as_ref(),
+                            .clone())
+                        .as_ref(),
                         reason,
                     )?;
                 }

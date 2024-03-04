@@ -838,10 +838,10 @@ impl TransformClassFields {
                         return Some(create_private_static_field_initializer(
                             private_identifier_info.maybe_variable_name().unwrap(),
                             maybe_visit_node(
-                                property
+                                released!(property
                                     .ref_(self)
                                     .as_property_declaration()
-                                    .maybe_initializer(),
+                                    .maybe_initializer()),
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

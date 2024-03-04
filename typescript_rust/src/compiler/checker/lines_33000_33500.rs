@@ -495,9 +495,9 @@ impl TypeChecker {
             None,
         )?;
         self.check_testing_known_truthy_callable_or_awaitable_type(
-            node.ref_(self).as_conditional_expression().condition,
+            released!(node.ref_(self).as_conditional_expression().condition),
             type_,
-            Some(node.ref_(self).as_conditional_expression().when_true),
+            released!(Some(node.ref_(self).as_conditional_expression().when_true)),
         )?;
         let type1 = self.check_expression(
             released!(node.ref_(self).as_conditional_expression().when_true),
@@ -543,25 +543,23 @@ impl TypeChecker {
             .text()
             .clone()];
         let mut types = vec![];
-        for span in node
-            .ref_(self)
-            .as_template_expression()
-            .template_spans
+        for span in released!(node.ref_(self).as_template_expression().template_spans)
             .ref_(self)
             .iter()
         {
-            let span_ref = span.ref_(self);
-            let span = span_ref.as_template_span();
-            let type_ = self.check_expression(span.expression, None, None)?;
+            let type_ =
+                self.check_expression(span.ref_(self).as_template_span().expression, None, None)?;
             if self.maybe_type_of_kind(type_, TypeFlags::ESSymbolLike) {
                 self.error(
-                    Some(span.expression),
+                    Some(span.ref_(self).as_template_span().expression),
                     &Diagnostics::Implicit_conversion_of_a_symbol_to_a_string_will_fail_at_runtime_Consider_wrapping_this_expression_in_String,
                     None,
                 );
             }
             texts.push(
-                span.literal
+                span.ref_(self)
+                    .as_template_span()
+                    .literal
                     .ref_(self)
                     .as_literal_like_node()
                     .text()

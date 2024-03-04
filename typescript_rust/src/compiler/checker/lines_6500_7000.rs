@@ -408,9 +408,7 @@ impl SymbolTableToDeclarationStatements {
                                     || is_export_assignment(&s.ref_(self))
                                     || is_export_declaration(&s.ref_(self))
                             });
-                        body.ref_(self)
-                            .as_module_block()
-                            .statements
+                        released!(body.ref_(self).as_module_block().statements)
                             .ref_(self)
                             .iter()
                             .for_each(|&s| {

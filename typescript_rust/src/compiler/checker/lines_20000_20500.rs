@@ -165,9 +165,7 @@ impl CheckTypeRelatedTo {
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> io::Result<Ternary> {
-        let source_info = self_
-            .ref_(arena)
-            .type_checker
+        let source_info = released!(self_.ref_(arena).type_checker)
             .ref_(arena)
             .get_applicable_index_info(source, target_info.ref_(arena).key_type)?;
         if let Some(source_info) = source_info {
@@ -931,7 +929,10 @@ impl TypeChecker {
             Ok(self.get_base_types(class_type)?.get(0).cloned())
         })?;
         base_class_type.try_and_then(|base_class_type| {
-            self.get_type_of_property_of_type_(base_class_type, property.ref_(self).escaped_name())
+            self.get_type_of_property_of_type_(
+                base_class_type,
+                &released!(property.ref_(self).escaped_name().to_owned()),
+            )
         })
     }
 
