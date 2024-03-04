@@ -1039,7 +1039,8 @@ impl TypeChecker {
                             main_module,
                             MembersOrExportsResolutionKind::resolved_exports,
                         )?;
-                        for (key, &value) in &*released!(module_augmentation
+                        let main_module_exports = main_module.ref_(self).exports();
+                        for (key, &value) in &released!(module_augmentation
                             .ref_(self)
                             .symbol()
                             .ref_(self)

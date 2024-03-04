@@ -308,8 +308,11 @@ impl TypeChecker {
         mapper: Id<TypeMapper>,
     ) -> io::Result<Id<Type>> {
         let tuple_type_target = tuple_type.ref_(self).as_type_reference_interface().target();
-        let tuple_type_target_ref = ;
-        let ref element_flags = tuple_type_target.ref_(self)tuple_type_target_ref.as_tuple_type().element_flags.clone();
+        let ref element_flags = tuple_type_target
+            .ref_(self)
+            .as_tuple_type()
+            .element_flags
+            .clone();
         let element_types = try_map(&self.get_type_arguments(tuple_type), |_, i| {
             self.instantiate_mapped_type_template(
                 mapped_type,

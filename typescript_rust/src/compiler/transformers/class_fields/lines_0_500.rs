@@ -1160,7 +1160,7 @@ impl TransformClassFields {
             if let Some(private_identifier_info) = private_identifier_info {
                 return Some(
                     self.create_private_identifier_access(
-                        &private_identifier_info.ref_(self),
+                        private_identifier_info,
                         released!(node.ref_(self).as_property_access_expression().expression),
                     )
                     .set_original_node(Some(node), self)
