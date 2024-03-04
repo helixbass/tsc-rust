@@ -483,13 +483,13 @@ impl TransformGenerators {
         &self,
         node: Id<Node>, /*LabeledStatement*/
     ) {
-        let node_ref = node.ref_(self);
-        let node_as_labeled_statement = node_ref.as_labeled_statement();
         if self.contains_yield(Some(node)) {
             self.begin_labeled_block(
-                id_text(&node_as_labeled_statement.label.ref_(self)).to_owned(),
+                id_text(&node.ref_(self).as_labeled_statement().label.ref_(self)).to_owned(),
             );
-            self.transform_and_emit_embedded_statement(node_as_labeled_statement.statement);
+            self.transform_and_emit_embedded_statement(
+                node.ref_(self).as_labeled_statement().statement,
+            );
             self.end_labeled_block();
         } else {
             self.emit_statement(visit_node(
@@ -545,12 +545,14 @@ impl TransformGenerators {
     }
 
     pub(super) fn transform_and_emit_try_statement(&self, node: Id<Node> /*TryStatement*/) {
-        let node_ref = node.ref_(self);
-        let node_as_try_statement = node_ref.as_try_statement();
         if self.contains_yield(Some(node)) {
             self.begin_exception_block();
-            self.transform_and_emit_embedded_statement(node_as_try_statement.try_block);
-            if let Some(node_catch_clause) = node_as_try_statement.catch_clause.as_ref() {
+            self.transform_and_emit_embedded_statement(
+                node.ref_(self).as_try_statement().try_block,
+            );
+            if let Some(node_catch_clause) =
+                node.ref_(self).as_try_statement().catch_clause.as_ref()
+            {
                 let node_catch_clause_ref = node_catch_clause.ref_(self);
                 let node_catch_clause_as_catch_clause = node_catch_clause_ref.as_catch_clause();
                 self.begin_catch_block(
@@ -561,7 +563,7 @@ impl TransformGenerators {
                 self.transform_and_emit_embedded_statement(node_catch_clause_as_catch_clause.block);
             }
 
-            if let Some(node_finally_block) = node_as_try_statement.finally_block {
+            if let Some(node_finally_block) = node.ref_(self).as_try_statement().finally_block {
                 self.begin_finally_block();
                 self.transform_and_emit_embedded_statement(node_finally_block);
             }

@@ -682,9 +682,9 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*JSDocPropertyTag*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_jsdoc_property_like_tag = node_ref.as_jsdoc_property_like_tag();
-        self.check_source_element(node_as_jsdoc_property_like_tag.type_expression)?;
+        self.check_source_element(released!(
+            node.ref_(self).as_jsdoc_property_like_tag().type_expression
+        ))?;
 
         Ok(())
     }

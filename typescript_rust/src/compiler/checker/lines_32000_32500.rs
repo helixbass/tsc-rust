@@ -794,12 +794,14 @@ impl TypeChecker {
                     {
                         if self.maybe_type_of_kind(operand_type, TypeFlags::BigIntLike) {
                             self.error(
-                                Some(node.ref_(self).as_prefix_unary_expression().operand),
+                                released!(Some(
+                                    node.ref_(self).as_prefix_unary_expression().operand
+                                )),
                                 &Diagnostics::Operator_0_cannot_be_applied_to_type_1,
                                 Some(vec![
-                                    token_to_string(
-                                        node.ref_(self).as_prefix_unary_expression().operator,
-                                    )
+                                    token_to_string(released!(
+                                        node.ref_(self).as_prefix_unary_expression().operator
+                                    ))
                                     .unwrap()
                                     .to_owned(),
                                     self.type_to_string_(

@@ -1207,7 +1207,7 @@ impl TypeChecker {
                 alias_type_arguments.map(ToOwned::to_owned)
             } else {
                 self.instantiate_types(
-                    type_.ref_(self).maybe_alias_type_arguments().as_deref(),
+                    released!(type_.ref_(self).maybe_alias_type_arguments()).as_deref(),
                     Some(mapper),
                 )?
             };

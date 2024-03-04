@@ -254,25 +254,29 @@ impl TransformES2015 {
                 && !self.is_variable_statement_of_type_script_class_wrapper(node)
         }) {
             let mut assignments: Option<Vec<Id<Node /*Expression*/>>> = Default::default();
-            for &decl in &*node
-                .ref_(self)
-                .as_variable_statement()
-                .declaration_list
-                .ref_(self)
-                .as_variable_declaration_list()
-                .declarations
-                .ref_(self)
+            for &decl in &*released!(
+                node.ref_(self)
+                    .as_variable_statement()
+                    .declaration_list
+                    .ref_(self)
+                    .as_variable_declaration_list()
+                    .declarations
+            )
+            .ref_(self)
             {
-                let decl_ref = decl.ref_(self);
-                let decl_as_variable_declaration = decl_ref.as_variable_declaration();
                 self.hoist_variable_declaration_declared_in_converted_loop(
                     &mut converted_loop_state.ref_mut(self),
                     decl,
                 );
-                if let Some(decl_initializer) = decl_as_variable_declaration.maybe_initializer() {
+                if let Some(decl_initializer) = decl
+                    .ref_(self)
+                    .as_variable_declaration()
+                    .maybe_initializer()
+                {
                     let assignment: Id<Node /*Expression*/>;
                     if is_binding_pattern(
-                        decl_as_variable_declaration
+                        decl.ref_(self)
+                            .as_variable_declaration()
                             .maybe_name()
                             .refed(self)
                             .as_deref(),
@@ -297,7 +301,7 @@ impl TransformES2015 {
                             .factory
                             .ref_(self)
                             .create_binary_expression(
-                                decl_as_variable_declaration.name(),
+                                released!(decl.ref_(self).as_variable_declaration().name()),
                                 SyntaxKind::EqualsToken,
                                 try_visit_node(
                                     decl_initializer,

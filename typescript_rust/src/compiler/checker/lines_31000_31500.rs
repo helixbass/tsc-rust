@@ -1087,7 +1087,7 @@ impl TypeChecker {
             if rest_type_target.ref_(self).as_tuple_type().has_rest_element {
                 return Ok(Some(self.slice_tuple_type(
                     rest_type,
-                    rest_type_target.ref_(self).as_tuple_type().fixed_length,
+                    released!(rest_type_target.ref_(self).as_tuple_type().fixed_length),
                     None,
                 )?));
             }

@@ -611,7 +611,7 @@ impl TransformES2015 {
     ) -> io::Result<()> {
         let name = decl.ref_(self).as_named_declaration().name();
         if is_binding_pattern(Some(&*name.ref_(self))) {
-            for &element in &*name.ref_(self).as_has_elements().elements().ref_(self) {
+            for &element in &*released!(name.ref_(self).as_has_elements().elements()).ref_(self) {
                 if !is_omitted_expression(&element.ref_(self)) {
                     self.process_loop_variable_declaration(
                         container,

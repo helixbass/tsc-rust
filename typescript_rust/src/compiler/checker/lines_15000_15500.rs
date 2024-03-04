@@ -705,7 +705,7 @@ impl TypeChecker {
                                 .filter(|suggestion| !suggestion.is_empty())
                             {
                                 self.error(
-                                    Some(access_expression.ref_(self).as_element_access_expression().argument_expression),
+                                    released!(Some(access_expression.ref_(self).as_element_access_expression().argument_expression)),
                                     &Diagnostics::Property_0_does_not_exist_on_type_1_Did_you_mean_2,
                                     Some(vec![
                                         (*prop_name.unwrap()).to_owned(),

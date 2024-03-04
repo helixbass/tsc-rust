@@ -1461,8 +1461,8 @@ impl CheckTypeRelatedTo {
                     result &= Self::is_related_to(
                         self_,
                         arena,
-                        source.ref_(arena).as_indexed_access_type().index_type,
-                        target.ref_(arena).as_indexed_access_type().index_type,
+                        released!(source.ref_(arena).as_indexed_access_type().index_type),
+                        released!(target.ref_(arena).as_indexed_access_type().index_type),
                         Some(RecursionFlags::Both),
                         Some(report_errors),
                         None,

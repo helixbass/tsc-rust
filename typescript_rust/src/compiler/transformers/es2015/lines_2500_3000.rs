@@ -808,12 +808,10 @@ impl TransformES2015 {
         node: Id<Node>,                /*WhileStatement*/
         converted_loop_body: Id<Node>, /*Statement*/
     ) -> io::Result<Id<Node>> {
-        let node_ref = node.ref_(self);
-        let node_as_while_statement = node_ref.as_while_statement();
         Ok(self.factory.ref_(self).update_while_statement(
             node,
             try_visit_node(
-                node_as_while_statement.expression,
+                released!(node.ref_(self).as_while_statement().expression),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

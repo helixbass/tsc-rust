@@ -1099,8 +1099,8 @@ impl InferTypes {
                 target.ref_(self).as_indexed_access_type().object_type,
             )?;
             self.infer_from_types(
-                source.ref_(self).as_indexed_access_type().index_type,
-                target.ref_(self).as_indexed_access_type().index_type,
+                released!(source.ref_(self).as_indexed_access_type().index_type),
+                released!(target.ref_(self).as_indexed_access_type().index_type),
             )?;
         } else if source
             .ref_(self)

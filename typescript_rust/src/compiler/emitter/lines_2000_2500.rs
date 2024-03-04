@@ -74,10 +74,13 @@ impl Printer {
             self.emit_type_annotation(node.ref_(self).as_parameter_declaration().maybe_type())?;
         }
         self.emit_initializer(
-            node.ref_(self)
+            released!(node
+                .ref_(self)
                 .as_parameter_declaration()
-                .maybe_initializer(),
-            if let Some(node_type) = node.ref_(self).as_parameter_declaration().maybe_type() {
+                .maybe_initializer()),
+            if let Some(node_type) =
+                released!(node.ref_(self).as_parameter_declaration().maybe_type())
+            {
                 node_type.ref_(self).end()
             } else if let Some(node_question_token) =
                 node.ref_(self).as_parameter_declaration().question_token

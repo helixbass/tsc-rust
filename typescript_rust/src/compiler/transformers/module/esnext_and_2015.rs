@@ -545,11 +545,8 @@ impl TransformEcmascriptModule {
                         ),
                     ),
                 ),
-                node_module_specifier.clone(),
-                node.ref_(self)
-                    .as_export_declaration()
-                    .assert_clause
-                    .clone(),
+                node_module_specifier,
+                released!(node.ref_(self).as_export_declaration().assert_clause),
             )
             .set_original_node(Some(node_export_clause), self);
 

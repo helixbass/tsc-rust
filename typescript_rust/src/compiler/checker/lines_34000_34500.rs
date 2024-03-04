@@ -61,7 +61,7 @@ impl TypeChecker {
                     Some(default_type),
                     None,
                 )?,
-                node.ref_(self).as_type_parameter_declaration().default,
+                released!(node.ref_(self).as_type_parameter_declaration().default),
                 Some(&Diagnostics::Type_0_does_not_satisfy_the_constraint_1),
                 None,
                 None,

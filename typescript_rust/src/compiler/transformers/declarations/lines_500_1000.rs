@@ -673,11 +673,13 @@ impl TransformDeclarations {
                 self.factory.ref_(self).update_import_declaration(
                     decl,
                     Option::<Id<NodeArray>>::None,
-                    decl.ref_(self).maybe_modifiers().clone(),
+                    released!(decl.ref_(self).maybe_modifiers()),
                     None,
                     self.rewrite_module_specifier(
                         decl,
-                        Some(decl.ref_(self).as_import_declaration().module_specifier),
+                        released!(Some(
+                            decl.ref_(self).as_import_declaration().module_specifier
+                        )),
                     )?
                     .unwrap(),
                     None,

@@ -773,7 +773,7 @@ impl TransformSystemModule {
                     entry,
                     self.current_source_file(),
                 );
-                match entry.ref_(self).kind() {
+                match released!(entry.ref_(self).kind()) {
                     SyntaxKind::ImportDeclaration | SyntaxKind::ImportEqualsDeclaration => 'case: {
                         if entry.ref_(self).kind() == SyntaxKind::ImportDeclaration
                             && entry
@@ -799,7 +799,7 @@ impl TransformSystemModule {
                     SyntaxKind::ExportDeclaration => {
                         Debug_.assert(import_variable_name.is_some(), None);
                         if let Some(entry_export_clause) =
-                            entry.ref_(self).as_export_declaration().export_clause
+                            released!(entry.ref_(self).as_export_declaration().export_clause)
                         {
                             if is_named_exports(&entry_export_clause.ref_(self)) {
                                 let mut properties: Vec<Id<Node /*PropertyAssignment*/>> = _d();

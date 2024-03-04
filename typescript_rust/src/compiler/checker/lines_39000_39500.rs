@@ -505,7 +505,7 @@ impl TypeChecker {
         member: Id<Node>,
         expr: Id<Node>, /*Expression*/
     ) -> io::Result<Option<StringOrNumber>> {
-        match expr.ref_(self).kind() {
+        match released!(expr.ref_(self).kind()) {
             SyntaxKind::PrefixUnaryExpression => {
                 let expr_ref = expr.ref_(self);
                 let expr_as_prefix_unary_expression = expr_ref.as_prefix_unary_expression();
@@ -603,9 +603,7 @@ impl TypeChecker {
                 );
             }
             SyntaxKind::Identifier => {
-                let expr_ref = expr.ref_(self);
-                let identifier = expr_ref.as_identifier();
-                if is_infinity_or_nan_string(&identifier.escaped_text) {
+                if is_infinity_or_nan_string(&expr.ref_(self).as_identifier().escaped_text) {
                     unimplemented!("Infinity/NaN not implemented yet")
                 }
                 return Ok(if node_is_missing(Some(&expr.ref_(self))) {
@@ -614,9 +612,9 @@ impl TypeChecker {
                     self.evaluate_enum_member(
                         member,
                         expr,
-                        self.get_symbol_of_node(member.ref_(self).parent())?
+                        self.get_symbol_of_node(released!(member.ref_(self).parent()))?
                             .unwrap(),
-                        &identifier.escaped_text,
+                        &expr.ref_(self).as_identifier().escaped_text,
                     )?
                 });
             }

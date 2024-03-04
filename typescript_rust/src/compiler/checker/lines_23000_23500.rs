@@ -322,10 +322,11 @@ impl TypeChecker {
     ) -> io::Result<Option<TReturn>> {
         if type_.ref_(self).flags().intersects(TypeFlags::Union) {
             try_for_each(
-                type_
+                &released!(type_
                     .ref_(self)
                     .as_union_or_intersection_type_interface()
-                    .types(),
+                    .types()
+                    .to_owned()),
                 |&type_: &Id<Type>, _| f(type_),
             )
         } else {

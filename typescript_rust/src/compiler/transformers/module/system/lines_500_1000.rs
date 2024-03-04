@@ -489,7 +489,7 @@ impl TransformSystemModule {
         {
             let id = get_original_node_id(node, self);
             let is_exported_declaration = has_syntactic_modifier(
-                node.ref_(self).maybe_original().unwrap(),
+                released!(node.ref_(self).maybe_original().unwrap()),
                 ModifierFlags::Export,
                 self,
             );

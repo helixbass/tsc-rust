@@ -1333,10 +1333,11 @@ impl TransformES2018 {
         &self,
         node: Id<Node>, /*ForOfStatement*/
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_for_of_statement = node_ref.as_for_of_statement();
-        let initializer_without_parens =
-            skip_parentheses(node_as_for_of_statement.initializer, None, self);
+        let initializer_without_parens = skip_parentheses(
+            node.ref_(self).as_for_of_statement().initializer,
+            None,
+            self,
+        );
         if is_variable_declaration_list(&initializer_without_parens.ref_(self))
             || is_assignment_pattern(&initializer_without_parens.ref_(self))
         {
@@ -1353,8 +1354,8 @@ impl TransformES2018 {
                     temp,
                 )];
             #[allow(clippy::suspicious_else_formatting)]
-            if is_block(&node_as_for_of_statement.statement.ref_(self)) {
-                let node_statement_ref = node_as_for_of_statement.statement.ref_(self);
+            if is_block(&node.ref_(self).as_for_of_statement().statement.ref_(self)) {
+                let node_statement_ref = node.ref_(self).as_for_of_statement().statement.ref_(self);
                 let node_statement_as_block = node_statement_ref.as_block();
                 add_range(
                     &mut statements,
@@ -1362,38 +1363,41 @@ impl TransformES2018 {
                     None,
                     None,
                 );
-                body_location = Some(node_as_for_of_statement.statement.clone());
+                body_location = Some(node.ref_(self).as_for_of_statement().statement.clone());
                 statements_location =
                     Some((&*node_statement_as_block.statements.ref_(self)).into());
             } else
             /*if (node.statement)*/
             {
-                statements.push(node_as_for_of_statement.statement.clone());
-                body_location = Some(node_as_for_of_statement.statement.clone());
+                statements.push(node.ref_(self).as_for_of_statement().statement.clone());
+                body_location = Some(node.ref_(self).as_for_of_statement().statement.clone());
                 statements_location =
-                    Some((&*node_as_for_of_statement.statement.ref_(self)).into());
+                    Some((&*node.ref_(self).as_for_of_statement().statement.ref_(self)).into());
             }
             return self.factory.ref_(self).update_for_of_statement(
                 node,
-                node_as_for_of_statement.await_modifier.clone(),
-                self.factory
+                released!(node.ref_(self).as_for_of_statement().await_modifier),
+                released!(self
+                    .factory
                     .ref_(self)
                     .create_variable_declaration_list(
-                        vec![self
+                        vec![released!(self
                             .factory
                             .ref_(self)
                             .create_variable_declaration(Some(temp), None, None, None)
                             .set_text_range(
-                                Some(&*node_as_for_of_statement.initializer.ref_(self)),
+                                Some(
+                                    &*node.ref_(self).as_for_of_statement().initializer.ref_(self)
+                                ),
                                 self,
-                            )],
+                            ))],
                         Some(NodeFlags::Let),
                     )
                     .set_text_range(
-                        Some(&*node_as_for_of_statement.initializer.ref_(self)),
+                        Some(&*node.ref_(self).as_for_of_statement().initializer.ref_(self)),
                         self,
-                    ),
-                node_as_for_of_statement.expression,
+                    )),
+                released!(node.ref_(self).as_for_of_statement().expression),
                 self.factory
                     .ref_(self)
                     .create_block(

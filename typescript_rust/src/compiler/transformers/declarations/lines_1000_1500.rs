@@ -737,7 +737,10 @@ impl TransformDeclarations {
                                 } else {
                                     self.walk_binding_pattern(
                                         param,
-                                        param.ref_(self).as_parameter_declaration().name(),
+                                        released!(param
+                                            .ref_(self)
+                                            .as_parameter_declaration()
+                                            .name()),
                                     )?
                                     .unwrap_or_default()
                                 },
@@ -1074,7 +1077,7 @@ impl TransformDeclarations {
         pattern: Id<Node>, /*BindingPattern*/
     ) -> io::Result<Option<Vec<Id<Node>>>> {
         let mut elems: Option<Vec<Id<Node /*PropertyDeclaration*/>>> = Default::default();
-        for &elem in &*pattern.ref_(self).as_has_elements().elements().ref_(self) {
+        for &elem in &*released!(pattern.ref_(self).as_has_elements().elements()).ref_(self) {
             let elem_ref = elem.ref_(self);
             let elem_as_binding_element = elem_ref.as_binding_element();
             if is_omitted_expression(&elem.ref_(self)) {

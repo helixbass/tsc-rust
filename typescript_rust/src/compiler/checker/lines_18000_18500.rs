@@ -1064,9 +1064,7 @@ impl CheckTypeRelatedTo {
         let source = released!(self_.ref_(arena).type_checker)
             .ref_(arena)
             .get_normalized_type(original_source, false)?;
-        let mut target = self_
-            .ref_(arena)
-            .type_checker
+        let mut target = released!(self_.ref_(arena).type_checker)
             .ref_(arena)
             .get_normalized_type(original_target, true)?;
 
