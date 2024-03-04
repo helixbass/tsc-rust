@@ -165,8 +165,8 @@ impl TransformDeclarations {
                             statement,
                             self.factory.ref_(self).update_export_assignment(
                                 input,
-                                input.ref_(self).maybe_decorators(),
-                                input.ref_(self).maybe_modifiers(),
+                                released!(input.ref_(self).maybe_decorators()),
+                                released!(input.ref_(self).maybe_modifiers()),
                                 new_id,
                             ),
                         ]

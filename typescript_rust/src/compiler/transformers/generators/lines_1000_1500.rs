@@ -65,10 +65,8 @@ impl TransformGenerators {
         &self,
         node: Id<Node>, /*ObjectLiteralExpression*/
     ) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_object_literal_expression = node_ref.as_object_literal_expression();
-        let properties = node_as_object_literal_expression.properties;
-        let multi_line = node_as_object_literal_expression.multi_line;
+        let properties = node.ref_(self).as_object_literal_expression().properties;
+        let multi_line = node.ref_(self).as_object_literal_expression().multi_line;
         let num_initial_properties = self
             .count_initial_nodes_without_yield(properties)
             // TODO: this sort of looks like a bug upstream that it could pass -1 to visitNodes()

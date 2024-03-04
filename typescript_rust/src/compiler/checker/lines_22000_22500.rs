@@ -167,10 +167,11 @@ impl InferTypes {
             .intersects(TypeFlags::Union)
         {
             let mut result = false;
-            for &type_ in constraint_type
+            for &type_ in &released!(constraint_type
                 .ref_(self)
                 .as_union_or_intersection_type_interface()
                 .types()
+                .to_owned())
             {
                 result = self.infer_to_mapped_type(source, target, type_)? || result;
             }

@@ -325,9 +325,7 @@ impl NodeFactory {
         node: Id<Node>, /*LiteralTypeNode*/
         literal: Id<Node /*LiteralTypeNode["literal"]*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_literal_type_node = node_ref.as_literal_type_node();
-        if node_as_literal_type_node.literal != literal {
+        if node.ref_(self).as_literal_type_node().literal != literal {
             self.update(self.create_literal_type_node(literal), node)
         } else {
             node
@@ -1453,9 +1451,7 @@ impl NodeFactory {
         node: Id<Node>, /*AwaitExpression*/
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_await_expression = node_ref.as_await_expression();
-        if node_as_await_expression.expression != expression {
+        if node.ref_(self).as_await_expression().expression != expression {
             self.update(self.create_await_expression(expression), node)
         } else {
             node

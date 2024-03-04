@@ -656,7 +656,7 @@ impl TransformSystemModule {
         ) {
             return Ok(Some(node.into()));
         }
-        match node.ref_(self).kind() {
+        match released!(node.ref_(self).kind()) {
             SyntaxKind::ForStatement => return self.visit_for_statement(node, false),
             SyntaxKind::ExpressionStatement => return self.visit_expression_statement(node),
             SyntaxKind::ParenthesizedExpression => {

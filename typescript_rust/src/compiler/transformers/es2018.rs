@@ -2308,11 +2308,8 @@ impl TransformES2018 {
         mut statements: Option<Vec<Id<Node /*Statement*/>>>,
         node: Id<Node>, /*FunctionLikeDeclaration*/
     ) -> Option<Vec<Id<Node /*Statement*/>>> {
-        for &parameter in &*node
-            .ref_(self)
-            .as_function_like_declaration()
-            .parameters()
-            .ref_(self)
+        for &parameter in
+            &*released!(node.ref_(self).as_function_like_declaration().parameters()).ref_(self)
         {
             if parameter
                 .ref_(self)

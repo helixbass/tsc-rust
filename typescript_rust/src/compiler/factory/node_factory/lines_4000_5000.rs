@@ -999,12 +999,10 @@ impl NodeFactory {
         children: impl Into<NodeArrayOrVec>,
         closing_fragment: Id<Node /*JsxClosingFragment*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_jsx_fragment = node_ref.as_jsx_fragment();
         let children = children.into();
-        if node_as_jsx_fragment.opening_fragment != opening_fragment
-            || has_node_array_changed(node_as_jsx_fragment.children, &children)
-            || node_as_jsx_fragment.closing_fragment != closing_fragment
+        if node.ref_(self).as_jsx_fragment().opening_fragment != opening_fragment
+            || has_node_array_changed(node.ref_(self).as_jsx_fragment().children, &children)
+            || node.ref_(self).as_jsx_fragment().closing_fragment != closing_fragment
         {
             self.update(
                 self.create_jsx_fragment(opening_fragment, children, closing_fragment),

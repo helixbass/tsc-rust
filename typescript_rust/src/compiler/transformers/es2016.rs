@@ -98,7 +98,7 @@ impl TransformES2016 {
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
         let right = visit_node(
-            node.ref_(self).as_binary_expression().right,
+            released!(node.ref_(self).as_binary_expression().right),
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -114,7 +114,7 @@ impl TransformES2016 {
             );
             target = set_text_range_id_node(
                 self.factory.ref_(self).create_element_access_expression(
-                    set_text_range_id_node(
+                    released!(set_text_range_id_node(
                         self.factory.ref_(self).create_assignment(
                             expression_temp,
                             released!(left.ref_(self).as_element_access_expression().expression),
@@ -127,14 +127,15 @@ impl TransformES2016 {
                                 .ref_(self),
                         ),
                         self,
-                    ),
+                    )),
                     set_text_range_id_node(
                         self.factory.ref_(self).create_assignment(
                             argument_expression_temp.clone(),
-                            left.ref_(self)
-                                .as_element_access_expression()
-                                .argument_expression
-                                .clone(),
+                            released!(
+                                left.ref_(self)
+                                    .as_element_access_expression()
+                                    .argument_expression
+                            ),
                         ),
                         Some(
                             &*left

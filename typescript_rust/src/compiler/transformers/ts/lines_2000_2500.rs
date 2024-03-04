@@ -824,7 +824,12 @@ impl TransformTypeScript {
         let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
         self.context.ref_(self).start_lexical_environment();
         let members = try_map(
-            &*released!(node.ref_(self).as_enum_declaration().members).ref_(self),
+            &*released!(node
+                .ref_(self)
+                .as_enum_declaration()
+                .members
+                .ref_(self)
+                .clone()),
             |&member: &Id<Node>, _| self.transform_enum_member(member),
         )?;
         insert_statements_after_standard_prologue(

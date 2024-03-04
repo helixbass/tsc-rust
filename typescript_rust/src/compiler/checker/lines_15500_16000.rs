@@ -194,7 +194,7 @@ impl TypeChecker {
             let check_type = self.instantiate_type(
                 self.unwrap_nondistributive_conditional_tuple(
                     root.clone(),
-                    self.get_actual_type_variable(root.ref_(self).check_type.clone())?,
+                    self.get_actual_type_variable(released!(root.ref_(self).check_type))?,
                 )?,
                 mapper.clone(),
             )?;
@@ -321,13 +321,13 @@ impl TypeChecker {
                         self.get_restrictive_instantiation(inferred_extends_type)?,
                     )?
                 {
-                    let true_type = self.get_type_from_type_node_(
+                    let true_type = self.get_type_from_type_node_(released!(
                         root.ref_(self)
                             .node
                             .ref_(self)
                             .as_conditional_type_node()
-                            .true_type,
-                    )?;
+                            .true_type
+                    ))?;
                     let true_mapper = combined_mapper.clone().or_else(|| mapper.clone());
                     if self.can_tail_recurse(
                         &mut root,
@@ -531,35 +531,34 @@ impl TypeChecker {
             .maybe_resolved_inferred_true_type()
             .is_none()
         {
+            let resolved_inferred_true_type = if let Some(type_combined_mapper) = type_
+                .ref_(self)
+                .as_conditional_type()
+                .combined_mapper
+                .clone()
+            {
+                self.instantiate_type(
+                    self.get_type_from_type_node_(
+                        type_
+                            .ref_(self)
+                            .as_conditional_type()
+                            .root
+                            .ref_(self)
+                            .node
+                            .clone()
+                            .ref_(self)
+                            .as_conditional_type_node()
+                            .true_type,
+                    )?,
+                    Some(type_combined_mapper),
+                )?
+            } else {
+                self.get_true_type_from_conditional_type(type_)?
+            };
             type_
                 .ref_(self)
                 .as_conditional_type()
-                .set_resolved_inferred_true_type(Some(
-                    if let Some(type_combined_mapper) = type_
-                        .ref_(self)
-                        .as_conditional_type()
-                        .combined_mapper
-                        .clone()
-                    {
-                        self.instantiate_type(
-                            self.get_type_from_type_node_(
-                                type_
-                                    .ref_(self)
-                                    .as_conditional_type()
-                                    .root
-                                    .ref_(self)
-                                    .node
-                                    .clone()
-                                    .ref_(self)
-                                    .as_conditional_type_node()
-                                    .true_type,
-                            )?,
-                            Some(type_combined_mapper),
-                        )?
-                    } else {
-                        self.get_true_type_from_conditional_type(type_)?
-                    },
-                ));
+                .set_resolved_inferred_true_type(Some(resolved_inferred_true_type));
         }
         Ok(type_
             .ref_(self)

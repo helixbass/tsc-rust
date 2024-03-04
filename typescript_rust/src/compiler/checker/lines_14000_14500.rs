@@ -10,7 +10,7 @@ use local_macros::enum_unwrapped;
 use crate::{
     array_of, binary_search_copy_key, compare_values, filter, find_index,
     find_last_index_returns_isize, for_each, get_object_flags, is_part_of_type_node, map,
-    ordered_remove_item_at, push_if_unique_eq, reduce_left, replace_element,
+    ordered_remove_item_at, push_if_unique_eq, reduce_left, released, replace_element,
     return_ok_default_if_none, some, try_map, try_some, BaseUnionOrIntersectionType, Diagnostics,
     ElementFlags, HasArena, InArena, IntersectionType, IntrinsicType, IteratorExt,
     LiteralTypeInterface, Node, ObjectFlags, OptionTry, Signature, Symbol, SymbolInterface, Type,
@@ -1039,7 +1039,7 @@ impl TypeChecker {
             links.ref_mut(self).resolved_type = Some(
                 self.get_union_type(
                     &try_map(
-                        &*node.ref_(self).as_union_type_node().types.ref_(self),
+                        &*released!(node.ref_(self).as_union_type_node().types).ref_(self),
                         |&type_: &Id<Node>, _| self.get_type_from_type_node_(type_),
                     )?,
                     Some(UnionReduction::Literal),

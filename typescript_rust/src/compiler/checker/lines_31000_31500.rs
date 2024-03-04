@@ -860,9 +860,9 @@ impl TypeChecker {
                 0
             };
         if pos < param_count {
-            return Ok(Some(
-                self.get_type_of_parameter(signature.ref_(self).parameters()[pos])?,
-            ));
+            return Ok(Some(self.get_type_of_parameter(released!(
+                signature.ref_(self).parameters()[pos]
+            ))?));
         }
         if signature_has_rest_parameter(&signature.ref_(self)) {
             let rest_type =

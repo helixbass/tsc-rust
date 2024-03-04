@@ -727,12 +727,14 @@ fn add_default_value_assignment_for_binding_pattern(
     ));
     factory.ref_(arena).update_parameter_declaration(
         parameter,
-        parameter.ref_(arena).maybe_decorators(),
-        parameter.ref_(arena).maybe_modifiers(),
-        parameter
-            .ref_(arena)
-            .as_parameter_declaration()
-            .dot_dot_dot_token,
+        released!(parameter.ref_(arena).maybe_decorators()),
+        released!(parameter.ref_(arena).maybe_modifiers()),
+        released!(
+            parameter
+                .ref_(arena)
+                .as_parameter_declaration()
+                .dot_dot_dot_token
+        ),
         Some(
             factory
                 .ref_(arena)
@@ -763,7 +765,7 @@ fn add_default_value_assignment_for_initializer(
             factory
                 .ref_(arena)
                 .create_type_check(factory.ref_(arena).clone_node(name), "undefined"),
-            factory
+            released!(factory
                 .ref_(arena)
                 .create_block(
                     vec![factory
@@ -793,7 +795,7 @@ fn add_default_value_assignment_for_initializer(
                         | EmitFlags::NoTokenSourceMaps
                         | EmitFlags::NoComments,
                     arena,
-                ),
+                )),
             None,
         ),
     );

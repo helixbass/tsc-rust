@@ -502,12 +502,10 @@ impl Printer {
         &self,
         node: Id<Node>, /*TemplateExpression*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_template_expression = node_ref.as_template_expression();
-        self.emit(Some(node_as_template_expression.head), None)?;
+        self.emit(Some(node.ref_(self).as_template_expression().head), None)?;
         self.emit_list(
             Some(node),
-            Some(node_as_template_expression.template_spans),
+            Some(node.ref_(self).as_template_expression().template_spans),
             ListFormat::TemplateExpressionSpans,
             None,
             None,
@@ -662,10 +660,8 @@ impl Printer {
         &self,
         node: Id<Node>, /*TemplateSpan*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_template_span = node_ref.as_template_span();
-        self.emit_expression(Some(node_as_template_span.expression), None)?;
-        self.emit(Some(node_as_template_span.literal), None)?;
+        self.emit_expression(Some(node.ref_(self).as_template_span().expression), None)?;
+        self.emit(Some(node.ref_(self).as_template_span().literal), None)?;
 
         Ok(())
     }
@@ -899,7 +895,7 @@ impl Printer {
 
         self.emit_while_clause(
             node,
-            node.ref_(self).as_do_statement().statement.ref_(self).end(),
+            released!(node.ref_(self).as_do_statement().statement.ref_(self).end()),
         )?;
         self.write_trailing_semicolon();
 
@@ -1264,7 +1260,10 @@ impl Printer {
             node,
             None,
         );
-        self.emit_embedded_statement(node, node.ref_(self).as_with_statement().statement)?;
+        self.emit_embedded_statement(
+            node,
+            released!(node.ref_(self).as_with_statement().statement),
+        )?;
 
         Ok(())
     }

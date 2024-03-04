@@ -866,9 +866,11 @@ impl TypeChecker {
             return Ok(resolved);
         }
         let resolved = self.get_symbol_of_part_of_right_hand_side_of_import_equals(
-            node.ref_(self)
-                .as_import_equals_declaration()
-                .module_reference,
+            released!(
+                node.ref_(self)
+                    .as_import_equals_declaration()
+                    .module_reference
+            ),
             Some(dont_resolve_alias),
         )?;
         self.check_and_report_error_for_resolving_import_alias_to_type_only_symbol(node, resolved)?;

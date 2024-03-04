@@ -970,7 +970,7 @@ impl TypeChecker {
                     || target.ref_(self).flags().intersects(SymbolFlags::Value)
                 {
                     self.check_expression_cached(
-                        node.ref_(self).as_export_assignment().expression,
+                        released!(node.ref_(self).as_export_assignment().expression),
                         None,
                     )?;
                 }

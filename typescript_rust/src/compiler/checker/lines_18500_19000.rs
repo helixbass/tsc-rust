@@ -358,9 +358,7 @@ impl CheckTypeRelatedTo {
                             None,
                         )?
                     } else {
-                        self_
-                            .ref_(arena)
-                            .type_checker
+                        released!(self_.ref_(arena).type_checker)
                             .ref_(arena)
                             .compare_types_identical(s, t)?
                     };
@@ -1324,9 +1322,7 @@ impl CheckTypeRelatedTo {
                     return Ok(result);
                 }
             } else {
-                let constraint = self_
-                    .ref_(arena)
-                    .type_checker
+                let constraint = released!(self_.ref_(arena).type_checker)
                     .ref_(arena)
                     .get_simplified_type_or_constraint(target_type)?;
                 if let Some(constraint) = constraint {

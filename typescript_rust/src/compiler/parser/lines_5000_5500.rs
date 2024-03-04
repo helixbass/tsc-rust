@@ -115,12 +115,8 @@ impl ParserType {
                     .pos();
                 let new_last = self.finish_node(
                     self.factory().ref_(self).create_jsx_element_raw(
-                        last_child
-                            .ref_(self)
-                            .as_jsx_element()
-                            .opening_element
-                            .clone(),
-                        last_child.ref_(self).as_jsx_element().children.clone(),
+                        released!(last_child.ref_(self).as_jsx_element().opening_element),
+                        released!(last_child.ref_(self).as_jsx_element().children),
                         self.finish_node(
                             self.factory().ref_(self).create_jsx_closing_element_raw(
                                 self.finish_node(

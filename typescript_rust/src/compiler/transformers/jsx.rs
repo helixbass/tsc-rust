@@ -114,17 +114,15 @@ impl TransformJsx {
             )),
             None,
             None,
-            Some(
-                self.factory.ref_(self).create_string_literal(
-                    self.current_source_file()
+            Some(self.factory.ref_(self).create_string_literal(
+                released!(self.current_source_file()
                         .ref_(self)
                         .as_source_file()
                         .file_name()
-                        .clone(),
-                    None,
-                    None,
-                ),
-            ),
+                        .clone()),
+                None,
+                None,
+            )),
         );
         self.current_file_state_mut().filename_declaration = Some(declaration);
         declaration.ref_(self).as_variable_declaration().name()
@@ -501,7 +499,12 @@ impl TransformJsx {
         } else {
             self.visit_jsx_opening_fragment_jsx(
                 released!(node.ref_(self).as_jsx_fragment().opening_fragment),
-                &released!(node.ref_(self).as_jsx_fragment().children).ref_(self),
+                &released!(node
+                    .ref_(self)
+                    .as_jsx_fragment()
+                    .children
+                    .ref_(self)
+                    .clone()),
                 is_child,
                 &released!(ReadonlyTextRangeConcrete::from(&*node.ref_(self))),
             )

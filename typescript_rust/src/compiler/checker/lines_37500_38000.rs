@@ -899,7 +899,7 @@ impl TypeChecker {
                 }
             } else if container.ref_(self).kind() == SyntaxKind::Constructor {
                 if matches!(
-                    node.ref_(self).as_return_statement().expression,
+                    released!(node.ref_(self).as_return_statement().expression),
                     Some(node_expression) if !self.check_type_assignable_to_and_optionally_elaborate(
                         expr_type,
                         return_type,

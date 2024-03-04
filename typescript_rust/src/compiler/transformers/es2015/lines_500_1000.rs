@@ -271,8 +271,6 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*BreakOrContinueStatement*/
     ) -> io::Result<Id<Node /*Statement*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_has_label = node_ref.as_has_label();
         if self.maybe_converted_loop_state().is_some() {
             let jump = if node.ref_(self).kind() == SyntaxKind::BreakStatement {
                 Jump::Break
@@ -280,11 +278,15 @@ impl TransformES2015 {
                 Jump::Continue
             };
             let can_use_break_or_continue = matches!(
-                (node_as_has_label.maybe_label().as_ref(), self.converted_loop_state().ref_(self).labels.as_ref()),
+                (node.ref_(self).as_has_label().maybe_label().as_ref(), self.converted_loop_state().ref_(self).labels.as_ref()),
                 (Some(node_label), Some(converted_loop_state_labels)) if converted_loop_state_labels.get(
                     id_text(&node_label.ref_(self))
                 ).copied() == Some(true)
-            ) || node_as_has_label.maybe_label().is_none()
+            ) || node
+                .ref_(self)
+                .as_has_label()
+                .maybe_label()
+                .is_none()
                 && self
                     .converted_loop_state()
                     .ref_(self)
@@ -294,7 +296,7 @@ impl TransformES2015 {
 
             if !can_use_break_or_continue {
                 let label_marker: String;
-                let label = node_as_has_label.maybe_label();
+                let label = node.ref_(self).as_has_label().maybe_label();
                 match label {
                     None => {
                         if node.ref_(self).kind() == SyntaxKind::BreakStatement {

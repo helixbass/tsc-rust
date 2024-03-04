@@ -278,7 +278,7 @@ impl TransformES2020 {
                 false,
             );
             let args = visit_nodes(
-                node.ref_(self).as_call_expression().arguments,
+                released!(node.ref_(self).as_call_expression().arguments),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 None,

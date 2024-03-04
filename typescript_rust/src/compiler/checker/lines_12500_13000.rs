@@ -1183,20 +1183,21 @@ impl TypeChecker {
         {
             let mut index_infos: Vec<Id<IndexInfo>> = vec![];
             for &declaration in index_symbol_declarations {
-                let declaration_ref = declaration.ref_(self);
-                let declaration_as_index_signature_declaration =
-                    declaration_ref.as_index_signature_declaration();
-                if declaration_as_index_signature_declaration
+                if declaration
+                    .ref_(self)
+                    .as_index_signature_declaration()
                     .parameters()
                     .ref_(self)
                     .len()
                     == 1
                 {
-                    let parameter = declaration_as_index_signature_declaration
+                    let parameter = declaration
+                        .ref_(self)
+                        .as_index_signature_declaration()
                         .parameters()
                         .ref_(self)[0];
                     if let Some(parameter_type) =
-                        parameter.ref_(self).as_parameter_declaration().maybe_type()
+                        released!(parameter.ref_(self).as_parameter_declaration().maybe_type())
                     {
                         self.try_for_each_type(
                             self.get_type_from_type_node_(parameter_type)?,
@@ -1208,9 +1209,10 @@ impl TypeChecker {
                                         self.alloc_index_info(
                                             self.create_index_info(
                                                 key_type,
-                                                if let Some(declaration_type) =
-                                                    declaration_as_index_signature_declaration
-                                                        .maybe_type()
+                                                if let Some(declaration_type) = declaration
+                                                    .ref_(self)
+                                                    .as_index_signature_declaration()
+                                                    .maybe_type()
                                                 {
                                                     self.get_type_from_type_node_(declaration_type)?
                                                 } else {

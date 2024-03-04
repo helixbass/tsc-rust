@@ -1260,39 +1260,45 @@ impl TransformDeclarations {
                         ),
                     )?
                 }
-                SyntaxKind::CallSignature => {
-                    let input_ref = input.ref_(self);
-                    let input_as_call_signature_declaration =
-                        input_ref.as_call_signature_declaration();
-                    self.visit_declaration_subtree_cleanup(
-                        input,
-                        can_produce_diagnostic,
-                        previous_enclosing_declaration,
-                        &old_diag,
-                        should_enter_suppress_new_diagnostics_context_context,
-                        old_within_object_literal_type,
-                        Some(
-                            self.factory.ref_(self).update_call_signature(
+                SyntaxKind::CallSignature => self.visit_declaration_subtree_cleanup(
+                    input,
+                    can_produce_diagnostic,
+                    previous_enclosing_declaration,
+                    &old_diag,
+                    should_enter_suppress_new_diagnostics_context_context,
+                    old_within_object_literal_type,
+                    Some(
+                        self.factory.ref_(self).update_call_signature(
+                            input,
+                            self.ensure_type_params(
                                 input,
-                                self.ensure_type_params(
-                                    input,
-                                    input_as_call_signature_declaration.maybe_type_parameters(),
-                                )?,
-                                self.update_params_list(
-                                    input,
-                                    Some(input_as_call_signature_declaration.parameters()),
-                                    None,
-                                )?
-                                .unwrap(),
-                                self.ensure_type(
-                                    input,
-                                    input_as_call_signature_declaration.maybe_type(),
-                                    None,
-                                )?,
-                            ),
+                                released!(input
+                                    .ref_(self)
+                                    .as_call_signature_declaration()
+                                    .maybe_type_parameters()),
+                            )?,
+                            self.update_params_list(
+                                input,
+                                released!(Some(
+                                    input
+                                        .ref_(self)
+                                        .as_call_signature_declaration()
+                                        .parameters()
+                                )),
+                                None,
+                            )?
+                            .unwrap(),
+                            self.ensure_type(
+                                input,
+                                released!(input
+                                    .ref_(self)
+                                    .as_call_signature_declaration()
+                                    .maybe_type()),
+                                None,
+                            )?,
                         ),
-                    )?
-                }
+                    ),
+                )?,
                 SyntaxKind::IndexSignature => self.visit_declaration_subtree_cleanup(
                     input,
                     can_produce_diagnostic,

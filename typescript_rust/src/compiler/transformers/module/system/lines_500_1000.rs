@@ -591,15 +591,15 @@ impl TransformSystemModule {
             return /*statements*/;
         }
 
-        for &decl in &*released!(
-            node.ref_(self)
-                .as_variable_statement()
-                .declaration_list
-                .ref_(self)
-                .as_variable_declaration_list()
-                .declarations
-        )
-        .ref_(self)
+        for &decl in &*released!(node
+            .ref_(self)
+            .as_variable_statement()
+            .declaration_list
+            .ref_(self)
+            .as_variable_declaration_list()
+            .declarations
+            .ref_(self)
+            .clone())
         {
             if decl
                 .ref_(self)

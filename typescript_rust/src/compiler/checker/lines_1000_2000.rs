@@ -60,18 +60,19 @@ impl TypeChecker {
                     let jsx_fragment_pragma = file_pragmas.get(&PragmaName::Jsxfrag);
                     if let Some(jsx_fragment_pragma) = jsx_fragment_pragma {
                         let chosen_pragma = &jsx_fragment_pragma[0];
+                        let local_jsx_fragment_factory = parse_isolated_entity_name(
+                            chosen_pragma
+                                .arguments
+                                .get(&PragmaArgumentName::Factory)
+                                .unwrap()
+                                .as_without_captured_span()
+                                .clone(),
+                            self.language_version,
+                            self,
+                        );
                         file.ref_(self)
                             .as_source_file()
-                            .set_local_jsx_fragment_factory(parse_isolated_entity_name(
-                                chosen_pragma
-                                    .arguments
-                                    .get(&PragmaArgumentName::Factory)
-                                    .unwrap()
-                                    .as_without_captured_span()
-                                    .clone(),
-                                self.language_version,
-                                self,
-                            ));
+                            .set_local_jsx_fragment_factory(local_jsx_fragment_factory);
                         maybe_visit_node(
                             file.ref_(self)
                                 .as_source_file()
@@ -186,18 +187,19 @@ impl TypeChecker {
         let jsx_pragma = file_pragmas.get(&PragmaName::Jsx);
         if let Some(jsx_pragma) = jsx_pragma {
             let chosen_pragma = &jsx_pragma[0];
+            let local_jsx_factory = parse_isolated_entity_name(
+                chosen_pragma
+                    .arguments
+                    .get(&PragmaArgumentName::Factory)
+                    .unwrap()
+                    .as_without_captured_span()
+                    .clone(),
+                self.language_version,
+                self,
+            );
             file.ref_(self)
                 .as_source_file()
-                .set_local_jsx_factory(parse_isolated_entity_name(
-                    chosen_pragma
-                        .arguments
-                        .get(&PragmaArgumentName::Factory)
-                        .unwrap()
-                        .as_without_captured_span()
-                        .clone(),
-                    self.language_version,
-                    self,
-                ));
+                .set_local_jsx_factory(local_jsx_factory);
             maybe_visit_node(
                 file.ref_(self).as_source_file().maybe_local_jsx_factory(),
                 Some(|node: Id<Node>| self.mark_as_synthetic(node)),

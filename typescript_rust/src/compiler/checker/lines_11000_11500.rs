@@ -470,7 +470,7 @@ impl TypeChecker {
             let info = index_infos[i].clone();
             if info.ref_(self).key_type == new_info.ref_(self).key_type {
                 index_infos[i] = self.alloc_index_info(self.create_index_info(
-                    info.ref_(self).key_type.clone(),
+                    released!(info.ref_(self).key_type),
                     if union {
                         self.get_union_type(
                             &[
@@ -985,7 +985,7 @@ impl TypeChecker {
                         .flags()
                         .intersects(TypeFlags::String | TypeFlags::TemplateLiteral)
                 {
-                    cb(info.ref_(self).key_type)?;
+                    cb(released!(info.ref_(self).key_type))?;
                 }
             }
         }

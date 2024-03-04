@@ -186,11 +186,11 @@ impl TypeChecker {
         ))?;
 
         let node_source_file = get_source_file_of_node(node, self);
-        let node_source_file_ref = node_source_file.ref_(self);
-        let node_source_file_as_source_file = node_source_file_ref.as_source_file();
         if get_jsx_transform_enabled(&self.compiler_options.ref_(self))
             && (self.compiler_options.ref_(self).jsx_factory.is_some()
-                || node_source_file_as_source_file
+                || node_source_file
+                    .ref_(self)
+                    .as_source_file()
                     .pragmas()
                     .contains_key(&PragmaName::Jsx))
             && self
@@ -198,7 +198,9 @@ impl TypeChecker {
                 .ref_(self)
                 .jsx_fragment_factory
                 .is_none()
-            && !node_source_file_as_source_file
+            && !node_source_file
+                .ref_(self)
+                .as_source_file()
                 .pragmas()
                 .contains_key(&PragmaName::Jsxfrag)
         {

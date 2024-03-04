@@ -388,7 +388,7 @@ impl TransformES2015 {
             );
 
         let visited_accessor_name = try_visit_node(
-            first_accessor.ref_(self).as_named_declaration().name(),
+            released!(first_accessor.ref_(self).as_named_declaration().name()),
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node: Id<Node>| is_property_name(&node.ref_(self))),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

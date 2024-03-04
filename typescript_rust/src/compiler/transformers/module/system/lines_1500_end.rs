@@ -30,15 +30,13 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*ExpressionStatement*/
     ) -> io::Result<VisitResult> {
-        let node_ref = node.ref_(self);
-        let node_as_expression_statement = node_ref.as_expression_statement();
         Ok(Some(
             self.factory
                 .ref_(self)
                 .update_expression_statement(
                     node,
                     try_visit_node(
-                        node_as_expression_statement.expression,
+                        released!(node.ref_(self).as_expression_statement().expression),
                         Some(|node: Id<Node>| self.discarded_value_visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -110,8 +108,6 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*ImportCall*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_call_expression = node_ref.as_call_expression();
         let external_module_name = get_external_module_name_literal(
             &self.factory.ref_(self),
             node,
@@ -121,7 +117,7 @@ impl TransformSystemModule {
             &self.compiler_options.ref_(self),
         )?;
         let first_argument = try_maybe_visit_node(
-            first_or_undefined(&node_as_call_expression.arguments.ref_(self)).cloned(),
+            first_or_undefined(&node.ref_(self).as_call_expression().arguments.ref_(self)).cloned(),
             Some(|node: Id<Node>| self.visitor(node)),
             Option::<fn(Id<Node>) -> bool>::None,
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

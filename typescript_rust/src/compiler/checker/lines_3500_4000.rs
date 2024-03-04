@@ -327,7 +327,7 @@ impl TypeChecker {
         }
         if let Some(symbol_exports) = symbol.ref_(self).maybe_exports().as_ref() {
             result.ref_(self).set_exports(Some(
-                self.alloc_symbol_table(symbol_exports.ref_(self).clone()),
+                self.alloc_symbol_table(released!(symbol_exports.ref_(self).clone())),
             ));
         }
         let resolved_module_type = self.resolve_structured_type_members(module_type)?;

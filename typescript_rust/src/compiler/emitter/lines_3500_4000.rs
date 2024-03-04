@@ -1155,7 +1155,7 @@ impl Printer {
     ) -> io::Result<()> {
         self.emit_expression_list(
             Some(node),
-            Some(node.ref_(self).as_comma_list_expression().elements),
+            released!(Some(node.ref_(self).as_comma_list_expression().elements)),
             ListFormat::CommaListElements,
             None,
             None,

@@ -791,14 +791,12 @@ impl TransformModule {
                     Option::<Id<NodeArray>>::None,
                     self.factory.ref_(self).create_variable_declaration_list(
                         vec![self.factory.ref_(self).create_variable_declaration(
-                            Some(
-                                self.factory.ref_(self).clone_node(
-                                    namespace_declaration
+                            Some(self.factory.ref_(self).clone_node(
+                                released!(namespace_declaration
                                         .ref_(self)
                                         .as_named_declaration()
-                                        .name(),
-                                ),
-                            ),
+                                        .name()),
+                            )),
                             None,
                             None,
                             Some(

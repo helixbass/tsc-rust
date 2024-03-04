@@ -667,7 +667,7 @@ impl TransformDeclarations {
                                                 Some(
                                                     self.factory.ref_(self).create_module_block(
                                                         Some(
-                                                            set_text_range_node_array(
+                                                            released!(set_text_range_node_array(
                                                                 self.factory.ref_(self).create_node_array(
                                                                     Some(self.transform_and_replace_late_painted_statements(
                                                                         statements,
@@ -676,7 +676,7 @@ impl TransformDeclarations {
                                                                 ),
                                                                 Some(&*source_file.ref_(self).as_source_file().statements().ref_(self)),
                                                                 self,
-                                                            )
+                                                            ))
                                                         )
                                                     )
                                                 ),

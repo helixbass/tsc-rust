@@ -457,7 +457,7 @@ impl TypeChecker {
                 };
                 let inference_target_type = self.get_return_type_of_signature(signature.clone())?;
                 self.infer_types(
-                    &context.ref_(self).inferences(),
+                    &released!(context.ref_(self).inferences().clone()),
                     inference_source_type,
                     inference_target_type,
                     Some(InferencePriority::ReturnType),
@@ -814,13 +814,13 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*JsxOpeningLikeElement*/
     ) -> io::Result<JsxReferenceKind> {
-        let node_ref = node.ref_(self);
-        let node_as_jsx_opening_like_element = node_ref.as_jsx_opening_like_element();
-        if self.is_jsx_intrinsic_identifier(node_as_jsx_opening_like_element.tag_name()) {
+        if self
+            .is_jsx_intrinsic_identifier(node.ref_(self).as_jsx_opening_like_element().tag_name())
+        {
             return Ok(JsxReferenceKind::Mixed);
         }
         let tag_type = self.get_apparent_type(self.check_expression(
-            node_as_jsx_opening_like_element.tag_name(),
+            node.ref_(self).as_jsx_opening_like_element().tag_name(),
             None,
             None,
         )?)?;

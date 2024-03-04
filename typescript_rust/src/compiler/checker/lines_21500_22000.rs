@@ -1012,7 +1012,9 @@ impl InferTypes {
                             .ref_(self)
                             .distribute_index_over_object_type(
                                 self.type_checker.ref_(self).get_simplified_type(
-                                    target.ref_(self).as_indexed_access_type().object_type,
+                                    released!(
+                                        target.ref_(self).as_indexed_access_type().object_type
+                                    ),
                                     false,
                                 )?,
                                 index_type,

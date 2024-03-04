@@ -124,7 +124,7 @@ impl TypeChecker {
         match released!(node.ref_(self).kind()) {
             SyntaxKind::JsxExpression | SyntaxKind::ParenthesizedExpression => {
                 return self.elaborate_error(
-                    node.ref_(self).as_has_expression().maybe_expression(),
+                    released!(node.ref_(self).as_has_expression().maybe_expression()),
                     source,
                     target,
                     relation,
@@ -766,7 +766,7 @@ impl TypeChecker {
         }
         let mut member_offset = 0;
         try_flat_map(
-            Some(&*node.ref_(self).as_jsx_element().children.ref_(self)),
+            Some(&*released!(node.ref_(self).as_jsx_element().children).ref_(self)),
             |&child, i| -> io::Result<_> {
                 let name_type =
                     self.get_number_literal_type(Number::new((i - member_offset) as f64));
