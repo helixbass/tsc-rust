@@ -372,11 +372,7 @@ impl TypeChecker {
         );
         let prop_type = self.instantiate_type(
             self.get_template_type_from_mapped_type(
-                type_
-                    .ref_(self)
-                    .as_mapped_type()
-                    .maybe_target()
-                    .unwrap_or_else(|| type_),
+                released!(type_.ref_(self).as_mapped_type().maybe_target()).unwrap_or(type_),
             )?,
             Some(template_mapper),
         )?;

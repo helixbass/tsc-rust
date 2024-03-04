@@ -1063,12 +1063,12 @@ impl TransformModuleOnSubstituteNodeOverrider {
         &self,
         node: Id<Node>, /*ShorthandPropertyAssignment*/
     ) -> io::Result<Id<Node /*ObjectLiteralElementLike*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_shorthand_property_assignment = node_ref.as_shorthand_property_assignment();
-        let name = node_as_shorthand_property_assignment.name();
+        let name = node.ref_(self).as_shorthand_property_assignment().name();
         let exported_or_imported_name = self.substitute_expression_identifier(name)?;
         if exported_or_imported_name != name {
-            if let Some(node_object_assignment_initializer) = node_as_shorthand_property_assignment
+            if let Some(node_object_assignment_initializer) = node
+                .ref_(self)
+                .as_shorthand_property_assignment()
                 .object_assignment_initializer
                 .as_ref()
             {

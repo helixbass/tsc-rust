@@ -811,7 +811,9 @@ impl TypeChecker {
         node: Id<Node>, /*MappedTypeNode*/
     ) -> io::Result<()> {
         self.check_grammar_mapped_type(node);
-        self.check_source_element(Some(node.ref_(self).as_mapped_type_node().type_parameter))?;
+        self.check_source_element(Some(released!(
+            node.ref_(self).as_mapped_type_node().type_parameter
+        )))?;
         self.check_source_element(node.ref_(self).as_mapped_type_node().name_type)?;
         self.check_source_element(node.ref_(self).as_mapped_type_node().type_)?;
 

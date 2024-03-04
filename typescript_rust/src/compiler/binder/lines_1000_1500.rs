@@ -487,11 +487,11 @@ impl Binder {
                 self.set_current_flow(Some(self.unreachable_flow()));
             } else {
                 if let Some(current_return_target) = self.maybe_current_return_target() {
-                    if let Some(return_label_antecedents) = return_label
+                    if let Some(return_label_antecedents) = released!(return_label
                         .ref_(self)
                         .as_flow_label()
                         .maybe_antecedents()
-                        .clone()
+                        .clone())
                     {
                         self.add_antecedent(
                             current_return_target,

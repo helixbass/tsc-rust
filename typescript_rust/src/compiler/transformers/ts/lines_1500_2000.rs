@@ -131,9 +131,9 @@ impl TransformTypeScript {
                 )
             }
             TypeReferenceSerializationKind::TypeWithConstructSignatureAndValue => self
-                .serialize_entity_name_as_expression(
-                    node.ref_(self).as_type_reference_node().type_name,
-                ),
+                .serialize_entity_name_as_expression(released!(
+                    node.ref_(self).as_type_reference_node().type_name
+                )),
             TypeReferenceSerializationKind::VoidNullableOrNeverType => {
                 self.factory.ref_(self).create_void_zero()
             }
@@ -229,7 +229,7 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*EntityName*/
     ) -> Id<Node /*SerializedEntityNameAsExpression*/> {
-        match node.ref_(self).kind() {
+        match released!(node.ref_(self).kind()) {
             SyntaxKind::Identifier => get_parse_node_factory(self)
                 .clone_node(node)
                 .set_text_range(Some(&*node.ref_(self)), self)
@@ -252,11 +252,11 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*QualifiedName*/
     ) -> Id<Node /*SerializedEntityNameAsExpression*/> {
-        let node_ref = node.ref_(self);
-        let node_as_qualified_name = node_ref.as_qualified_name();
         self.factory.ref_(self).create_property_access_expression(
-            self.serialize_entity_name_as_expression(node_as_qualified_name.left),
-            node_as_qualified_name.right.clone(),
+            released!(
+                self.serialize_entity_name_as_expression(node.ref_(self).as_qualified_name().left)
+            ),
+            released!(node.ref_(self).as_qualified_name().right),
         )
     }
 

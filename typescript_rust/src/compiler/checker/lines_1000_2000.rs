@@ -1042,12 +1042,12 @@ impl TypeChecker {
                         let resolved_exports = resolved_exports.ref_(self);
                         let main_module_exports = main_module.ref_(self).exports();
                         let main_module_exports = main_module_exports.ref_(self);
-                        for (key, &value) in &*module_augmentation
+                        for (key, &value) in &*released!(module_augmentation
                             .ref_(self)
                             .symbol()
                             .ref_(self)
-                            .exports()
-                            .ref_(self)
+                            .exports())
+                        .ref_(self)
                         {
                             if resolved_exports.contains_key(key)
                                 && !main_module_exports.contains_key(key)

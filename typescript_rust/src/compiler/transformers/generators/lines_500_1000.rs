@@ -194,10 +194,8 @@ impl TransformGenerators {
         &self,
         node: Id<Node>, /*BinaryExpression*/
     ) -> Id<Node /*Expression*/> {
-        let node_ref = node.ref_(self);
-        let node_as_binary_expression = node_ref.as_binary_expression();
-        let left = node_as_binary_expression.left;
-        let right = node_as_binary_expression.right;
+        let left = node.ref_(self).as_binary_expression().left;
+        let right = node.ref_(self).as_binary_expression().right;
         if self.contains_yield(Some(right)) {
             let target: Id<Node /*Expression*/> = match left.ref_(self).kind() {
                 SyntaxKind::PropertyAccessExpression => {
@@ -242,7 +240,12 @@ impl TransformGenerators {
                 ),
             };
 
-            let operator = node_as_binary_expression.operator_token.ref_(self).kind();
+            let operator = node
+                .ref_(self)
+                .as_binary_expression()
+                .operator_token
+                .ref_(self)
+                .kind();
             if is_compound_assignment(operator) {
                 return self
                     .factory
@@ -268,7 +271,7 @@ impl TransformGenerators {
                 return self.factory.ref_(self).update_binary_expression(
                     node,
                     target,
-                    node_as_binary_expression.operator_token.clone(),
+                    released!(node.ref_(self).as_binary_expression().operator_token),
                     visit_node(
                         right,
                         Some(|node: Id<Node>| self.visitor(node)),

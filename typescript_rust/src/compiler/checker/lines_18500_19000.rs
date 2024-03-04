@@ -1826,20 +1826,17 @@ impl CheckTypeRelatedTo {
                             )?,
                     )?;
                 let skip_false = !skip_true
-                    && self_
-                        .ref_(arena)
+                    && released!(self_.ref_(arena))
                         .type_checker
                         .ref_(arena)
                         .is_type_assignable_to(
-                            self_
-                                .ref_(arena)
+                            released!(self_.ref_(arena))
                                 .type_checker
                                 .ref_(arena)
                                 .get_restrictive_instantiation(released!(
                                     c.ref_(arena).as_conditional_type().check_type
                                 ))?,
-                            self_
-                                .ref_(arena)
+                            released!(self_.ref_(arena))
                                 .type_checker
                                 .ref_(arena)
                                 .get_restrictive_instantiation(

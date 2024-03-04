@@ -1338,8 +1338,8 @@ impl TypeChecker {
         }
         let result = self.alloc_symbol(
             self.create_symbol(
-                value_symbol.ref_(self).flags() | type_symbol.ref_(self).flags(),
-                value_symbol.ref_(self).escaped_name().to_owned(),
+                released!(value_symbol.ref_(self).flags() | type_symbol.ref_(self).flags()),
+                released!(value_symbol.ref_(self).escaped_name().to_owned()),
                 None,
             )
             .into(),

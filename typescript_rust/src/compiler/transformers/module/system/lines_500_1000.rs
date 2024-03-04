@@ -33,10 +33,13 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*ImportDeclaration*/
     ) -> VisitResult /*<Statement>*/ {
-        let node_ref = node.ref_(self);
-        let node_as_import_declaration = node_ref.as_import_declaration();
         let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
-        if node_as_import_declaration.import_clause.is_some() {
+        if node
+            .ref_(self)
+            .as_import_declaration()
+            .import_clause
+            .is_some()
+        {
             self.context.ref_(self).hoist_variable_declaration(
                 get_local_name_for_external_import(
                     &self.factory.ref_(self),

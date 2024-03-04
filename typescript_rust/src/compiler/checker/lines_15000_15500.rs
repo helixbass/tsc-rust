@@ -880,7 +880,7 @@ impl TypeChecker {
                     &Diagnostics::Property_0_does_not_exist_on_type_1,
                     Some(vec![
                         // TODO: put this in a shared helper?
-                        match &*index_type.ref_(self) {
+                        released!(match &*index_type.ref_(self) {
                             Type::LiteralType(LiteralType::NumberLiteralType(index_type)) => {
                                 index_type.value.to_string()
                             }
@@ -888,7 +888,7 @@ impl TypeChecker {
                                 index_type.value.clone()
                             }
                             _ => panic!("Expected NumberLiteralType or StringLiteralType"),
-                        },
+                        }),
                         self.type_to_string_(object_type, Option::<Id<Node>>::None, None, None)?,
                     ]),
                 );
@@ -1252,7 +1252,7 @@ impl TypeChecker {
             writing,
         )?;
         let index_type = self.get_simplified_type(
-            type_.ref_(self).as_indexed_access_type().index_type,
+            released!(type_.ref_(self).as_indexed_access_type().index_type),
             writing,
         )?;
         let distributed_over_index =

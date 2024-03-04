@@ -655,7 +655,7 @@ impl TransformTypeScript {
         if is_function_like(Some(&node.ref_(self)))
             && node.ref_(self).as_has_type().maybe_type().is_some()
         {
-            return self.serialize_type_node(node.ref_(self).as_has_type().maybe_type());
+            return self.serialize_type_node(released!(node.ref_(self).as_has_type().maybe_type()));
         } else if is_async_function(node, self) {
             return Ok(self.factory.ref_(self).create_identifier("Promise"));
         }
@@ -756,20 +756,18 @@ impl TransformTypeScript {
 
             SyntaxKind::IntersectionType | SyntaxKind::UnionType => {
                 return self.serialize_type_list(
-                    &node
-                        .ref_(self)
-                        .as_union_or_intersection_type_node()
-                        .types()
+                    &released!(node.ref_(self).as_union_or_intersection_type_node().types())
                         .ref_(self),
                 );
             }
 
             SyntaxKind::ConditionalType => {
-                let node_ref = node.ref_(self);
-                let node_as_conditional_type_node = node_ref.as_conditional_type_node();
                 return self.serialize_type_list(&[
-                    node_as_conditional_type_node.true_type.clone(),
-                    node_as_conditional_type_node.false_type.clone(),
+                    node.ref_(self).as_conditional_type_node().true_type.clone(),
+                    node.ref_(self)
+                        .as_conditional_type_node()
+                        .false_type
+                        .clone(),
                 ]);
             }
 

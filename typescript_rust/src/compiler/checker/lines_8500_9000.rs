@@ -37,7 +37,7 @@ impl TypeChecker {
                 self.get_synthetic_element_access(ancestor)?
             }
             SyntaxKind::ArrayLiteralExpression => {
-                self.get_synthetic_element_access(node.ref_(self).parent())?
+                self.get_synthetic_element_access(released!(node.ref_(self).parent()))?
             }
             SyntaxKind::VariableDeclaration => ancestor
                 .ref_(self)
