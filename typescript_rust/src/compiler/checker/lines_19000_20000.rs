@@ -1509,9 +1509,7 @@ impl CheckTypeRelatedTo {
                             source_prop,
                             target_prop,
                             |symbol| {
-                                self_
-                                    .ref_(arena)
-                                    .type_checker
+                                released!(self_.ref_(arena).type_checker)
                                     .ref_(arena)
                                     .get_non_missing_type_of_symbol(symbol)
                             },

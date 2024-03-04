@@ -744,8 +744,6 @@ impl TypeChecker {
         declared_type: Id<Type>,
         declaration: Id<Node>, /*VariableLikeDeclaration (actually also includes BindingElement)*/
     ) -> io::Result<Id<Type>> {
-        let declaration_ref = declaration.ref_(self);
-        let declaration_as_has_initializer = declaration_ref.as_has_initializer();
         Ok(
             if self.push_type_resolution(
                 &declaration.ref_(self).symbol().into(),
@@ -754,7 +752,7 @@ impl TypeChecker {
                 let annotation_includes_undefined = self.strict_null_checks
                     && declaration.ref_(self).kind() == SyntaxKind::Parameter
                     && matches!(
-                        declaration_as_has_initializer.maybe_initializer(),
+                        declaration.ref_(self).as_has_initializer().maybe_initializer(),
                         Some(declaration_initializer) if self.get_falsy_flags(declared_type).intersects(TypeFlags::Undefined) &&
                             !self.get_falsy_flags(self.check_expression(declaration_initializer, None, None)?).intersects(TypeFlags::Undefined)
                     );
@@ -766,7 +764,7 @@ impl TypeChecker {
                     declared_type
                 }
             } else {
-                self.report_circularity_error(declaration.ref_(self).symbol())?;
+                self.report_circularity_error(released!(declaration.ref_(self).symbol()))?;
                 declared_type
             },
         )

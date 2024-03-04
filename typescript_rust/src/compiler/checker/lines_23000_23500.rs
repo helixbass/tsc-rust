@@ -785,24 +785,24 @@ impl TypeChecker {
         &self,
         evolving_array_type: Id<Type>, /*EvolvingArrayType*/
     ) -> io::Result<Id<Type>> {
-        let evolving_array_type_ref = evolving_array_type.ref_(self);
-        if evolving_array_type_ref
+        if evolving_array_type
+            .ref_(self)
             .as_evolving_array_type()
             .maybe_final_array_type()
             .is_none()
         {
-            evolving_array_type_ref
+            evolving_array_type
+                .ref_(self)
                 .as_evolving_array_type()
-                .set_final_array_type(Some(
-                    self.create_final_array_type(
-                        evolving_array_type
+                .set_final_array_type(Some(self.create_final_array_type(
+                    released!(evolving_array_type
                             .ref_(self)
                             .as_evolving_array_type()
-                            .element_type,
-                    )?,
-                ));
+                            .element_type),
+                )?));
         }
-        Ok(evolving_array_type_ref
+        Ok(evolving_array_type
+            .ref_(self)
             .as_evolving_array_type()
             .maybe_final_array_type()
             .unwrap())

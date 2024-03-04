@@ -568,9 +568,9 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*IndexedAccessType*/
     ) -> io::Result<Option<Id<Type>>> {
-        let index_constraint = self.get_simplified_type_or_constraint(
-            type_.ref_(self).as_indexed_access_type().index_type,
-        )?;
+        let index_constraint = self.get_simplified_type_or_constraint(released!(
+            type_.ref_(self).as_indexed_access_type().index_type
+        ))?;
         if let Some(index_constraint) = index_constraint.filter(|&index_constraint| {
             index_constraint != type_.ref_(self).as_indexed_access_type().index_type
         }) {
@@ -1008,8 +1008,10 @@ impl TypeChecker {
         if t.ref_(self).flags().intersects(TypeFlags::IndexedAccess) {
             let base_object_type =
                 self.get_base_constraint(stack, t.ref_(self).as_indexed_access_type().object_type)?;
-            let base_index_type =
-                self.get_base_constraint(stack, t.ref_(self).as_indexed_access_type().index_type)?;
+            let base_index_type = self.get_base_constraint(
+                stack,
+                released!(t.ref_(self).as_indexed_access_type().index_type),
+            )?;
             let base_indexed_access = if let (Some(base_object_type), Some(base_index_type)) =
                 (base_object_type, base_index_type)
             {

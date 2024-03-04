@@ -1216,9 +1216,7 @@ impl CheckTypeRelatedTo {
                 .ref_(arena)
                 .flags()
                 .intersects(TypeFlags::Object | TypeFlags::Intersection)
-            && self_
-                .ref_(arena)
-                .type_checker
+            && released!(self_.ref_(arena).type_checker)
                 .ref_(arena)
                 .is_weak_type(target)?
             && (!self_

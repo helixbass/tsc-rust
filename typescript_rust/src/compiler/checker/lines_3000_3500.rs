@@ -627,7 +627,7 @@ impl TypeChecker {
                         )?);
                         if let Some(exported_type_symbol) = exported_type_symbol {
                             self.error(
-                                Some(name.ref_(self).parent().ref_(self).as_qualified_name().right),
+                                released!(Some(name.ref_(self).parent().ref_(self).as_qualified_name().right)),
                                 &Diagnostics::Cannot_access_0_1_because_0_is_a_type_but_not_a_namespace_Did_you_mean_to_retrieve_the_type_of_the_property_1_in_0_with_0_1,
                                 Some(vec![
                                     self.symbol_to_string_(exported_type_symbol, Option::<Id<Node>>::None, None, None, None)?,

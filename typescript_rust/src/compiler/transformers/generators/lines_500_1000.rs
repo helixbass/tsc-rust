@@ -499,10 +499,8 @@ impl TransformGenerators {
         &self,
         node: Id<Node>, /*ConditionalExpression*/
     ) -> Id<Node /*Expression*/> {
-        let node_ref = node.ref_(self);
-        let node_as_conditional_expression = node_ref.as_conditional_expression();
-        if self.contains_yield(Some(node_as_conditional_expression.when_true))
-            || self.contains_yield(Some(node_as_conditional_expression.when_false))
+        if self.contains_yield(Some(node.ref_(self).as_conditional_expression().when_true))
+            || self.contains_yield(Some(node.ref_(self).as_conditional_expression().when_false))
         {
             let when_false_label = self.define_label();
             let result_label = self.define_label();
@@ -510,34 +508,52 @@ impl TransformGenerators {
             self.emit_break_when_false(
                 when_false_label,
                 visit_node(
-                    node_as_conditional_expression.condition,
+                    node.ref_(self).as_conditional_expression().condition,
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
-                Some(&*node_as_conditional_expression.condition.ref_(self)),
+                Some(
+                    &*node
+                        .ref_(self)
+                        .as_conditional_expression()
+                        .condition
+                        .ref_(self),
+                ),
             );
             self.emit_assignment(
                 result_local.clone(),
                 visit_node(
-                    node_as_conditional_expression.when_true,
+                    node.ref_(self).as_conditional_expression().when_true,
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
-                Some(&*node_as_conditional_expression.when_true.ref_(self)),
+                Some(
+                    &*node
+                        .ref_(self)
+                        .as_conditional_expression()
+                        .when_true
+                        .ref_(self),
+                ),
             );
             self.emit_break(result_label, Option::<&Node>::None);
             self.mark_label(when_false_label);
             self.emit_assignment(
                 result_local.clone(),
                 visit_node(
-                    node_as_conditional_expression.when_false,
+                    node.ref_(self).as_conditional_expression().when_false,
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
-                Some(&*node_as_conditional_expression.when_false.ref_(self)),
+                Some(
+                    &*node
+                        .ref_(self)
+                        .as_conditional_expression()
+                        .when_false
+                        .ref_(self),
+                ),
             );
             self.mark_label(result_label);
             return result_local;

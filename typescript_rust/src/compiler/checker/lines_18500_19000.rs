@@ -1574,9 +1574,7 @@ impl CheckTypeRelatedTo {
             if report_errors {
                 original_error_info = None;
             }
-        } else if self_
-            .ref_(arena)
-            .type_checker
+        } else if released!(self_.ref_(arena).type_checker)
             .ref_(arena)
             .is_generic_mapped_type(target)?
             && !Rc::ptr_eq(

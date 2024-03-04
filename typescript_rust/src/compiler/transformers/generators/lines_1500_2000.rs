@@ -344,17 +344,15 @@ impl TransformGenerators {
         &self,
         node: Id<Node>, /*SwitchStatement*/
     ) {
-        let node_ref = node.ref_(self);
-        let node_as_switch_statement = node_ref.as_switch_statement();
-        if self.contains_yield(Some(node_as_switch_statement.case_block)) {
-            let case_block = node_as_switch_statement.case_block;
+        if self.contains_yield(Some(node.ref_(self).as_switch_statement().case_block)) {
+            let case_block = node.ref_(self).as_switch_statement().case_block;
             let case_block_ref = case_block.ref_(self);
             let case_block_as_case_block = case_block_ref.as_case_block();
             let num_clauses = case_block_as_case_block.clauses.ref_(self).len();
             let end_label = self.begin_switch_block();
 
             let expression = self.cache_expression(visit_node(
-                node_as_switch_statement.expression,
+                node.ref_(self).as_switch_statement().expression,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

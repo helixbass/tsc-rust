@@ -391,10 +391,11 @@ impl NodeFactory {
         node: Id<Node>, /*ArrayBindingPattern*/
         elements: impl Into<NodeArrayOrVec /*<ArrayBindingElement>*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_array_binding_pattern = node_ref.as_array_binding_pattern();
         let elements = elements.into();
-        if has_node_array_changed(node_as_array_binding_pattern.elements, &elements) {
+        if has_node_array_changed(
+            node.ref_(self).as_array_binding_pattern().elements,
+            &elements,
+        ) {
             self.update(self.create_array_binding_pattern(elements), node)
         } else {
             node

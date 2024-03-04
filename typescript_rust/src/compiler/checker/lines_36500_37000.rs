@@ -871,9 +871,9 @@ impl TypeChecker {
             None,
         )?;
         self.check_testing_known_truthy_callable_or_awaitable_type(
-            node.ref_(self).as_if_statement().expression,
+            released!(node.ref_(self).as_if_statement().expression),
             type_,
-            Some(node.ref_(self).as_if_statement().then_statement),
+            released!(Some(node.ref_(self).as_if_statement().then_statement)),
         )?;
         self.check_source_element(Some(released!(
             node.ref_(self).as_if_statement().then_statement

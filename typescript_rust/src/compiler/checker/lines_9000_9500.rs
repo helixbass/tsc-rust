@@ -575,7 +575,7 @@ impl TypeChecker {
                     self.try_get_type_from_effective_type_node(declaration)?
                         .try_unwrap_or_else(|| {
                             self.check_expression_cached(
-                                declaration.ref_(self).as_export_assignment().expression,
+                                released!(declaration.ref_(self).as_export_assignment().expression),
                                 None,
                             )
                         })?,

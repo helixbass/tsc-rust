@@ -745,8 +745,8 @@ impl TypeChecker {
             instantiable,
             Some(self.create_type_mapper(
                 vec![
-                    type_.ref_(self).as_indexed_access_type().index_type.clone(),
-                    type_.ref_(self).as_indexed_access_type().object_type.clone(),
+                    released!(type_.ref_(self).as_indexed_access_type().index_type),
+                    released!(type_.ref_(self).as_indexed_access_type().object_type),
                 ],
                 Some(vec![
                     self.get_number_literal_type(Number::new(0.0)),
@@ -791,7 +791,9 @@ impl TypeChecker {
             vec![]
         };
         let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None, self);
-        for prop in self.get_properties_of_type(type_.ref_(self).as_reverse_mapped_type().source)? {
+        for prop in self
+            .get_properties_of_type(released!(type_.ref_(self).as_reverse_mapped_type().source))?
+        {
             let check_flags = CheckFlags::ReverseMapped
                 | if readonly_mask && self.is_readonly_symbol(prop)? {
                     CheckFlags::Readonly
