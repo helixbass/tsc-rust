@@ -112,14 +112,12 @@ pub(crate) fn options_affecting_program_structure(
     per_arena!(
         Vec<Id<CommandLineOption>>,
         arena,
-        arena.alloc_vec_command_line_option(
-            option_declarations(arena)
-                .ref_(arena)
-                .iter()
-                .filter(|option| option.ref_(arena).affects_program_structure())
-                .copied()
-                .collect()
-        )
+        arena.alloc_vec_command_line_option(released!(option_declarations(arena)
+            .ref_(arena)
+            .iter()
+            .filter(|option| option.ref_(arena).affects_program_structure())
+            .copied()
+            .collect()))
     )
 }
 
