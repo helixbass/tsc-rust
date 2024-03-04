@@ -55,7 +55,10 @@ mod parse_config_file_text_to_json {
                 .maybe_as_dyn_parse_config_host()
                 .unwrap(),
             // "tests/cases/unittests",
-            &format!("{}/prj/tsc-rust/typescript_rust/typescript_src/tests/cases/unittests", env::var("HOME").unwrap()),
+            &format!(
+                "{}/prj/tsc-rust/typescript_rust/typescript_src/tests/cases/unittests",
+                env::var("HOME").unwrap()
+            ),
             None,
             None,
             None,
@@ -78,7 +81,10 @@ mod parse_config_file_text_to_json {
                 .maybe_as_dyn_parse_config_host()
                 .unwrap(),
             // "tests/cases/unittests",
-            &format!("{}/prj/tsc-rust/typescript_rust/typescript_src/tests/cases/unittests", env::var("HOME").unwrap()),
+            &format!(
+                "{}/prj/tsc-rust/typescript_rust/typescript_src/tests/cases/unittests",
+                env::var("HOME").unwrap()
+            ),
             None,
             None,
             None,
@@ -241,8 +247,10 @@ mod parse_config_file_text_to_json {
     ) {
         let ref arena = AllArenasHarness::default();
         let json_text = json_text.into();
-        let base_path =
-            &format!("{}/prj/tsc-rust/typescript_rust/typescript_src/{base_path}", env::var("HOME").unwrap());
+        let base_path = &format!(
+            "{}/prj/tsc-rust/typescript_rust/typescript_src/{base_path}",
+            env::var("HOME").unwrap()
+        );
         let parsed = get_parsed_command_json(
             json_text.clone(),
             config_file_name,
@@ -321,14 +329,15 @@ mod parse_config_file_text_to_json {
             all_file_list,
             arena,
         );
-        let parsed_errors = parsed.errors.ref_(arena);
         // assert.isTrue(parsed.errors.length >= 0);
         asserting(&format!(
             "Expected error code {expected_excluded_diagnostic_code} to not be in {:?}",
-            *parsed_errors
+            *parsed.errors.ref_(arena),
         ))
         .that(
-            &parsed_errors
+            &parsed
+                .errors
+                .ref_(arena)
                 .iter()
                 .position(|e| e.ref_(arena).code() == expected_excluded_diagnostic_code),
         )

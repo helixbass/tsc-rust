@@ -8032,7 +8032,11 @@ impl OptionInArena for Option<Id<CommandLineOption>> {
     type Item = CommandLineOption;
 
     fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<Ref<'a, CommandLineOption>> {
-        self.map(|command_line_option| has_arena.command_line_option(command_line_option))
+        // self.map(|command_line_option| has_arena.command_line_option(command_line_option))
+        match self {
+            None => None,
+            Some(command_line_option) => Some(has_arena.command_line_option(command_line_option)),
+        }
     }
 }
 

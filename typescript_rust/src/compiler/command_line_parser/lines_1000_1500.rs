@@ -191,14 +191,12 @@ pub(crate) fn build_opts(arena: &impl HasArena) -> Id<Vec<Id<CommandLineOption>>
     per_arena!(
         Vec<Id<CommandLineOption>>,
         arena,
-        arena.alloc_vec_command_line_option(
-            common_options_with_build(arena)
-                .ref_(arena)
-                .iter()
-                .chain(options_for_build(arena).ref_(arena).iter())
-                .copied()
-                .collect()
-        )
+        arena.alloc_vec_command_line_option(released!(common_options_with_build(arena)
+            .ref_(arena)
+            .iter()
+            .chain(options_for_build(arena).ref_(arena).iter())
+            .copied()
+            .collect()))
     )
 }
 
