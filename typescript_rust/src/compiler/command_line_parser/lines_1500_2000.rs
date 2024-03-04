@@ -24,8 +24,7 @@ use crate::{
     DiagnosticMessageText, DiagnosticRelatedInformationInterface, Diagnostics,
     DidYouMeanOptionsDiagnostics, ExtendedConfigCacheEntry, FileExtensionInfo, HasArena,
     HasStatementsInterface, InArena, LanguageVariant, Node, NodeArray, NodeFlags, NodeInterface,
-    OptionInArena, OptionsNameMap, ParseConfigHost, ParsedCommandLine,
-    ParsedCommandLineWithBaseOptions, Push,
+    OptionsNameMap, ParseConfigHost, ParsedCommandLine, ParsedCommandLineWithBaseOptions, Push,
     RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics, ScriptKind,
     ScriptTarget, SourceFile, StringOrDiagnosticMessage, SyntaxKind, TransformFlags,
     TsConfigOnlyOption, WatchOptions,
@@ -1147,7 +1146,7 @@ pub(super) fn convert_config_file_to_object(
                     Some(first_object),
                     errors,
                     true,
-                    known_root_options.refed(arena).as_deref(),
+                    known_root_options,
                     options_iterator,
                     arena,
                 );
@@ -1160,7 +1159,7 @@ pub(super) fn convert_config_file_to_object(
         root_expression,
         errors,
         true,
-        known_root_options.refed(arena).as_deref(),
+        known_root_options,
         options_iterator,
         arena,
     )
@@ -1193,7 +1192,7 @@ pub(crate) fn convert_to_object_worker(
     root_expression: Option<Id<Node>>,
     errors: Id<Push<Id<Diagnostic>>>,
     return_value: bool,
-    known_root_options: Option<&CommandLineOption>,
+    known_root_options: Option<Id<CommandLineOption>>,
     json_conversion_notifier: Option<&impl JsonConversionNotifier>,
     arena: &impl HasArena,
 ) -> io::Result<Option<serde_json::Value>> {

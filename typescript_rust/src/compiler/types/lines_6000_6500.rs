@@ -2665,6 +2665,7 @@ impl fmt::Debug for TsConfigOnlyOption {
     }
 }
 
+#[derive(Clone)]
 pub struct RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics {
     arena: *const AllArenas,
     value: _RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics,

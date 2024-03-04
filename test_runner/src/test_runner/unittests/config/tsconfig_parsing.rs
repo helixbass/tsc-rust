@@ -68,9 +68,9 @@ mod parse_config_file_text_to_json {
             arena,
         )
         .unwrap();
-        let parsed_command_errors = parsed_command.errors.ref_(arena);
-        assert_that!(/*parsedCommandLine.errors &&*/ &*parsed_command_errors).has_length(1);
-        assert_that!(&parsed_command_errors[0].ref_(arena).code())
+        assert_that!(/*parsedCommandLine.errors &&*/ &*parsed_command.errors.ref_(arena))
+            .has_length(1);
+        assert_that!(&parsed_command.errors.ref_(arena)[0].ref_(arena).code())
             .is_equal_to(Diagnostics::Unknown_option_excludes_Did_you_mean_exclude.code);
 
         let parsed = parse_json_text("/apath/tsconfig.json", json_text, arena);
@@ -258,15 +258,16 @@ mod parse_config_file_text_to_json {
             all_file_list,
             arena,
         );
-        let parsed_errors = parsed.errors.ref_(arena);
         // TODO: this looks trivially true, maybe meant > 0? Upstream?
         // assert.isTrue(parsed.errors.length >= 0);
         asserting(&format!(
             "Expected error code {expected_diagnostic_code} to be in {:?}",
-            *parsed_errors
+            *parsed.errors.ref_(arena)
         ))
         .that(
-            &parsed_errors
+            &parsed
+                .errors
+                .ref_(arena)
                 .iter()
                 .filter(|e| e.ref_(arena).code() == expected_diagnostic_code)
                 .count(),

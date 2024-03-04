@@ -16,7 +16,7 @@ use crate::{
     create_multi_map_ordered, extend_compiler_options, get_directory_path,
     get_file_matcher_patterns, get_locale_specific_message, get_normalized_absolute_path,
     get_regex_from_pattern, get_relative_path_from_file, get_text_of_property_name,
-    is_computed_non_literal_name, is_string_double_quoted, is_string_literal, maybe_map,
+    is_computed_non_literal_name, is_string_double_quoted, is_string_literal, maybe_map, released,
     unescape_leading_underscores, CommandLineOption, CommandLineOptionInterface,
     CommandLineOptionMapTypeValue, CommandLineOptionType, CompilerOptions, CompilerOptionsValue,
     Diagnostic, Diagnostics, DidYouMeanOptionsDiagnostics, FileMatcherPatterns, HasArena, InArena,
@@ -52,7 +52,7 @@ pub(super) fn convert_object_literal_expression_to_json(
     errors: Id<Push<Id<Diagnostic>>>,
     source_file: Id<Node>, /*JsonSourceFile*/
     json_conversion_notifier: Option<&impl JsonConversionNotifier>,
-    known_root_options: Option<&CommandLineOption>,
+    known_root_options: Option<Id<CommandLineOption>>,
     node: Id<Node>, /*ObjectLiteralExpression*/
     known_options: Option<&HashMap<String, Id<CommandLineOption>>>,
     extra_key_diagnostics: Option<&dyn DidYouMeanOptionsDiagnostics>,
@@ -177,7 +177,7 @@ pub(super) fn convert_object_literal_expression_to_json(
             return_value,
             known_root_options,
             element_as_property_assignment.initializer,
-            option.refed(arena).as_deref(),
+            option,
             arena,
         )?;
         if let Some(key_text) = key_text {
@@ -191,7 +191,11 @@ pub(super) fn convert_object_literal_expression_to_json(
             }
             if let Some(json_conversion_notifier) = json_conversion_notifier {
                 if parent_option.is_some()
-                    || is_root_option_map(known_root_options, known_options, arena)
+                    || is_root_option_map(
+                        known_root_options.refed(arena).as_deref(),
+                        known_options,
+                        arena,
+                    )
                 {
                     let is_valid_option_value =
                         is_compiler_options_value(option.refed(arena).as_deref(), value.as_ref());
@@ -203,7 +207,11 @@ pub(super) fn convert_object_literal_expression_to_json(
                                 value.as_ref(),
                             );
                         }
-                    } else if is_root_option_map(known_root_options, known_options, arena) {
+                    } else if is_root_option_map(
+                        known_root_options.refed(arena).as_deref(),
+                        known_options,
+                        arena,
+                    ) {
                         if is_valid_option_value {
                             json_conversion_notifier.on_set_valid_option_key_value_in_root(
                                 &key_text,
@@ -232,9 +240,9 @@ pub(super) fn convert_array_literal_expression_to_json(
     source_file: Id<Node>, /*JsonSourceFile*/
     json_conversion_notifier: Option<&impl JsonConversionNotifier>,
     return_value: bool,
-    known_root_options: Option<&CommandLineOption>,
+    known_root_options: Option<Id<CommandLineOption>>,
     elements: Id<NodeArray>, /*<Expression>*/
-    element_option: Option<&CommandLineOption>,
+    element_option: Option<Id<CommandLineOption>>,
     arena: &impl HasArena,
 ) -> io::Result<Option<serde_json::Value>> {
     if !return_value {
@@ -283,9 +291,9 @@ pub(super) fn convert_property_value_to_json(
     source_file: Id<Node>, /*JsonSourceFile*/
     json_conversion_notifier: Option<&impl JsonConversionNotifier>,
     return_value: bool,
-    known_root_options: Option<&CommandLineOption>,
+    known_root_options: Option<Id<CommandLineOption>>,
     value_expression: Id<Node>, /*Expression*/
-    option: Option<&CommandLineOption>,
+    option: Option<Id<CommandLineOption>>,
     arena: &impl HasArena,
 ) -> io::Result<Option<serde_json::Value>> {
     let mut invalid_reported: Option<bool> = None;
@@ -298,7 +306,7 @@ pub(super) fn convert_property_value_to_json(
                 value_expression,
                 option,
                 Some(
-                    matches!(option, Some(option) if !matches!(option, CommandLineOption::CommandLineOptionOfBooleanType(_))),
+                    matches!(option, Some(option) if !matches!(&*option.ref_(arena), CommandLineOption::CommandLineOptionOfBooleanType(_))),
                 ),
                 arena,
             );
@@ -321,7 +329,7 @@ pub(super) fn convert_property_value_to_json(
                 value_expression,
                 option,
                 Some(
-                    matches!(option, Some(option) if !matches!(option, CommandLineOption::CommandLineOptionOfBooleanType(_))),
+                    matches!(option, Some(option) if !matches!(&*option.ref_(arena), CommandLineOption::CommandLineOptionOfBooleanType(_))),
                 ),
                 arena,
             );
@@ -343,7 +351,7 @@ pub(super) fn convert_property_value_to_json(
                 source_file,
                 value_expression,
                 option,
-                Some(matches!(option, Some(option) if option.name() == "extends")),
+                Some(matches!(option, Some(option) if option.ref_(arena).name() == "extends")),
                 arena,
             );
             return Ok(validate_value(
@@ -381,7 +389,7 @@ pub(super) fn convert_property_value_to_json(
                 Some(matches!(
                     option,
                     Some(option) if !matches!(
-                        option,
+                        &*option.ref_(arena),
                         CommandLineOption::CommandLineOptionOfCustomType(_)
                           | CommandLineOption::CommandLineOptionOfStringType(_)
                     )
@@ -390,13 +398,15 @@ pub(super) fn convert_property_value_to_json(
             );
             let value_expression_ref = value_expression.ref_(arena);
             let text = value_expression_ref.as_literal_like_node().text();
-            if let Some(custom_option) = option.as_ref() {
-                if let CommandLineOptionType::Map(custom_option_type) = custom_option.type_() {
+            if let Some(custom_option) = option {
+                if let CommandLineOptionType::Map(custom_option_type) =
+                    custom_option.ref_(arena).type_()
+                {
                     if !custom_option_type.contains_key(&&*text.to_lowercase()) {
                         errors
                             .ref_mut(arena)
                             .push(create_diagnostic_for_invalid_custom_type(
-                                custom_option,
+                                &custom_option.ref_(arena),
                                 |message, args| {
                                     arena.alloc_diagnostic(
                                         create_diagnostic_for_node_in_source_file(
@@ -433,7 +443,7 @@ pub(super) fn convert_property_value_to_json(
                 value_expression,
                 option,
                 Some(
-                    matches!(option, Some(option) if !matches!(option, CommandLineOption::CommandLineOptionOfNumberType(_))),
+                    matches!(option, Some(option) if !matches!(&*option.ref_(arena), CommandLineOption::CommandLineOptionOfNumberType(_))),
                 ),
                 arena,
             );
@@ -471,7 +481,7 @@ pub(super) fn convert_property_value_to_json(
                     value_expression,
                     option,
                     Some(
-                        matches!(option, Some(option) if !matches!(option, CommandLineOption::CommandLineOptionOfNumberType(_))),
+                        matches!(option, Some(option) if !matches!(&*option.ref_(arena), CommandLineOption::CommandLineOptionOfNumberType(_))),
                     ),
                     arena,
                 );
@@ -507,22 +517,18 @@ pub(super) fn convert_property_value_to_json(
                 value_expression,
                 option,
                 Some(
-                    matches!(option, Some(option) if !matches!(option, CommandLineOption::TsConfigOnlyOption(_))),
+                    matches!(option, Some(option) if !matches!(&*option.ref_(arena), CommandLineOption::TsConfigOnlyOption(_))),
                 ),
                 arena,
             );
             let object_literal_expression = value_expression;
 
             if let Some(option) = option {
-                let option_as_ts_config_only_option = option.as_ts_config_only_option();
-                let element_options = option_as_ts_config_only_option.element_options;
-                let extra_key_diagnostics = option_as_ts_config_only_option
-                    .extra_key_diagnostics
-                    .as_ref()
-                    .map(|extra_key_diagnostics| {
-                        extra_key_diagnostics.as_did_you_mean_options_diagnostics()
-                    });
-                let option_name = option.name();
+                let element_options = option
+                    .ref_(arena)
+                    .as_ts_config_only_option()
+                    .element_options;
+                let ref option_name = option.ref_(arena).name().to_owned();
                 let converted = convert_object_literal_expression_to_json(
                     return_value,
                     errors.clone(),
@@ -531,7 +537,16 @@ pub(super) fn convert_property_value_to_json(
                     known_root_options,
                     object_literal_expression,
                     element_options.refed(arena).as_deref(),
-                    extra_key_diagnostics.as_deref(),
+                    released!(option
+                        .ref_(arena)
+                        .as_ts_config_only_option()
+                        .extra_key_diagnostics
+                        .clone())
+                    .as_ref()
+                    .map(|extra_key_diagnostics| {
+                        extra_key_diagnostics.as_did_you_mean_options_diagnostics()
+                    })
+                    .as_deref(),
                     if option_name == tsconfig_root_options_dummy_name {
                         None
                     } else {
@@ -581,7 +596,7 @@ pub(super) fn convert_property_value_to_json(
                 value_expression,
                 option,
                 Some(
-                    matches!(option, Some(option) if !matches!(option, CommandLineOption::CommandLineOptionOfListType(_))),
+                    matches!(option, Some(option) if !matches!(&*option.ref_(arena), CommandLineOption::CommandLineOptionOfListType(_))),
                 ),
                 arena,
             );
@@ -601,15 +616,12 @@ pub(super) fn convert_property_value_to_json(
                         .ref_(arena)
                         .as_array_literal_expression()
                         .elements,
-                    option
-                        .and_then(|option| match option {
-                            CommandLineOption::CommandLineOptionOfListType(option) => {
-                                Some(option.element)
-                            }
-                            _ => None,
-                        })
-                        .refed(arena)
-                        .as_deref(),
+                    option.and_then(|option| match &*option.ref_(arena) {
+                        CommandLineOption::CommandLineOptionOfListType(option) => {
+                            Some(option.element)
+                        }
+                        _ => None,
+                    }),
                     arena,
                 )?,
                 arena,
@@ -647,7 +659,7 @@ pub(super) fn convert_property_value_to_json(
 
 pub(super) fn validate_value(
     invalid_reported: Option<bool>,
-    option: Option<&CommandLineOption>,
+    option: Option<Id<CommandLineOption>>,
     errors: Id<Push<Id<Diagnostic>>>,
     source_file: Id<Node>,      /*JsonSourceFile*/
     value_expression: Id<Node>, /*Expression*/
@@ -656,7 +668,7 @@ pub(super) fn validate_value(
 ) -> Option<serde_json::Value> {
     if !matches!(invalid_reported, Some(true)) {
         let diagnostic = option
-            .and_then(|option| option.maybe_extra_validation())
+            .and_then(|option| option.ref_(arena).maybe_extra_validation())
             .and_then(|extra_validation| extra_validation(value.as_ref()));
         if let Some((diagnostic_message, args)) = diagnostic {
             errors.ref_mut(arena).push(
@@ -682,7 +694,7 @@ pub(super) fn report_invalid_option_value(
     invalid_reported: &mut Option<bool>,
     source_file: Id<Node>,      /*JsonSourceFile*/
     value_expression: Id<Node>, /*Expression*/
-    option: Option<&CommandLineOption>,
+    option: Option<Id<CommandLineOption>>,
     is_error: Option<bool>,
     arena: &impl HasArena,
 ) {
@@ -694,8 +706,9 @@ pub(super) fn report_invalid_option_value(
                     value_expression,
                     &Diagnostics::Compiler_option_0_requires_a_value_of_type_1,
                     Some(vec![
-                        option.unwrap().name().to_owned(),
-                        get_compiler_option_value_type_string(option.unwrap()).to_owned(),
+                        option.unwrap().ref_(arena).name().to_owned(),
+                        get_compiler_option_value_type_string(&option.unwrap().ref_(arena))
+                            .to_owned(),
                     ]),
                     arena,
                 )
@@ -1176,7 +1189,7 @@ pub(super) fn serialize_option_base_object(
 }
 
 pub fn get_compiler_options_diff_value(
-    options: &CompilerOptions,
+    options: Id<CompilerOptions>,
     new_line: &str,
     arena: &impl HasArena,
 ) -> String {
@@ -1232,13 +1245,11 @@ fn get_overwritten_default_options(
 }
 
 pub(super) fn get_serialized_compiler_option(
-    options: &CompilerOptions,
+    options: Id<CompilerOptions>,
     arena: &impl HasArena,
 ) -> IndexMap<&'static str, CompilerOptionsValue> {
-    let compiler_options = extend_compiler_options(
-        options,
-        &get_default_init_compiler_options(arena).ref_(arena),
-    );
+    let default = get_default_init_compiler_options(arena);
+    let compiler_options = extend_compiler_options(&options.ref_(arena), &default.ref_(arena));
     serialize_compiler_options(&compiler_options, None, arena)
 }
 
@@ -1248,7 +1259,7 @@ pub fn generate_tsconfig(
     new_line: &str,
     arena: &impl HasArena,
 ) -> String {
-    let compiler_options_map = get_serialized_compiler_option(&options.ref_(arena), arena);
+    let compiler_options_map = get_serialized_compiler_option(options, arena);
     write_configurations(&compiler_options_map, file_names, new_line, arena)
 }
 

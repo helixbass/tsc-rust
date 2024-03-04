@@ -78,14 +78,12 @@ pub(crate) fn module_resolution_option_declarations(
     per_arena!(
         Vec<Id<CommandLineOption>>,
         arena,
-        arena.alloc_vec_command_line_option(
-            option_declarations(arena)
-                .ref_(arena)
-                .iter()
-                .filter(|option| option.ref_(arena).affects_module_resolution())
-                .copied()
-                .collect()
-        )
+        arena.alloc_vec_command_line_option(released!(option_declarations(arena)
+            .ref_(arena)
+            .iter()
+            .filter(|option| option.ref_(arena).affects_module_resolution())
+            .copied()
+            .collect()))
     )
 }
 
@@ -95,18 +93,16 @@ pub(crate) fn source_file_affecting_compiler_options(
     per_arena!(
         Vec<Id<CommandLineOption>>,
         arena,
-        arena.alloc_vec_command_line_option(
-            option_declarations(arena)
-                .ref_(arena)
-                .iter()
-                .filter(|option| {
-                    option.ref_(arena).affects_source_file()
-                        || option.ref_(arena).affects_module_resolution()
-                        || option.ref_(arena).affects_bind_diagnostics()
-                })
-                .copied()
-                .collect()
-        )
+        arena.alloc_vec_command_line_option(released!(option_declarations(arena)
+            .ref_(arena)
+            .iter()
+            .filter(|option| {
+                option.ref_(arena).affects_source_file()
+                    || option.ref_(arena).affects_module_resolution()
+                    || option.ref_(arena).affects_bind_diagnostics()
+            })
+            .copied()
+            .collect()))
     )
 }
 
@@ -188,16 +184,16 @@ pub(crate) fn options_for_build(arena: &impl HasArena) -> Id<Vec<Id<CommandLineO
 }
 
 pub(crate) fn build_opts(arena: &impl HasArena) -> Id<Vec<Id<CommandLineOption>>> {
-    per_arena!(
-        Vec<Id<CommandLineOption>>,
-        arena,
-        arena.alloc_vec_command_line_option(released!(common_options_with_build(arena)
+    per_arena!(Vec<Id<CommandLineOption>>, arena, {
+        let common_options_with_build = common_options_with_build(arena);
+        let options_for_build = options_for_build(arena);
+        arena.alloc_vec_command_line_option(released!(common_options_with_build
             .ref_(arena)
             .iter()
-            .chain(options_for_build(arena).ref_(arena).iter())
+            .chain(options_for_build.ref_(arena).iter())
             .copied()
             .collect()))
-    )
+    })
 }
 
 pub(crate) fn type_acquisition_declarations(

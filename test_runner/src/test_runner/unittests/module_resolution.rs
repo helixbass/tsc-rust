@@ -1650,10 +1650,21 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
             arena,
         )
         .into();
-        assert_that(&diagnostics).is_equal_to(Vec::<_>::from(sort_and_deduplicate_diagnostics(
-            &expected_diagnostics(&program.ref_(arena)),
-            arena,
-        )));
+        assert_that(
+            &diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.ref_(arena).clone())
+                .collect::<Vec<_>>(),
+        )
+        .is_equal_to(
+            Vec::<_>::from(sort_and_deduplicate_diagnostics(
+                &expected_diagnostics(&program.ref_(arena)),
+                arena,
+            ))
+            .iter()
+            .map(|diagnostic| diagnostic.ref_(arena).clone())
+            .collect::<Vec<_>>(),
+        );
     }
 
     struct FilesWithDifferentCasingCompilerHost {
@@ -3907,6 +3918,7 @@ mod type_reference_directive_resolution {
             CreateProgramOptionsBuilder::default()
                 .root_names([&*f.name].owned())
                 .host(compiler_host.clone())
+                .options(arena.alloc_compiler_options(Default::default()))
                 .build()
                 .unwrap(),
             arena,
@@ -4170,6 +4182,7 @@ mod type_reference_directive_resolution {
             CreateProgramOptionsBuilder::default()
                 .root_names([&*f.name].owned())
                 .host(compiler_host.clone())
+                .options(arena.alloc_compiler_options(Default::default()))
                 .build()
                 .unwrap(),
             arena,
