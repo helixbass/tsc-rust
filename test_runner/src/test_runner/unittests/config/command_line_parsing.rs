@@ -24,12 +24,11 @@ mod parse_command_line {
     ) {
         let ref arena = AllArenasHarness::default();
         let parsed = parse_command_line_worker(
-            &**if let Some(mut worker_diagnostic) = worker_diagnostic {
+            if let Some(mut worker_diagnostic) = worker_diagnostic {
                 worker_diagnostic()
             } else {
                 compiler_options_did_you_mean_diagnostics(arena)
-            }
-            .ref_(arena),
+            },
             &command_line
                 .into_iter()
                 .map(ToOwned::to_owned)

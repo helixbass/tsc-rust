@@ -1146,7 +1146,7 @@ pub(super) fn hash_map_to_watch_options(
 }
 
 pub fn parse_command_line_worker(
-    diagnostics: &dyn ParseCommandLineWorkerDiagnostics,
+    diagnostics: Id<Box<dyn ParseCommandLineWorkerDiagnostics>>,
     command_line: &[String],
     read_file: Option<impl Fn(&str) -> io::Result<Option<String>>>,
     arena: &impl HasArena,
@@ -1185,7 +1185,7 @@ pub fn parse_command_line_worker(
 
 pub(super) fn parse_strings(
     file_names: &mut Vec<String>,
-    diagnostics: &dyn ParseCommandLineWorkerDiagnostics,
+    diagnostics: Id<Box<dyn ParseCommandLineWorkerDiagnostics>>,
     options: &mut IndexMap<String, CompilerOptionsValue>,
     errors: &mut Vec<Id<Diagnostic>>,
     watch_options: &RefCell<Option<IndexMap<String, CompilerOptionsValue>>>,
@@ -1219,7 +1219,7 @@ pub(super) fn parse_strings(
                 .iter()
                 .collect::<String>();
             let opt = get_option_declaration_from_name(
-                || diagnostics.get_options_name_map(),
+                || diagnostics.ref_(arena).get_options_name_map(),
                 &input_option_name,
                 Some(true),
                 arena,
@@ -1253,7 +1253,7 @@ pub(super) fn parse_strings(
                     i = parse_option_value(
                         args,
                         i,
-                        &**watch_options_did_you_mean_diagnostics(arena).ref_(arena),
+                        watch_options_did_you_mean_diagnostics(arena),
                         &watch_opt.ref_(arena),
                         watch_options.as_mut().unwrap(),
                         errors,
@@ -1262,7 +1262,9 @@ pub(super) fn parse_strings(
                 } else {
                     errors.push(create_unknown_option_error(
                         &input_option_name,
-                        diagnostics.as_did_you_mean_options_diagnostics(),
+                        diagnostics
+                            .ref_(arena)
+                            .as_did_you_mean_options_diagnostics(),
                         |message, args| {
                             arena.alloc_diagnostic(create_compiler_diagnostic(message, args).into())
                         },

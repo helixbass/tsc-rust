@@ -3641,6 +3641,7 @@ mod type_reference_directive_resolution {
             CreateProgramOptionsBuilder::default()
                 .root_names(names.clone())
                 .host(compiler_host.clone())
+                .options(arena.alloc_compiler_options(Default::default()))
                 .build()
                 .unwrap(),
             arena,
@@ -3656,6 +3657,7 @@ mod type_reference_directive_resolution {
                 .root_names(names.clone())
                 .host(compiler_host.clone())
                 .old_program(program1)
+                .options(arena.alloc_compiler_options(Default::default()))
                 .build()
                 .unwrap(),
             arena,

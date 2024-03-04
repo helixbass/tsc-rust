@@ -35,7 +35,7 @@ pub(super) fn parse_response_file(
     read_file: Option<&impl Fn(&str) -> io::Result<Option<String>>>,
     errors: &mut Vec<Id<Diagnostic>>,
     file_names: &mut Vec<String>,
-    diagnostics: &dyn ParseCommandLineWorkerDiagnostics,
+    diagnostics: Id<Box<dyn ParseCommandLineWorkerDiagnostics>>,
     options: &mut IndexMap<String, CompilerOptionsValue>,
     watch_options: &RefCell<Option<IndexMap<String, CompilerOptionsValue>>>,
     file_name: &str,
@@ -114,7 +114,7 @@ pub(super) fn parse_response_file(
 pub(super) fn parse_option_value(
     args: &[String],
     mut i: usize,
-    diagnostics: &dyn ParseCommandLineWorkerDiagnostics,
+    diagnostics: Id<Box<dyn ParseCommandLineWorkerDiagnostics>>,
     opt: &CommandLineOption,
     options: &mut IndexMap<String, CompilerOptionsValue>,
     errors: &mut Vec<Id<Diagnostic>>,
@@ -179,7 +179,7 @@ pub(super) fn parse_option_value(
             errors.push(
                 arena.alloc_diagnostic(
                     create_compiler_diagnostic(
-                        diagnostics.option_type_mismatch_diagnostic(),
+                        diagnostics.ref_(arena).option_type_mismatch_diagnostic(),
                         Some(vec![
                             opt.name().to_owned(),
                             get_compiler_option_value_type_string(opt).to_owned(),
@@ -329,7 +329,7 @@ pub fn parse_command_line(
     arena: &impl HasArena,
 ) -> ParsedCommandLine {
     parse_command_line_worker(
-        &**compiler_options_did_you_mean_diagnostics(arena).ref_(arena),
+        compiler_options_did_you_mean_diagnostics(arena),
         command_line,
         read_file,
         arena,
@@ -470,7 +470,7 @@ pub(crate) fn parse_build_command(args: &[String], arena: &impl HasArena) -> Par
         mut errors,
         ..
     } = parse_command_line_worker(
-        &**build_options_did_you_mean_diagnostics(arena).ref_(arena),
+        build_options_did_you_mean_diagnostics(arena),
         args,
         Option::<fn(&str) -> io::Result<Option<String>>>::None,
         arena,

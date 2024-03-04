@@ -3,7 +3,7 @@
 use std::io;
 
 use harness::{AllArenasHarness, Baseline, HasArenaHarness};
-use typescript_rust::{generate_tsconfig, parse_command_line, regex, InArena, Owned};
+use typescript_rust::{generate_tsconfig, parse_command_line, regex, Owned};
 
 fn init_ts_config_correctly(
     name: &str,
@@ -15,12 +15,8 @@ fn init_ts_config_correctly(
         Option::<fn(&str) -> io::Result<Option<String>>>::None,
         arena,
     );
-    let init_result = generate_tsconfig(
-        &command_line.options.ref_(arena),
-        &command_line.file_names,
-        "\n",
-        arena,
-    );
+    let init_result =
+        generate_tsconfig(command_line.options, &command_line.file_names, "\n", arena);
     let output_file_name = format!(
         "tsConfig/{}/tsconfig.json",
         regex!(r#"(?i)[^a-z0-9\-. ]"#).replace_all(name, "")

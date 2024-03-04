@@ -1243,12 +1243,12 @@ pub(super) fn get_serialized_compiler_option(
 }
 
 pub fn generate_tsconfig(
-    options: &CompilerOptions,
+    options: Id<CompilerOptions>,
     file_names: &[String],
     new_line: &str,
     arena: &impl HasArena,
 ) -> String {
-    let compiler_options_map = get_serialized_compiler_option(options, arena);
+    let compiler_options_map = get_serialized_compiler_option(&options.ref_(arena), arena);
     write_configurations(&compiler_options_map, file_names, new_line, arena)
 }
 
