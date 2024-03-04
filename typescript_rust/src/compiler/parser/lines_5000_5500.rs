@@ -3,7 +3,7 @@ use id_arena::Id;
 use super::{ParserType, ParsingContext};
 use crate::{
     get_text_of_node_from_source_text, is_jsx_opening_element, is_jsx_opening_fragment,
-    is_non_null_expression, is_private_identifier, is_string_or_numeric_literal_like,
+    is_non_null_expression, is_private_identifier, is_string_or_numeric_literal_like, released,
     set_text_range_pos_width, skip_trivia, tag_names_are_equivalent,
     token_is_identifier_or_keyword, Debug_, Diagnostics, ElementAccessExpression, HasArena,
     InArena, JsxAttributes, JsxClosingElement, JsxClosingFragment, JsxExpression,

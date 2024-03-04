@@ -847,7 +847,7 @@ impl SymbolTableToDeclarationStatements {
                                 .as_expression_with_type_arguments()
                                 .maybe_type_arguments()
                                 .refed(self)
-                                .as_ref()
+                                .as_deref()
                                 .cloned())
                             .as_deref(),
                             |&a: &Id<Node>, _| -> io::Result<_> {
@@ -1235,12 +1235,10 @@ impl SymbolTableToDeclarationStatements {
                         get_factory(self).create_import_declaration(
                             Option::<Id<NodeArray>>::None,
                             Option::<Id<NodeArray>>::None,
-                            Some(
-                                get_factory(self).create_import_clause(
-                                    false,
-                                    None,
-                                    Some(
-                                        get_factory(self).create_named_imports(vec![get_factory(
+                            Some(get_factory(self).create_import_clause(
+                                false,
+                                None,
+                                Some(get_factory(self).create_named_imports(vec![get_factory(
                                             self,
                                         )
                                         .create_import_specifier(
@@ -1256,10 +1254,8 @@ impl SymbolTableToDeclarationStatements {
                                                     ))
                                                 }),
                                             get_factory(self).create_identifier(local_name),
-                                        )]),
-                                    ),
-                                ),
-                            ),
+                                        )])),
+                            )),
                             get_factory(self).create_string_literal(specifier, None, None),
                             None,
                         ),

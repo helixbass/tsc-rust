@@ -1125,7 +1125,7 @@ impl NodeBuilder {
             return Ok(Some(
                 get_factory(self).create_type_literal_node(
                     try_maybe_map(
-                        released!(node.ref_(self).as_jsdoc_type_literal().js_doc_property_tags.refed(self).as_ref().cloned()).as_deref(),
+                        released!(node.ref_(self).as_jsdoc_type_literal().js_doc_property_tags.refed(self).as_deref().cloned()).as_deref(),
                         |t: &Id<Node>, _| -> io::Result<Id<Node>> {
                             let name = if is_identifier(
                                 &t.ref_(self).as_jsdoc_property_like_tag().name.ref_(self)

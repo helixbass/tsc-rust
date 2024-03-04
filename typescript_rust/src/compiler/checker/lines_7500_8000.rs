@@ -221,7 +221,7 @@ impl SymbolTableToDeclarationStatements {
                                 target.ref_(self).escaped_name() == InternalSymbolName::ExportEquals
                         ) {
                             ModifierFlags::Ambient
-                        } else if name == var_name {
+                        } else if name == &var_name {
                             ModifierFlags::Export
                         } else {
                             ModifierFlags::None
@@ -237,7 +237,7 @@ impl SymbolTableToDeclarationStatements {
                             get_factory(self).create_identifier(&var_name),
                         ));
                     return Ok(true);
-                } else if name != var_name {
+                } else if name != &var_name {
                     self.serialize_export_specifier(name, &var_name, Option::<Id<Node>>::None);
                     return Ok(true);
                 }

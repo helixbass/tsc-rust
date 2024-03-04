@@ -12,8 +12,8 @@ use crate::{
     try_visit_node, FlattenLevel, GetOrInsertDefault, HasInitializerInterface,
     LiteralLikeNodeInterface, MapOrDefault, Matches, NamedDeclarationInterface, Node, NodeArray,
     NodeExt, NodeInterface, ReadonlyTextRange, SyntaxKind, VisitResult, _d, get_original_node_id,
-    is_prefix_unary_expression, CoreTransformationContext, InArena, NonEmpty, OptionInArena,
-    OptionTry,
+    is_prefix_unary_expression, released, CoreTransformationContext, InArena, NonEmpty,
+    OptionInArena, OptionTry,
 };
 
 impl TransformSystemModule {
