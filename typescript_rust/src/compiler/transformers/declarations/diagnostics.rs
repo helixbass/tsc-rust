@@ -15,6 +15,10 @@ use crate::{
 };
 
 pub trait GetSymbolAccessibilityDiagnosticInterface {
+    fn get_call(&self) -> Box<dyn GetSymbolAccessibilityDiagnosticCall>;
+}
+
+pub trait GetSymbolAccessibilityDiagnosticCall {
     fn call(
         &self,
         symbol_accessibility_result: &SymbolAccessibilityResult,
@@ -207,6 +211,28 @@ impl GetVariableDeclarationTypeVisibilityError {
 }
 
 impl GetSymbolAccessibilityDiagnosticInterface for GetVariableDeclarationTypeVisibilityError {
+    fn get_call(&self) -> Box<dyn GetSymbolAccessibilityDiagnosticCall> {
+        Box::new(GetVariableDeclarationTypeVisibilityErrorCall::new(self))
+    }
+}
+
+impl_has_arena!(GetVariableDeclarationTypeVisibilityError);
+
+struct GetVariableDeclarationTypeVisibilityErrorCall {
+    arena: *const AllArenas,
+    node: Id<Node>,
+}
+
+impl GetVariableDeclarationTypeVisibilityErrorCall {
+    fn new(value: &GetVariableDeclarationTypeVisibilityError) -> Self {
+        Self {
+            arena: value.arena,
+            node: value.node,
+        }
+    }
+}
+
+impl GetSymbolAccessibilityDiagnosticCall for GetVariableDeclarationTypeVisibilityErrorCall {
     fn call(
         &self,
         symbol_accessibility_result: &SymbolAccessibilityResult,
@@ -226,7 +252,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetVariableDeclarationTypeVis
     }
 }
 
-impl_has_arena!(GetVariableDeclarationTypeVisibilityError);
+impl_has_arena!(GetVariableDeclarationTypeVisibilityErrorCall);
 
 struct GetAccessorDeclarationTypeVisibilityError {
     arena: *const AllArenas,
@@ -243,6 +269,28 @@ impl GetAccessorDeclarationTypeVisibilityError {
 }
 
 impl GetSymbolAccessibilityDiagnosticInterface for GetAccessorDeclarationTypeVisibilityError {
+    fn get_call(&self) -> Box<dyn GetSymbolAccessibilityDiagnosticCall> {
+        Box::new(GetAccessorDeclarationTypeVisibilityErrorCall::new(self))
+    }
+}
+
+impl_has_arena!(GetAccessorDeclarationTypeVisibilityError);
+
+struct GetAccessorDeclarationTypeVisibilityErrorCall {
+    arena: *const AllArenas,
+    node: Id<Node>,
+}
+
+impl GetAccessorDeclarationTypeVisibilityErrorCall {
+    fn new(value: &GetAccessorDeclarationTypeVisibilityError) -> Self {
+        Self {
+            arena: value.arena,
+            node: value.node,
+        }
+    }
+}
+
+impl GetSymbolAccessibilityDiagnosticCall for GetAccessorDeclarationTypeVisibilityErrorCall {
     fn call(
         &self,
         symbol_accessibility_result: &SymbolAccessibilityResult,
@@ -319,7 +367,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetAccessorDeclarationTypeVis
     }
 }
 
-impl_has_arena!(GetAccessorDeclarationTypeVisibilityError);
+impl_has_arena!(GetAccessorDeclarationTypeVisibilityErrorCall);
 
 struct GetReturnTypeVisibilityError {
     arena: *const AllArenas,
@@ -336,6 +384,28 @@ impl GetReturnTypeVisibilityError {
 }
 
 impl GetSymbolAccessibilityDiagnosticInterface for GetReturnTypeVisibilityError {
+    fn get_call(&self) -> Box<dyn GetSymbolAccessibilityDiagnosticCall> {
+        Box::new(GetReturnTypeVisibilityErrorCall::new(self))
+    }
+}
+
+impl_has_arena!(GetReturnTypeVisibilityError);
+
+struct GetReturnTypeVisibilityErrorCall {
+    arena: *const AllArenas,
+    node: Id<Node>,
+}
+
+impl GetReturnTypeVisibilityErrorCall {
+    fn new(value: &GetReturnTypeVisibilityError) -> Self {
+        Self {
+            arena: value.arena,
+            node: value.node,
+        }
+    }
+}
+
+impl GetSymbolAccessibilityDiagnosticCall for GetReturnTypeVisibilityErrorCall {
     fn call(
         &self,
         symbol_accessibility_result: &SymbolAccessibilityResult,
@@ -467,7 +537,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetReturnTypeVisibilityError 
     }
 }
 
-impl_has_arena!(GetReturnTypeVisibilityError);
+impl_has_arena!(GetReturnTypeVisibilityErrorCall);
 
 struct GetParameterDeclarationTypeVisibilityError {
     arena: *const AllArenas,
@@ -484,6 +554,28 @@ impl GetParameterDeclarationTypeVisibilityError {
 }
 
 impl GetSymbolAccessibilityDiagnosticInterface for GetParameterDeclarationTypeVisibilityError {
+    fn get_call(&self) -> Box<dyn GetSymbolAccessibilityDiagnosticCall> {
+        Box::new(GetParameterDeclarationTypeVisibilityErrorCall::new(self))
+    }
+}
+
+impl_has_arena!(GetParameterDeclarationTypeVisibilityError);
+
+struct GetParameterDeclarationTypeVisibilityErrorCall {
+    arena: *const AllArenas,
+    node: Id<Node>,
+}
+
+impl GetParameterDeclarationTypeVisibilityErrorCall {
+    fn new(value: &GetParameterDeclarationTypeVisibilityError) -> Self {
+        Self {
+            arena: value.arena,
+            node: value.node,
+        }
+    }
+}
+
+impl GetSymbolAccessibilityDiagnosticCall for GetParameterDeclarationTypeVisibilityErrorCall {
     fn call(
         &self,
         symbol_accessibility_result: &SymbolAccessibilityResult,
@@ -505,7 +597,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetParameterDeclarationTypeVi
     }
 }
 
-impl_has_arena!(GetParameterDeclarationTypeVisibilityError);
+impl_has_arena!(GetParameterDeclarationTypeVisibilityErrorCall);
 
 fn get_parameter_declaration_type_visibility_diagnostic_message(
     node: Id<Node>,
@@ -675,6 +767,28 @@ impl GetTypeParameterConstraintVisibilityError {
 }
 
 impl GetSymbolAccessibilityDiagnosticInterface for GetTypeParameterConstraintVisibilityError {
+    fn get_call(&self) -> Box<dyn GetSymbolAccessibilityDiagnosticCall> {
+        Box::new(GetTypeParameterConstraintVisibilityErrorCall::new(self))
+    }
+}
+
+impl_has_arena!(GetTypeParameterConstraintVisibilityError);
+
+struct GetTypeParameterConstraintVisibilityErrorCall {
+    arena: *const AllArenas,
+    node: Id<Node>,
+}
+
+impl GetTypeParameterConstraintVisibilityErrorCall {
+    fn new(value: &GetTypeParameterConstraintVisibilityError) -> Self {
+        Self {
+            arena: value.arena,
+            node: value.node,
+        }
+    }
+}
+
+impl GetSymbolAccessibilityDiagnosticCall for GetTypeParameterConstraintVisibilityErrorCall {
     fn call(
         &self,
         _symbol_accessibility_result: &SymbolAccessibilityResult,
@@ -737,7 +851,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetTypeParameterConstraintVis
     }
 }
 
-impl_has_arena!(GetTypeParameterConstraintVisibilityError);
+impl_has_arena!(GetTypeParameterConstraintVisibilityErrorCall);
 
 struct GetHeritageClauseVisibilityError {
     arena: *const AllArenas,
@@ -754,6 +868,28 @@ impl GetHeritageClauseVisibilityError {
 }
 
 impl GetSymbolAccessibilityDiagnosticInterface for GetHeritageClauseVisibilityError {
+    fn get_call(&self) -> Box<dyn GetSymbolAccessibilityDiagnosticCall> {
+        Box::new(GetHeritageClauseVisibilityErrorCall::new(self))
+    }
+}
+
+impl_has_arena!(GetHeritageClauseVisibilityError);
+
+struct GetHeritageClauseVisibilityErrorCall {
+    arena: *const AllArenas,
+    node: Id<Node>,
+}
+
+impl GetHeritageClauseVisibilityErrorCall {
+    fn new(value: &GetHeritageClauseVisibilityError) -> Self {
+        Self {
+            arena: value.arena,
+            node: value.node,
+        }
+    }
+}
+
+impl GetSymbolAccessibilityDiagnosticCall for GetHeritageClauseVisibilityErrorCall {
     fn call(
         &self,
         _symbol_accessibility_result: &SymbolAccessibilityResult,
@@ -804,7 +940,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetHeritageClauseVisibilityEr
     }
 }
 
-impl_has_arena!(GetHeritageClauseVisibilityError);
+impl_has_arena!(GetHeritageClauseVisibilityErrorCall);
 
 struct GetImportEntityNameVisibilityError {
     arena: *const AllArenas,
@@ -821,6 +957,28 @@ impl GetImportEntityNameVisibilityError {
 }
 
 impl GetSymbolAccessibilityDiagnosticInterface for GetImportEntityNameVisibilityError {
+    fn get_call(&self) -> Box<dyn GetSymbolAccessibilityDiagnosticCall> {
+        Box::new(GetImportEntityNameVisibilityErrorCall::new(self))
+    }
+}
+
+impl_has_arena!(GetImportEntityNameVisibilityError);
+
+struct GetImportEntityNameVisibilityErrorCall {
+    arena: *const AllArenas,
+    node: Id<Node>,
+}
+
+impl GetImportEntityNameVisibilityErrorCall {
+    fn new(value: &GetImportEntityNameVisibilityError) -> Self {
+        Self {
+            arena: value.arena,
+            node: value.node,
+        }
+    }
+}
+
+impl GetSymbolAccessibilityDiagnosticCall for GetImportEntityNameVisibilityErrorCall {
     fn call(
         &self,
         _symbol_accessibility_result: &SymbolAccessibilityResult,
@@ -835,7 +993,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetImportEntityNameVisibility
     }
 }
 
-impl_has_arena!(GetImportEntityNameVisibilityError);
+impl_has_arena!(GetImportEntityNameVisibilityErrorCall);
 
 struct GetTypeAliasDeclarationVisibilityError {
     arena: *const AllArenas,
@@ -852,6 +1010,28 @@ impl GetTypeAliasDeclarationVisibilityError {
 }
 
 impl GetSymbolAccessibilityDiagnosticInterface for GetTypeAliasDeclarationVisibilityError {
+    fn get_call(&self) -> Box<dyn GetSymbolAccessibilityDiagnosticCall> {
+        Box::new(GetTypeAliasDeclarationVisibilityErrorCall::new(self))
+    }
+}
+
+impl_has_arena!(GetTypeAliasDeclarationVisibilityError);
+
+struct GetTypeAliasDeclarationVisibilityErrorCall {
+    arena: *const AllArenas,
+    node: Id<Node>,
+}
+
+impl GetTypeAliasDeclarationVisibilityErrorCall {
+    fn new(value: &GetTypeAliasDeclarationVisibilityError) -> Self {
+        Self {
+            arena: value.arena,
+            node: value.node,
+        }
+    }
+}
+
+impl GetSymbolAccessibilityDiagnosticCall for GetTypeAliasDeclarationVisibilityErrorCall {
     fn call(
         &self,
         symbol_accessibility_result: &SymbolAccessibilityResult,
@@ -884,4 +1064,4 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetTypeAliasDeclarationVisibi
     }
 }
 
-impl_has_arena!(GetTypeAliasDeclarationVisibilityError);
+impl_has_arena!(GetTypeAliasDeclarationVisibilityErrorCall);

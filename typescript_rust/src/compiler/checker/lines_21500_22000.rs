@@ -41,7 +41,7 @@ impl TypeChecker {
             None,
         )?;
         Ok(self
-            .get_type_from_inference(&inference.ref_(self))?
+            .get_type_from_inference(inference)?
             .unwrap_or_else(|| self.unknown_type()))
     }
 
@@ -150,10 +150,10 @@ impl TypeChecker {
 
     pub(super) fn get_type_from_inference(
         &self,
-        inference: &InferenceInfo,
+        inference: Id<InferenceInfo>,
     ) -> io::Result<Option<Id<Type>>> {
         Ok(
-            if let Some(inference_candidates) = inference.maybe_candidates().as_ref() {
+            if let Some(inference_candidates) = inference.ref_(self).maybe_candidates().as_ref() {
                 Some(self.get_union_type(
                     inference_candidates,
                     Some(UnionReduction::Subtype),
@@ -162,7 +162,7 @@ impl TypeChecker {
                     None,
                 )?)
             } else if let Some(inference_contra_candidates) =
-                inference.maybe_contra_candidates().as_ref()
+                inference.ref_(self).maybe_contra_candidates().as_ref()
             {
                 Some(self.get_intersection_type(
                     inference_contra_candidates,

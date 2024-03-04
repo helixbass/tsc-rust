@@ -20,7 +20,7 @@ use crate::{
     try_map_defined, try_maybe_map, try_maybe_visit_node, try_maybe_visit_nodes, try_visit_node,
     try_visit_nodes, unescape_leading_underscores, visit_nodes, AllArenas,
     ClassLikeDeclarationInterface, Debug_, Diagnostics, GeneratedIdentifierFlags,
-    GetOrInsertDefault, GetSymbolAccessibilityDiagnostic,
+    GetOrInsertDefault, GetSymbolAccessibilityDiagnostic, GetSymbolAccessibilityDiagnosticCall,
     GetSymbolAccessibilityDiagnosticInterface, HasArena, HasQuestionTokenInterface,
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, InArena,
     InterfaceOrClassLikeDeclarationInterface, ModifierFlags, NamedDeclarationInterface, Node,
@@ -1167,6 +1167,30 @@ impl VisitDeclarationStatementsGetSymbolAccessibilityDiagnostic {
 impl GetSymbolAccessibilityDiagnosticInterface
     for VisitDeclarationStatementsGetSymbolAccessibilityDiagnostic
 {
+    fn get_call(&self) -> Box<dyn GetSymbolAccessibilityDiagnosticCall> {
+        Box::new(VisitDeclarationStatementsGetSymbolAccessibilityDiagnosticCall::new(self))
+    }
+}
+
+impl_has_arena!(VisitDeclarationStatementsGetSymbolAccessibilityDiagnostic);
+
+struct VisitDeclarationStatementsGetSymbolAccessibilityDiagnosticCall {
+    arena: *const AllArenas,
+    input: Id<Node>,
+}
+
+impl VisitDeclarationStatementsGetSymbolAccessibilityDiagnosticCall {
+    fn new(value: &VisitDeclarationStatementsGetSymbolAccessibilityDiagnostic) -> Self {
+        Self {
+            arena: value.arena,
+            input: value.input,
+        }
+    }
+}
+
+impl GetSymbolAccessibilityDiagnosticCall
+    for VisitDeclarationStatementsGetSymbolAccessibilityDiagnosticCall
+{
     fn call(
         &self,
         _symbol_accessibility_result: &SymbolAccessibilityResult,
@@ -1182,7 +1206,7 @@ impl GetSymbolAccessibilityDiagnosticInterface
     }
 }
 
-impl_has_arena!(VisitDeclarationStatementsGetSymbolAccessibilityDiagnostic);
+impl_has_arena!(VisitDeclarationStatementsGetSymbolAccessibilityDiagnosticCall);
 
 struct TransformTopLevelDeclarationGetSymbolAccessibilityDiagnostic {
     arena: *const AllArenas,
@@ -1207,6 +1231,32 @@ impl TransformTopLevelDeclarationGetSymbolAccessibilityDiagnostic {
 impl GetSymbolAccessibilityDiagnosticInterface
     for TransformTopLevelDeclarationGetSymbolAccessibilityDiagnostic
 {
+    fn get_call(&self) -> Box<dyn GetSymbolAccessibilityDiagnosticCall> {
+        Box::new(TransformTopLevelDeclarationGetSymbolAccessibilityDiagnosticCall::new(self))
+    }
+}
+
+impl_has_arena!(TransformTopLevelDeclarationGetSymbolAccessibilityDiagnostic);
+
+struct TransformTopLevelDeclarationGetSymbolAccessibilityDiagnosticCall {
+    arena: *const AllArenas,
+    extends_clause: Id<Node>,
+    input: Id<Node>,
+}
+
+impl TransformTopLevelDeclarationGetSymbolAccessibilityDiagnosticCall {
+    fn new(value: &TransformTopLevelDeclarationGetSymbolAccessibilityDiagnostic) -> Self {
+        Self {
+            arena: value.arena,
+            extends_clause: value.extends_clause,
+            input: value.input,
+        }
+    }
+}
+
+impl GetSymbolAccessibilityDiagnosticCall
+    for TransformTopLevelDeclarationGetSymbolAccessibilityDiagnosticCall
+{
     fn call(
         &self,
         _symbol_accessibility_result: &SymbolAccessibilityResult,
@@ -1222,4 +1272,4 @@ impl GetSymbolAccessibilityDiagnosticInterface
     }
 }
 
-impl_has_arena!(TransformTopLevelDeclarationGetSymbolAccessibilityDiagnostic);
+impl_has_arena!(TransformTopLevelDeclarationGetSymbolAccessibilityDiagnosticCall);

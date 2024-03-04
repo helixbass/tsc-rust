@@ -824,7 +824,7 @@ impl TransformES2015 {
                 .factory
                 .ref_(self)
                 .try_copy_custom_prologue(
-                    &constructor_body.ref_(self).as_block().statements.ref_(self),
+                    &released!(constructor_body.ref_(self).as_block().statements).ref_(self),
                     &mut statements,
                     Some(statement_offset),
                     Some(|node: Id<Node>| self.visitor(node)),

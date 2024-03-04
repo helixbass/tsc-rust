@@ -892,7 +892,7 @@ impl TransformES2015 {
         outer_state: Option<Id<ConvertedLoopState>>,
     ) {
         let mut extra_variable_declarations: Option<Vec<Id<Node /*VariableDeclaration*/>>> = _d();
-        if let Some(state_arguments_name) = state.ref_(self).arguments_name.as_ref() {
+        if let Some(state_arguments_name) = released!(state.ref_(self).arguments_name) {
             if let Some(outer_state) = outer_state {
                 outer_state.ref_mut(self).arguments_name = Some(state_arguments_name.clone());
             } else {

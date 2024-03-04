@@ -1057,7 +1057,7 @@ impl TypeChecker {
             }
         }
         let spread = self.create_anonymous_type(
-            type_.ref_(self).maybe_symbol(),
+            released!(type_.ref_(self).maybe_symbol()),
             self.alloc_symbol_table(members),
             vec![],
             vec![],

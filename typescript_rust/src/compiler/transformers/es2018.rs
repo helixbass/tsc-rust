@@ -1115,7 +1115,7 @@ impl TransformES2018 {
             if !visited_bindings.is_empty() {
                 block = self.factory.ref_(self).update_block(
                     block,
-                    vec![self.factory.ref_(self).create_variable_statement(
+                    released!(vec![self.factory.ref_(self).create_variable_statement(
                         Option::<Id<NodeArray>>::None,
                         visited_bindings,
                     )]
@@ -1127,7 +1127,7 @@ impl TransformES2018 {
                             .ref_(self)
                             .iter()
                             .cloned(),
-                    ),
+                    )),
                 );
             }
             return Some(

@@ -911,7 +911,7 @@ impl Printer {
         self.write_punctuation("[");
         self.emit_list(
             Some(node),
-            Some(node.ref_(self).as_array_binding_pattern().elements),
+            released!(Some(node.ref_(self).as_array_binding_pattern().elements)),
             ListFormat::ArrayBindingPatternElements,
             None,
             None,
@@ -934,7 +934,10 @@ impl Printer {
             self.write_punctuation(":");
             self.write_space();
         }
-        self.emit(node.ref_(self).as_binding_element().maybe_name(), None)?;
+        self.emit(
+            released!(node.ref_(self).as_binding_element().maybe_name()),
+            None,
+        )?;
         self.emit_initializer(
             released!(node.ref_(self).as_binding_element().maybe_initializer()),
             released!(node.ref_(self).as_binding_element().name().ref_(self).end()),

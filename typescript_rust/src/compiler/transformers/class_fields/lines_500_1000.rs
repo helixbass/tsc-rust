@@ -452,7 +452,7 @@ impl TransformClassFields {
                             ),
                             None,
                             Option::<Id<NodeArray>>::None,
-                            vec![visit_node(
+                            released!(vec![visit_node(
                                 this_arg,
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
@@ -470,7 +470,7 @@ impl TransformClassFields {
                                 .ref_(self)
                                 .iter()
                                 .copied(),
-                            ),
+                            )),
                         )
                         .into(),
                 );
@@ -610,7 +610,7 @@ impl TransformClassFields {
                         ),
                         Option::<Id<NodeArray>>::None,
                         visit_node(
-                            node.ref_(self).as_tagged_template_expression().template,
+                            released!(node.ref_(self).as_tagged_template_expression().template),
                             Some(|node: Id<Node>| self.visitor(node)),
                             Some(|node: Id<Node>| is_template_literal(&node.ref_(self))),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

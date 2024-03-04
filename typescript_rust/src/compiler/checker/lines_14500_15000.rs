@@ -938,9 +938,9 @@ impl TypeChecker {
             match released!(node.ref_(self).as_type_operator_node().operator) {
                 SyntaxKind::KeyOfKeyword => {
                     links.ref_mut(self).resolved_type = Some(self.get_index_type(
-                        self.get_type_from_type_node_(
-                            node.ref_(self).as_type_operator_node().type_,
-                        )?,
+                        self.get_type_from_type_node_(released!(
+                            node.ref_(self).as_type_operator_node().type_
+                        ))?,
                         None,
                         None,
                     )?);

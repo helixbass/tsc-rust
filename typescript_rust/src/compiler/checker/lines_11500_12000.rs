@@ -1235,7 +1235,7 @@ impl TypeChecker {
                         Some(self.prepend_type_mapping(
                             type_variable,
                             constraint,
-                            type_.ref_(self).as_mapped_type().maybe_mapper(),
+                            released!(type_.ref_(self).as_mapped_type().maybe_mapper()),
                         )),
                     );
                 }

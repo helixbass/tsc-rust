@@ -167,7 +167,7 @@ impl CheckTypeRelatedTo {
     ) -> io::Result<Ternary> {
         let source_info = released!(self_.ref_(arena).type_checker)
             .ref_(arena)
-            .get_applicable_index_info(source, target_info.ref_(arena).key_type)?;
+            .get_applicable_index_info(source, released!(target_info.ref_(arena).key_type))?;
         if let Some(source_info) = source_info {
             return Self::index_info_related_to(
                 self_,

@@ -32,14 +32,12 @@ impl TransformES2015 {
         node: Id<Node>, /*ForStatementWithConvertibleInitializer*/
         current_state: Id<ConvertedLoopState>,
     ) -> io::Result<IterationStatementPartFunction<Id<Node /*VariableDeclarationList*/>>> {
-        let node_ref = node.ref_(self);
-        let node_as_for_statement = node_ref.as_for_statement();
         let function_name = self
             .factory
             .ref_(self)
             .create_unique_name("_loop_init", None);
 
-        let node_initializer = node_as_for_statement.initializer.unwrap();
+        let node_initializer = node.ref_(self).as_for_statement().initializer.unwrap();
         let contains_yield = node_initializer
             .ref_(self)
             .transform_flags()
@@ -513,7 +511,7 @@ impl TransformES2015 {
                     &mut case_clauses,
                 );
                 self.process_labeled_jumps(
-                    state.ref_(self).labeled_non_local_continues.as_ref(),
+                    released!(state.ref_(self).labeled_non_local_continues.clone()).as_ref(),
                     false,
                     loop_result_name,
                     outer_state,

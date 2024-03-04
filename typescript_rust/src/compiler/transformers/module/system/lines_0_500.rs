@@ -1162,7 +1162,7 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
     }
 
     fn substitute_expression(&self, node: Id<Node> /*Expression*/) -> io::Result<Id<Node>> {
-        Ok(match node.ref_(self).kind() {
+        Ok(match released!(node.ref_(self).kind()) {
             SyntaxKind::Identifier => self.substitute_expression_identifier(node)?,
             SyntaxKind::BinaryExpression => self.substitute_binary_expression(node)?,
             SyntaxKind::MetaProperty => self.substitute_meta_property(node),
@@ -1217,9 +1217,6 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
                         )
                         .set_text_range(Some(&*node.ref_(self)), self));
                 } else if is_import_specifier(&import_declaration.ref_(self)) {
-                    let import_declaration_ref = import_declaration.ref_(self);
-                    let import_declaration_as_import_specifier =
-                        import_declaration_ref.as_import_specifier();
                     return Ok(self
                         .transform_system_module()
                         .factory
@@ -1230,9 +1227,7 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
                                 .ref_(self)
                                 .get_generated_name_for_node(
                                     Some(
-                                        import_declaration
-                                            .ref_(self)
-                                            .maybe_parent()
+                                        released!(import_declaration.ref_(self).maybe_parent())
                                             .and_then(|import_declaration_parent| {
                                                 import_declaration_parent.ref_(self).maybe_parent()
                                             })
@@ -1248,11 +1243,13 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
                             self.transform_system_module()
                                 .factory
                                 .ref_(self)
-                                .clone_node(
-                                    import_declaration_as_import_specifier
-                                        .property_name
-                                        .unwrap_or(import_declaration_as_import_specifier.name),
-                                ),
+                                .clone_node(released!(import_declaration
+                                    .ref_(self)
+                                    .as_import_specifier()
+                                    .property_name
+                                    .unwrap_or(
+                                        import_declaration.ref_(self).as_import_specifier().name
+                                    ))),
                         )
                         .set_text_range(Some(&*node.ref_(self)), self));
                 }

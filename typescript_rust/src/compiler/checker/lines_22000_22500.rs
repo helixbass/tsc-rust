@@ -980,7 +980,7 @@ impl TypeChecker {
             inference.ref_(self).maybe_candidates().as_deref().unwrap(),
         )?;
         let primitive_constraint =
-            self.has_primitive_constraint(inference.ref_(self).type_parameter)?;
+            self.has_primitive_constraint(released!(inference.ref_(self).type_parameter))?;
         let widen_literal_types = !primitive_constraint
             && inference.ref_(self).top_level()
             && (inference.ref_(self).is_fixed()
@@ -1078,7 +1078,7 @@ impl TypeChecker {
                     }
                 }
             } else {
-                inferred_type = self.get_type_from_inference(&inference.ref_(self))?;
+                inferred_type = self.get_type_from_inference(inference)?;
             }
 
             inference

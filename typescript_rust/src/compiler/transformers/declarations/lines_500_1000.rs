@@ -1426,7 +1426,7 @@ impl TransformDeclarations {
                 }
                 SyntaxKind::ConditionalType => {
                     let check_type = try_visit_node(
-                        input.ref_(self).as_conditional_type_node().check_type,
+                        released!(input.ref_(self).as_conditional_type_node().check_type),
                         Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                         Option::<fn(Id<Node>) -> bool>::None,
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -1446,7 +1446,7 @@ impl TransformDeclarations {
                             .clone(),
                     ));
                     let true_type = try_visit_node(
-                        input.ref_(self).as_conditional_type_node().true_type,
+                        released!(input.ref_(self).as_conditional_type_node().true_type),
                         Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                         Option::<fn(Id<Node>) -> bool>::None,
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

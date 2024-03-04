@@ -1620,9 +1620,7 @@ impl CheckTypeRelatedTo {
                 {
                     return Ok(Ternary::True);
                 }
-                if !self_
-                    .ref_(arena)
-                    .type_checker
+                if !released!(self_.ref_(arena).type_checker)
                     .ref_(arena)
                     .is_generic_mapped_type(source)?
                 {
@@ -2174,7 +2172,7 @@ impl CheckTypeRelatedTo {
                     .ref_(arena)
                     .is_type_identical_to(
                         source_extends,
-                        target.ref_(arena).as_conditional_type().extends_type,
+                        released!(target.ref_(arena).as_conditional_type().extends_type),
                     )?
                     && (Self::is_related_to(
                         self_,
@@ -2189,8 +2187,8 @@ impl CheckTypeRelatedTo {
                         || Self::is_related_to(
                             self_,
                             arena,
-                            target.ref_(arena).as_conditional_type().check_type,
-                            source.ref_(arena).as_conditional_type().check_type,
+                            released!(target.ref_(arena).as_conditional_type().check_type),
+                            released!(source.ref_(arena).as_conditional_type().check_type),
                             Some(RecursionFlags::Both),
                             None,
                             None,
@@ -2220,14 +2218,10 @@ impl CheckTypeRelatedTo {
                         result &= Self::is_related_to(
                             self_,
                             arena,
-                            self_
-                                .ref_(arena)
-                                .type_checker
+                            released!(self_.ref_(arena).type_checker)
                                 .ref_(arena)
                                 .get_false_type_from_conditional_type(source)?,
-                            self_
-                                .ref_(arena)
-                                .type_checker
+                            released!(self_.ref_(arena).type_checker)
                                 .ref_(arena)
                                 .get_false_type_from_conditional_type(target)?,
                             Some(RecursionFlags::Both),

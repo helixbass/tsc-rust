@@ -6,6 +6,7 @@ use crate::{
     visit_each_child, visit_node, Matches, NamedDeclarationInterface, Node, NodeArray,
     NodeInterface, Number, SyntaxKind, TransformFlags, VisitResult, _d, get_emit_flags,
     is_generated_identifier, released, CoreTransformationContext, EmitFlags, InArena,
+    ReadonlyTextRangeConcrete,
 };
 
 impl TransformGenerators {
@@ -216,17 +217,21 @@ impl TransformGenerators {
         &self,
         node: Id<Node>, /*ContinueStatement*/
     ) -> Id<Node /*Statement*/> {
-        let node_ref = node.ref_(self);
-        let node_as_continue_statement = node_ref.as_continue_statement();
         if self.maybe_in_statement_containing_yield() == Some(true) {
             let label = self.find_continue_target(
-                node_as_continue_statement
+                node.ref_(self)
+                    .as_continue_statement()
                     .label
                     .map(|node_label| id_text(&node_label.ref_(self)).to_owned())
                     .as_deref(),
             );
             if label > 0 {
-                return self.create_inline_break(label, Some(&*node.ref_(self)));
+                return self.create_inline_break(
+                    label,
+                    Some(&released!(ReadonlyTextRangeConcrete::from(
+                        &*node.ref_(self)
+                    ))),
+                );
             }
         }
 
@@ -551,19 +556,23 @@ impl TransformGenerators {
                 node.ref_(self).as_try_statement().try_block
             ));
             if let Some(node_catch_clause) =
-                node.ref_(self).as_try_statement().catch_clause.as_ref()
+                released!(node.ref_(self).as_try_statement().catch_clause)
             {
-                let node_catch_clause_ref = node_catch_clause.ref_(self);
-                let node_catch_clause_as_catch_clause = node_catch_clause_ref.as_catch_clause();
                 self.begin_catch_block(
-                    node_catch_clause_as_catch_clause
+                    node_catch_clause
+                        .ref_(self)
+                        .as_catch_clause()
                         .variable_declaration
                         .unwrap(),
                 );
-                self.transform_and_emit_embedded_statement(node_catch_clause_as_catch_clause.block);
+                self.transform_and_emit_embedded_statement(
+                    node_catch_clause.ref_(self).as_catch_clause().block,
+                );
             }
 
-            if let Some(node_finally_block) = node.ref_(self).as_try_statement().finally_block {
+            if let Some(node_finally_block) =
+                released!(node.ref_(self).as_try_statement().finally_block)
+            {
                 self.begin_finally_block();
                 self.transform_and_emit_embedded_statement(node_finally_block);
             }

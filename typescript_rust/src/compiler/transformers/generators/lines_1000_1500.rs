@@ -159,22 +159,28 @@ impl TransformGenerators {
         &self,
         node: Id<Node>, /*ElementAccessExpression*/
     ) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_element_access_expression = node_ref.as_element_access_expression();
-        if self.contains_yield(Some(node_as_element_access_expression.argument_expression)) {
+        if self.contains_yield(Some(
+            node.ref_(self)
+                .as_element_access_expression()
+                .argument_expression,
+        )) {
             return Some(
                 self.factory
                     .ref_(self)
                     .update_element_access_expression(
                         node,
                         self.cache_expression(visit_node(
-                            node_as_element_access_expression.expression,
+                            released!(node.ref_(self).as_element_access_expression().expression),
                             Some(|node: Id<Node>| self.visitor(node)),
                             Some(|node| is_left_hand_side_expression(node, self)),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )),
                         visit_node(
-                            node_as_element_access_expression.argument_expression,
+                            released!(
+                                node.ref_(self)
+                                    .as_element_access_expression()
+                                    .argument_expression
+                            ),
                             Some(|node: Id<Node>| self.visitor(node)),
                             Some(|node| is_expression(node, self)),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

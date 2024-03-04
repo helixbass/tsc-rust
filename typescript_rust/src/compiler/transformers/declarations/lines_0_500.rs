@@ -30,8 +30,8 @@ use crate::{
     try_maybe_for_each, try_visit_nodes, AllArenas, CommentRange, CompilerOptions,
     CoreTransformationContext, Debug_, Diagnostic, Diagnostics, EmitHost, EmitResolver,
     FileReference, GetOrInsertDefault, GetSymbolAccessibilityDiagnostic,
-    GetSymbolAccessibilityDiagnosticInterface, HasArena, HasInitializerInterface,
-    HasStatementsInterface, HasTypeInterface,
+    GetSymbolAccessibilityDiagnosticCall, GetSymbolAccessibilityDiagnosticInterface, HasArena,
+    HasInitializerInterface, HasStatementsInterface, HasTypeInterface,
     IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory, InArena,
     LiteralLikeNodeInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
     NodeBuilderFlags, NodeFactory, NodeId, NodeInterface, NonEmpty, ReadonlyTextRange,
@@ -489,10 +489,11 @@ impl TransformDeclarations {
                 }
             }
         } else {
-            let error_info = self
+            let error_info = released!(self
                 .get_symbol_accessibility_diagnostic()
                 .ref_(self)
-                .call(symbol_accessibility_result);
+                .get_call())
+            .call(symbol_accessibility_result);
             if let Some(error_info) = error_info {
                 if let Some(error_info_type_name) = error_info.ref_(self).type_name {
                     let mut args: Vec<String> =
@@ -1278,6 +1279,14 @@ pub(super) fn throw_diagnostic(arena: &impl HasArena) -> GetSymbolAccessibilityD
 pub(super) struct ThrowDiagnostic;
 
 impl GetSymbolAccessibilityDiagnosticInterface for ThrowDiagnostic {
+    fn get_call(&self) -> Box<dyn GetSymbolAccessibilityDiagnosticCall> {
+        Box::new(ThrowDiagnosticCall)
+    }
+}
+
+pub(super) struct ThrowDiagnosticCall;
+
+impl GetSymbolAccessibilityDiagnosticCall for ThrowDiagnosticCall {
     fn call(
         &self,
         _symbol_accessibility_result: &SymbolAccessibilityResult,
@@ -1702,6 +1711,30 @@ impl TransformDeclarationsForJSGetSymbolAccessibilityDiagnostic {
 impl GetSymbolAccessibilityDiagnosticInterface
     for TransformDeclarationsForJSGetSymbolAccessibilityDiagnostic
 {
+    fn get_call(&self) -> Box<dyn GetSymbolAccessibilityDiagnosticCall> {
+        Box::new(TransformDeclarationsForJSGetSymbolAccessibilityDiagnosticCall::new(self))
+    }
+}
+
+impl_has_arena!(TransformDeclarationsForJSGetSymbolAccessibilityDiagnostic);
+
+pub(super) struct TransformDeclarationsForJSGetSymbolAccessibilityDiagnosticCall {
+    arena: *const AllArenas,
+    pub(super) source_file: Id<Node /*SourceFile*/>,
+}
+
+impl TransformDeclarationsForJSGetSymbolAccessibilityDiagnosticCall {
+    fn new(value: &TransformDeclarationsForJSGetSymbolAccessibilityDiagnostic) -> Self {
+        Self {
+            source_file: value.source_file,
+            arena: value.arena,
+        }
+    }
+}
+
+impl GetSymbolAccessibilityDiagnosticCall
+    for TransformDeclarationsForJSGetSymbolAccessibilityDiagnosticCall
+{
     fn call(&self, s: &SymbolAccessibilityResult) -> Option<Id<SymbolAccessibilityDiagnostic>> {
         if let Some(s_error_node) = s
             .error_node
@@ -1709,6 +1742,7 @@ impl GetSymbolAccessibilityDiagnosticInterface
         {
             create_get_symbol_accessibility_diagnostic_for_node(s_error_node, self)
                 .ref_(self)
+                .get_call()
                 .call(s)
         } else {
             Some(self.alloc_symbol_accessibility_diagnostic(SymbolAccessibilityDiagnostic {
@@ -1727,7 +1761,7 @@ impl GetSymbolAccessibilityDiagnosticInterface
     }
 }
 
-impl_has_arena!(TransformDeclarationsForJSGetSymbolAccessibilityDiagnostic);
+impl_has_arena!(TransformDeclarationsForJSGetSymbolAccessibilityDiagnosticCall);
 
 struct TransformDeclarationsFactory {
     arena: *const AllArenas,

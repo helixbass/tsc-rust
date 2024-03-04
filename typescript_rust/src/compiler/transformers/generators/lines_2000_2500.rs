@@ -120,23 +120,20 @@ impl TransformGenerators {
     }
 
     pub(super) fn begin_catch_block(&self, variable: Id<Node> /*VariableDeclaration*/) {
-        let variable_ref = variable.ref_(self);
-        let variable_as_variable_declaration = variable_ref.as_variable_declaration();
         Debug_.assert(
             self.peek_block_kind() == Some(CodeBlockKind::Exception),
             None,
         );
 
         let name: Id<Node /*Identifier*/>;
-        let variable_name = variable_as_variable_declaration.name();
+        let variable_name = variable.ref_(self).as_variable_declaration().name();
         if is_generated_identifier(&variable_name.ref_(self)) {
             name = variable_name.clone();
             self.context
                 .ref_(self)
                 .hoist_variable_declaration(variable_name);
         } else {
-            let variable_name_ref = variable_name.ref_(self);
-            let text = id_text(&variable_name_ref);
+            let ref text = id_text(&variable_name.ref_(self)).to_owned();
             name = self.declare_local(Some(text));
             if self.maybe_renamed_catch_variables().is_none() {
                 self.set_renamed_catch_variables(Some(_d()));

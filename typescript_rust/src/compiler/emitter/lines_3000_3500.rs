@@ -800,7 +800,9 @@ impl Printer {
             None,
         );
         self.write_space();
-        if let Some(node_import_clause) = node.ref_(self).as_import_declaration().import_clause {
+        if let Some(node_import_clause) =
+            released!(node.ref_(self).as_import_declaration().import_clause)
+        {
             self.emit(Some(node_import_clause), None)?;
             self.write_space();
             self.emit_token_with_comment(
@@ -851,7 +853,10 @@ impl Printer {
                 self.write_space();
             }
         }
-        self.emit(node.ref_(self).as_import_clause().named_bindings, None)?;
+        self.emit(
+            released!(node.ref_(self).as_import_clause().named_bindings),
+            None,
+        )?;
 
         Ok(())
     }

@@ -581,7 +581,7 @@ impl TransformClassFields {
                                 .ref_(self),
                         ) {
                             Some(self.factory.ref_(self).create_string_literal_from_node(
-                                target.ref_(self).as_property_access_expression().name(),
+                                released!(target.ref_(self).as_property_access_expression().name()),
                             ))
                         } else {
                             None
@@ -763,7 +763,7 @@ impl TransformClassFields {
                             node,
                             wrapped.unwrap_or_else(|| {
                                 visit_node(
-                                    node.ref_(self).as_spread_assignment().expression,
+                                    released!(node.ref_(self).as_spread_assignment().expression),
                                     Some(|node: Id<Node>| self.visitor_destructuring_target(node)),
                                     Some(|node| is_expression(node, self)),
                                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

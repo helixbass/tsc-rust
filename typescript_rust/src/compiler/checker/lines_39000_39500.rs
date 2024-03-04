@@ -528,8 +528,14 @@ impl TypeChecker {
                 }
             }
             SyntaxKind::BinaryExpression => {
-                let left = self.evaluate(member, expr.ref_(self).as_binary_expression().left)?;
-                let right = self.evaluate(member, expr.ref_(self).as_binary_expression().right)?;
+                let left = self.evaluate(
+                    member,
+                    released!(expr.ref_(self).as_binary_expression().left),
+                )?;
+                let right = self.evaluate(
+                    member,
+                    released!(expr.ref_(self).as_binary_expression().right),
+                )?;
                 if let (Some(StringOrNumber::Number(left)), Some(StringOrNumber::Number(right))) =
                     (left.as_ref(), right.as_ref())
                 {
