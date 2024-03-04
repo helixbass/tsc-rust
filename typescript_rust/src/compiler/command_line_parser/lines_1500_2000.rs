@@ -904,131 +904,129 @@ thread_local! {
     static _tsconfig_root_options: RefCell<Option<Id<CommandLineOption>>> = RefCell::new(None);
 }
 pub(super) fn get_tsconfig_root_options_map(arena: &impl HasArena) -> Id<CommandLineOption> {
-    _tsconfig_root_options.with(|tsconfig_root_options| {
-        let mut tsconfig_root_options = tsconfig_root_options.borrow_mut();
-        if tsconfig_root_options.is_none() {
-            *tsconfig_root_options = Some(arena.alloc_command_line_option(
-                TsConfigOnlyOption::new(
-                    CommandLineOptionBaseBuilder::default()
-                        .name(tsconfig_root_options_dummy_name.to_owned())
-                        .type_(CommandLineOptionType::Object)
-                        .build().unwrap(),
-                    Some(arena.alloc_command_line_options_map(command_line_options_to_map(&vec![
+    per_arena!(
+        CommandLineOption,
+        arena,
+        arena.alloc_command_line_option(
+            TsConfigOnlyOption::new(
+                CommandLineOptionBaseBuilder::default()
+                    .name(tsconfig_root_options_dummy_name.to_owned())
+                    .type_(CommandLineOptionType::Object)
+                    .build().unwrap(),
+                Some(arena.alloc_command_line_options_map(command_line_options_to_map(&vec![
+                    arena.alloc_command_line_option(TsConfigOnlyOption::new(
+                        CommandLineOptionBaseBuilder::default()
+                            .name("compilerOptions".to_string())
+                            .type_(CommandLineOptionType::Object)
+                            .build().unwrap(),
+                        Some(get_command_line_compiler_options_map(arena)),
+                        Some(RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics::from_parse_command_line_worker_diagnostics(compiler_options_did_you_mean_diagnostics(arena), arena)),
+                        arena,
+                    )
+                    .into()),
+                    arena.alloc_command_line_option(TsConfigOnlyOption::new(
+                        CommandLineOptionBaseBuilder::default()
+                            .name("watchOptions".to_string())
+                            .type_(CommandLineOptionType::Object)
+                            .build().unwrap(),
+                        Some(get_command_line_watch_options_map(arena)),
+                        Some(RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics::from_parse_command_line_worker_diagnostics(watch_options_did_you_mean_diagnostics(arena), arena)),
+                        arena,
+                    )
+                    .into()),
+                    arena.alloc_command_line_option(TsConfigOnlyOption::new(
+                        CommandLineOptionBaseBuilder::default()
+                            .name("typingOptions".to_string())
+                            .type_(CommandLineOptionType::Object)
+                            .build().unwrap(),
+                        Some(get_command_line_type_acquisition_map(arena)),
+                        Some(RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics::from_did_you_mean_options_diagnostics(type_acquisition_did_you_mean_diagnostics(arena), arena)),
+                        arena,
+                    )
+                    .into()),
+                    arena.alloc_command_line_option(TsConfigOnlyOption::new(
+                        CommandLineOptionBaseBuilder::default()
+                            .name("typeAcquisition".to_string())
+                            .type_(CommandLineOptionType::Object)
+                            .build().unwrap(),
+                        Some(get_command_line_type_acquisition_map(arena)),
+                        Some(RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics::from_did_you_mean_options_diagnostics(type_acquisition_did_you_mean_diagnostics(arena), arena)),
+                        arena,
+                    )
+                    .into()),
+                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .name("extends".to_string())
+                        .type_(CommandLineOptionType::String)
+                        .category(&Diagnostics::File_Management)
+                        .build().unwrap().try_into_command_line_option(arena).unwrap()),
+                    arena.alloc_command_line_option(CommandLineOptionOfListType::new(
+                        CommandLineOptionBaseBuilder::default()
+                            .name("references".to_string())
+                            .type_(CommandLineOptionType::List)
+                            .category(&Diagnostics::Projects)
+                            .build().unwrap(),
                         arena.alloc_command_line_option(TsConfigOnlyOption::new(
-                            CommandLineOptionBaseBuilder::default()
-                                .name("compilerOptions".to_string())
-                                .type_(CommandLineOptionType::Object)
-                                .build().unwrap(),
-                            Some(get_command_line_compiler_options_map(arena)),
-                            Some(RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics::from_parse_command_line_worker_diagnostics(compiler_options_did_you_mean_diagnostics(arena), arena)),
-                            arena,
-                        )
-                        .into()),
-                        arena.alloc_command_line_option(TsConfigOnlyOption::new(
-                            CommandLineOptionBaseBuilder::default()
-                                .name("watchOptions".to_string())
-                                .type_(CommandLineOptionType::Object)
-                                .build().unwrap(),
-                            Some(get_command_line_watch_options_map(arena)),
-                            Some(RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics::from_parse_command_line_worker_diagnostics(watch_options_did_you_mean_diagnostics(arena), arena)),
-                            arena,
-                        )
-                        .into()),
-                        arena.alloc_command_line_option(TsConfigOnlyOption::new(
-                            CommandLineOptionBaseBuilder::default()
-                                .name("typingOptions".to_string())
-                                .type_(CommandLineOptionType::Object)
-                                .build().unwrap(),
-                            Some(get_command_line_type_acquisition_map(arena)),
-                            Some(RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics::from_did_you_mean_options_diagnostics(type_acquisition_did_you_mean_diagnostics(arena), arena)),
-                            arena,
-                        )
-                        .into()),
-                        arena.alloc_command_line_option(TsConfigOnlyOption::new(
-                            CommandLineOptionBaseBuilder::default()
-                                .name("typeAcquisition".to_string())
-                                .type_(CommandLineOptionType::Object)
-                                .build().unwrap(),
-                            Some(get_command_line_type_acquisition_map(arena)),
-                            Some(RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics::from_did_you_mean_options_diagnostics(type_acquisition_did_you_mean_diagnostics(arena), arena)),
-                            arena,
-                        )
-                        .into()),
-                        arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
-                            .name("extends".to_string())
-                            .type_(CommandLineOptionType::String)
-                            .category(&Diagnostics::File_Management)
-                            .build().unwrap().try_into_command_line_option(arena).unwrap()),
-                        arena.alloc_command_line_option(CommandLineOptionOfListType::new(
                             CommandLineOptionBaseBuilder::default()
                                 .name("references".to_string())
-                                .type_(CommandLineOptionType::List)
-                                .category(&Diagnostics::Projects)
+                                .type_(CommandLineOptionType::Object)
                                 .build().unwrap(),
-                            arena.alloc_command_line_option(TsConfigOnlyOption::new(
-                                CommandLineOptionBaseBuilder::default()
-                                    .name("references".to_string())
-                                    .type_(CommandLineOptionType::Object)
-                                    .build().unwrap(),
-                                None,
-                                None,
-                                arena,
-                            )
-                            .into()),
+                            None,
+                            None,
                             arena,
                         )
                         .into()),
-                        arena.alloc_command_line_option(CommandLineOptionOfListType::new(
-                            CommandLineOptionBaseBuilder::default()
-                                .name("files".to_string())
-                                .type_(CommandLineOptionType::List)
-                                .category(&Diagnostics::File_Management)
-                                .build().unwrap(),
-                            arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
-                                .name("files".to_string())
-                                .type_(CommandLineOptionType::String)
-                                .build().unwrap().try_into_command_line_option(arena).unwrap()),
-                            arena,
-                        )
-                        .into()),
-                        arena.alloc_command_line_option(CommandLineOptionOfListType::new(
-                            CommandLineOptionBaseBuilder::default()
-                                .name("include".to_string())
-                                .type_(CommandLineOptionType::List)
-                                .default_value_description(StringOrDiagnosticMessage::DiagnosticMessage(&Diagnostics::if_files_is_specified_otherwise_Asterisk_Asterisk_Slash_Asterisk))
-                                .category(&Diagnostics::File_Management)
-                                .build().unwrap(),
-                            arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
-                                .name("include".to_string())
-                                .type_(CommandLineOptionType::String)
-                                .build().unwrap().try_into_command_line_option(arena).unwrap()),
-                            arena,
-                        )
-                        .into()),
-                        arena.alloc_command_line_option(CommandLineOptionOfListType::new(
-                            CommandLineOptionBaseBuilder::default()
-                                .name("exclude".to_string())
-                                .type_(CommandLineOptionType::List)
-                                .default_value_description(StringOrDiagnosticMessage::DiagnosticMessage(&Diagnostics::node_modules_bower_components_jspm_packages_plus_the_value_of_outDir_if_one_is_specified))
-                                .category(&Diagnostics::File_Management)
-                                .build().unwrap(),
-                            arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
-                                .name("exclude".to_string())
-                                .type_(CommandLineOptionType::String)
-                                .build().unwrap().try_into_command_line_option(arena).unwrap()),
-                            arena,
-                        )
-                        .into()),
-                        compile_on_save_command_line_option(arena),
-                    ], arena))),
-                    None,
-                    arena,
-                )
-                .into(),
-            ));
-        }
-        tsconfig_root_options.as_ref().unwrap().clone()
-    })
+                        arena,
+                    )
+                    .into()),
+                    arena.alloc_command_line_option(CommandLineOptionOfListType::new(
+                        CommandLineOptionBaseBuilder::default()
+                            .name("files".to_string())
+                            .type_(CommandLineOptionType::List)
+                            .category(&Diagnostics::File_Management)
+                            .build().unwrap(),
+                        arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                            .name("files".to_string())
+                            .type_(CommandLineOptionType::String)
+                            .build().unwrap().try_into_command_line_option(arena).unwrap()),
+                        arena,
+                    )
+                    .into()),
+                    arena.alloc_command_line_option(CommandLineOptionOfListType::new(
+                        CommandLineOptionBaseBuilder::default()
+                            .name("include".to_string())
+                            .type_(CommandLineOptionType::List)
+                            .default_value_description(StringOrDiagnosticMessage::DiagnosticMessage(&Diagnostics::if_files_is_specified_otherwise_Asterisk_Asterisk_Slash_Asterisk))
+                            .category(&Diagnostics::File_Management)
+                            .build().unwrap(),
+                        arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                            .name("include".to_string())
+                            .type_(CommandLineOptionType::String)
+                            .build().unwrap().try_into_command_line_option(arena).unwrap()),
+                        arena,
+                    )
+                    .into()),
+                    arena.alloc_command_line_option(CommandLineOptionOfListType::new(
+                        CommandLineOptionBaseBuilder::default()
+                            .name("exclude".to_string())
+                            .type_(CommandLineOptionType::List)
+                            .default_value_description(StringOrDiagnosticMessage::DiagnosticMessage(&Diagnostics::node_modules_bower_components_jspm_packages_plus_the_value_of_outDir_if_one_is_specified))
+                            .category(&Diagnostics::File_Management)
+                            .build().unwrap(),
+                        arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                            .name("exclude".to_string())
+                            .type_(CommandLineOptionType::String)
+                            .build().unwrap().try_into_command_line_option(arena).unwrap()),
+                        arena,
+                    )
+                    .into()),
+                    compile_on_save_command_line_option(arena),
+                ], arena))),
+                None,
+                arena,
+            )
+            .into(),
+        )
+    )
 }
 
 pub(crate) trait JsonConversionNotifier {
