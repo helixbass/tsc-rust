@@ -608,14 +608,12 @@ impl TransformClassFields {
             if let Some(wrapped) = wrapped {
                 return Some(
                     if is_assignment_expression(node, None, self) {
-                        let node_ref = node.ref_(self);
-                        let node_as_binary_expression = node_ref.as_binary_expression();
                         self.factory.ref_(self).update_binary_expression(
                             node,
                             wrapped,
-                            node_as_binary_expression.operator_token.clone(),
+                            released!(node.ref_(self).as_binary_expression().operator_token),
                             visit_node(
-                                node_as_binary_expression.right,
+                                released!(node.ref_(self).as_binary_expression().right),
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -758,8 +756,6 @@ impl TransformClassFields {
                 );
             }
             if is_spread_assignment(&node.ref_(self)) {
-                let node_ref = node.ref_(self);
-                let node_as_spread_assignment = node_ref.as_spread_assignment();
                 return Some(
                     self.factory
                         .ref_(self)
@@ -767,7 +763,7 @@ impl TransformClassFields {
                             node,
                             wrapped.unwrap_or_else(|| {
                                 visit_node(
-                                    node_as_spread_assignment.expression,
+                                    node.ref_(self).as_spread_assignment().expression,
                                     Some(|node: Id<Node>| self.visitor_destructuring_target(node)),
                                     Some(|node| is_expression(node, self)),
                                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

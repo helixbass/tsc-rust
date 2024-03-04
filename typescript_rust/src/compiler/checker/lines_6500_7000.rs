@@ -408,19 +408,23 @@ impl SymbolTableToDeclarationStatements {
                                     || is_export_assignment(&s.ref_(self))
                                     || is_export_declaration(&s.ref_(self))
                             });
-                        released!(body.ref_(self).as_module_block().statements)
+                        released!(body
                             .ref_(self)
-                            .iter()
-                            .for_each(|&s| {
-                                self.add_result(
-                                    s,
-                                    if mixin_export_flag {
-                                        ModifierFlags::Export
-                                    } else {
-                                        ModifierFlags::None
-                                    },
-                                );
-                            });
+                            .as_module_block()
+                            .statements
+                            .ref_(self)
+                            .clone())
+                        .iter()
+                        .for_each(|&s| {
+                            self.add_result(
+                                s,
+                                if mixin_export_flag {
+                                    ModifierFlags::Export
+                                } else {
+                                    ModifierFlags::None
+                                },
+                            );
+                        });
                         statements = {
                             let mut statements = filter(&statements, |&s: &Id<Node>| {
                                 s != ns && s != export_assignment
@@ -1433,12 +1437,12 @@ impl SymbolTrackerTrackSymbol for SymbolTableToDeclarationStatementsSymbolTracke
             .ref_(self)
             .is_track_symbol_supported()
         {
-            return self
+            return released!(self
                 .oldcontext_tracker
                 .ref_(self)
                 .get_track_symbol()
-                .unwrap()
-                .track_symbol(sym, decl, meaning);
+                .unwrap())
+            .track_symbol(sym, decl, meaning);
         }
         Ok(false)
     }

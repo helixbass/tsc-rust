@@ -1210,9 +1210,7 @@ impl CheckTypeRelatedTo {
             && released!(self_.ref_(arena).type_checker)
                 .ref_(arena)
                 .is_weak_type(target)?
-            && (!self_
-                .ref_(arena)
-                .type_checker
+            && (!released!(self_.ref_(arena).type_checker)
                 .ref_(arena)
                 .get_properties_of_type(source)?
                 .len()
@@ -1390,9 +1388,7 @@ impl CheckTypeRelatedTo {
                 .flags()
                 .intersects(TypeFlags::Intersection | TypeFlags::TypeParameter)
         {
-            let constraint = self_
-                .ref_(arena)
-                .type_checker
+            let constraint = released!(self_.ref_(arena).type_checker)
                 .ref_(arena)
                 .get_effective_constraint_of_intersection(
                     &if source

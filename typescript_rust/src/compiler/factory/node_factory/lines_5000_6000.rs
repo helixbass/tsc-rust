@@ -603,10 +603,11 @@ impl NodeFactory {
         node: Id<Node>, /*CommaListExpression*/
         elements: impl Into<NodeArrayOrVec /*<Expression>*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_comma_list_expression = node_ref.as_comma_list_expression();
         let elements = elements.into();
-        if has_node_array_changed(node_as_comma_list_expression.elements, &elements) {
+        if has_node_array_changed(
+            node.ref_(self).as_comma_list_expression().elements,
+            &elements,
+        ) {
             self.update(self.create_comma_list_expression(elements), node)
         } else {
             node

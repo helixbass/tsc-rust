@@ -930,15 +930,20 @@ impl TransformES2017 {
         &self,
         node: Id<Node>, /*VariableDeclaration*/
     ) -> io::Result<Id<Node>> {
-        let node_ref = node.ref_(self);
-        let node_as_variable_declaration = node_ref.as_variable_declaration();
         let converted = set_source_map_range(
             self.factory.ref_(self).create_assignment(
                 self.factory
                     .ref_(self)
                     .converters()
-                    .convert_to_assignment_element_target(node_as_variable_declaration.name()),
-                node_as_variable_declaration.maybe_initializer().unwrap(),
+                    .convert_to_assignment_element_target(released!(node
+                        .ref_(self)
+                        .as_variable_declaration()
+                        .name())),
+                released!(node
+                    .ref_(self)
+                    .as_variable_declaration()
+                    .maybe_initializer()
+                    .unwrap()),
             ),
             Some(self.alloc_source_map_range((&*node.ref_(self)).into())),
             self,

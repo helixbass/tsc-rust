@@ -1223,14 +1223,10 @@ impl CheckTypeRelatedTo {
                 && Self::is_related_to(
                     self_,
                     arena,
-                    self_
-                        .ref_(arena)
-                        .type_checker
+                    released!(self_.ref_(arena).type_checker)
                         .ref_(arena)
                         .get_index_type(target, None, None)?,
-                    self_
-                        .ref_(arena)
-                        .type_checker
+                    released!(self_.ref_(arena).type_checker)
                         .ref_(arena)
                         .get_constraint_type_from_mapped_type(source)?,
                     Some(RecursionFlags::Both),
@@ -1816,9 +1812,9 @@ impl CheckTypeRelatedTo {
                             ))?,
                         released!(self_.ref_(arena).type_checker)
                             .ref_(arena)
-                            .get_permissive_instantiation(
-                                c.ref_(arena).as_conditional_type().extends_type,
-                            )?,
+                            .get_permissive_instantiation(released!(
+                                c.ref_(arena).as_conditional_type().extends_type
+                            ))?,
                     )?;
                 let skip_false = !skip_true
                     && released!(self_.ref_(arena).type_checker)
@@ -1842,9 +1838,7 @@ impl CheckTypeRelatedTo {
                         self_,
                         arena,
                         source,
-                        self_
-                            .ref_(arena)
-                            .type_checker
+                        released!(self_.ref_(arena).type_checker)
                             .ref_(arena)
                             .get_true_type_from_conditional_type(c)?,
                         Some(RecursionFlags::Target),
@@ -1861,9 +1855,7 @@ impl CheckTypeRelatedTo {
                             self_,
                             arena,
                             source,
-                            self_
-                                .ref_(arena)
-                                .type_checker
+                            released!(self_.ref_(arena).type_checker)
                                 .ref_(arena)
                                 .get_false_type_from_conditional_type(c)?,
                             Some(RecursionFlags::Target),
@@ -2166,7 +2158,7 @@ impl CheckTypeRelatedTo {
                         );
                     self_.ref_(arena).type_checker.ref_(arena).infer_types(
                         &ctx.ref_(arena).inferences(),
-                        target.ref_(arena).as_conditional_type().extends_type,
+                        released!(target.ref_(arena).as_conditional_type().extends_type),
                         source_extends,
                         Some(InferencePriority::NoConstraints | InferencePriority::AlwaysStrict),
                         None,
@@ -2178,9 +2170,7 @@ impl CheckTypeRelatedTo {
                         .instantiate_type(source_extends, Some(ctx.ref_(arena).mapper()))?;
                     mapper = Some(ctx.ref_(arena).mapper());
                 }
-                if self_
-                    .ref_(arena)
-                    .type_checker
+                if released!(self_.ref_(arena).type_checker)
                     .ref_(arena)
                     .is_type_identical_to(
                         source_extends,
@@ -2189,8 +2179,8 @@ impl CheckTypeRelatedTo {
                     && (Self::is_related_to(
                         self_,
                         arena,
-                        source.ref_(arena).as_conditional_type().check_type,
-                        target.ref_(arena).as_conditional_type().check_type,
+                        released!(source.ref_(arena).as_conditional_type().check_type),
+                        released!(target.ref_(arena).as_conditional_type().check_type),
                         Some(RecursionFlags::Both),
                         None,
                         None,

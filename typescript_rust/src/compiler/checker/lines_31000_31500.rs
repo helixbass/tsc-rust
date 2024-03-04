@@ -949,7 +949,7 @@ impl TypeChecker {
         let length = signature.ref_(self).parameters().len();
         if signature_has_rest_parameter(&signature.ref_(self)) {
             let rest_type =
-                self.get_type_of_symbol(signature.ref_(self).parameters()[length - 1])?;
+                self.get_type_of_symbol(released!(signature.ref_(self).parameters()[length - 1]))?;
             if self.is_tuple_type(rest_type) {
                 let rest_type_target = rest_type.ref_(self).as_type_reference_interface().target();
                 return Ok(

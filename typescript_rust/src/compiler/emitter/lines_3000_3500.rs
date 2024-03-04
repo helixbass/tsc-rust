@@ -338,9 +338,12 @@ impl Printer {
         )?;
         self.emit_parameters(
             node,
-            node.ref_(self).as_signature_declaration().parameters(),
+            released!(node.ref_(self).as_signature_declaration().parameters()),
         )?;
-        self.emit_type_annotation(node.ref_(self).as_signature_declaration().maybe_type())?;
+        self.emit_type_annotation(released!(node
+            .ref_(self)
+            .as_signature_declaration()
+            .maybe_type()))?;
 
         Ok(())
     }
@@ -797,9 +800,7 @@ impl Printer {
             None,
         );
         self.write_space();
-        let node_ref = node.ref_(self);
-        let node_as_import_declaration = node_ref.as_import_declaration();
-        if let Some(node_import_clause) = node_as_import_declaration.import_clause {
+        if let Some(node_import_clause) = node.ref_(self).as_import_declaration().import_clause {
             self.emit(Some(node_import_clause), None)?;
             self.write_space();
             self.emit_token_with_comment(
@@ -811,8 +812,11 @@ impl Printer {
             );
             self.write_space();
         }
-        self.emit_expression(Some(node_as_import_declaration.module_specifier), None)?;
-        if let Some(node_assert_clause) = node_as_import_declaration.assert_clause {
+        self.emit_expression(
+            Some(node.ref_(self).as_import_declaration().module_specifier),
+            None,
+        )?;
+        if let Some(node_assert_clause) = node.ref_(self).as_import_declaration().assert_clause {
             self.emit_with_leading_space(Some(node_assert_clause))?;
         }
         self.write_trailing_semicolon();
@@ -824,9 +828,7 @@ impl Printer {
         &self,
         node: Id<Node>, /*ImportClause*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_import_clause = node_ref.as_import_clause();
-        if node_as_import_clause.is_type_only {
+        if node.ref_(self).as_import_clause().is_type_only {
             self.emit_token_with_comment(
                 SyntaxKind::TypeKeyword,
                 node.ref_(self).pos(),
@@ -836,9 +838,9 @@ impl Printer {
             );
             self.write_space();
         }
-        self.emit(node_as_import_clause.maybe_name(), None)?;
-        if let Some(node_name) = node_as_import_clause.maybe_name() {
-            if node_as_import_clause.named_bindings.is_some() {
+        self.emit(node.ref_(self).as_import_clause().maybe_name(), None)?;
+        if let Some(node_name) = node.ref_(self).as_import_clause().maybe_name() {
+            if node.ref_(self).as_import_clause().named_bindings.is_some() {
                 self.emit_token_with_comment(
                     SyntaxKind::CommaToken,
                     node_name.ref_(self).end(),
@@ -849,7 +851,7 @@ impl Printer {
                 self.write_space();
             }
         }
-        self.emit(node_as_import_clause.named_bindings, None)?;
+        self.emit(node.ref_(self).as_import_clause().named_bindings, None)?;
 
         Ok(())
     }
@@ -928,7 +930,7 @@ impl Printer {
         }
         self.write_space();
         self.emit_expression(
-            Some(node.ref_(self).as_export_assignment().expression),
+            released!(Some(node.ref_(self).as_export_assignment().expression)),
             if node.ref_(self).as_export_assignment().is_export_equals == Some(true) {
                 Some(self.alloc_current_parenthesizer_rule(Box::new(
                     ParenthesizeRightSideOfBinaryCurrentParenthesizerRule::new(
@@ -1143,7 +1145,7 @@ impl Printer {
         self.write_punctuation("{");
         self.emit_list(
             Some(node),
-            Some(node.ref_(self).as_has_elements().elements()),
+            released!(Some(node.ref_(self).as_has_elements().elements())),
             ListFormat::NamedImportsOrExportsElements,
             None,
             None,
@@ -1177,7 +1179,10 @@ impl Printer {
             self.write_space();
         }
 
-        self.emit(node.ref_(self).as_named_declaration().maybe_name(), None)?;
+        self.emit(
+            released!(node.ref_(self).as_named_declaration().maybe_name()),
+            None,
+        )?;
 
         Ok(())
     }

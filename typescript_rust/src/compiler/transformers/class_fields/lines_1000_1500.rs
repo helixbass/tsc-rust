@@ -609,14 +609,16 @@ impl TransformClassFields {
                 &mut statements,
                 Some(
                     &visit_nodes(
-                        constructor
-                            .ref_(self)
-                            .as_constructor_declaration()
-                            .maybe_body()
-                            .unwrap()
-                            .ref_(self)
-                            .as_block()
-                            .statements,
+                        released!(
+                            constructor
+                                .ref_(self)
+                                .as_constructor_declaration()
+                                .maybe_body()
+                                .unwrap()
+                                .ref_(self)
+                                .as_block()
+                                .statements
+                        ),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_statement(node, self)),
                         Some(index_of_first_statement),

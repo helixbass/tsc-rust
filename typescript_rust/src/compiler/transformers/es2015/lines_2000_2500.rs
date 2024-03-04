@@ -254,15 +254,15 @@ impl TransformES2015 {
                 && !self.is_variable_statement_of_type_script_class_wrapper(node)
         }) {
             let mut assignments: Option<Vec<Id<Node /*Expression*/>>> = Default::default();
-            for &decl in &*released!(
-                node.ref_(self)
-                    .as_variable_statement()
-                    .declaration_list
-                    .ref_(self)
-                    .as_variable_declaration_list()
-                    .declarations
-            )
-            .ref_(self)
+            for &decl in &*released!(node
+                .ref_(self)
+                .as_variable_statement()
+                .declaration_list
+                .ref_(self)
+                .as_variable_declaration_list()
+                .declarations
+                .ref_(self)
+                .clone())
             {
                 self.hoist_variable_declaration_declared_in_converted_loop(
                     &mut converted_loop_state.ref_mut(self),

@@ -800,7 +800,7 @@ impl MakeSerializePropertySymbol {
                         self.type_checker.ref_(self).get_type_of_symbol(p)?,
                         self.type_checker.ref_(self).get_type_of_property_of_type_(
                             base_type,
-                            p.ref_(self).escaped_name()
+                            &released!(p.ref_(self).escaped_name().to_owned())
                         )?.unwrap()
                     )?
             )

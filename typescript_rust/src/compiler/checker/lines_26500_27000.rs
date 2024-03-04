@@ -1051,8 +1051,12 @@ impl TypeChecker {
         let mut has_computed_number_property = false;
         let mut has_computed_symbol_property = false;
 
-        for elem in
-            &*released!(node.ref_(self).as_object_literal_expression().properties).ref_(self)
+        for elem in &*released!(node
+            .ref_(self)
+            .as_object_literal_expression()
+            .properties
+            .ref_(self)
+            .clone())
         {
             if let Some(elem_name) = released!(elem
                 .ref_(self)

@@ -288,9 +288,11 @@ impl TypeChecker {
             released!(node
                 .ref_(self)
                 .as_type_alias_declaration()
-                .maybe_type_parameters())
-            .refed(self)
-            .as_double_deref(),
+                .maybe_type_parameters()
+                .refed(self)
+                .as_deref()
+                .cloned())
+            .as_deref(),
         )?;
         if node
             .ref_(self)
@@ -526,14 +528,18 @@ impl TypeChecker {
                 }
             }
             SyntaxKind::BinaryExpression => {
-                let expr_ref = expr.ref_(self);
-                let expr_as_binary_expression = expr_ref.as_binary_expression();
-                let left = self.evaluate(member, expr_as_binary_expression.left)?;
-                let right = self.evaluate(member, expr_as_binary_expression.right)?;
+                let left = self.evaluate(member, expr.ref_(self).as_binary_expression().left)?;
+                let right = self.evaluate(member, expr.ref_(self).as_binary_expression().right)?;
                 if let (Some(StringOrNumber::Number(left)), Some(StringOrNumber::Number(right))) =
                     (left.as_ref(), right.as_ref())
                 {
-                    match expr_as_binary_expression.operator_token.ref_(self).kind() {
+                    match expr
+                        .ref_(self)
+                        .as_binary_expression()
+                        .operator_token
+                        .ref_(self)
+                        .kind()
+                    {
                         SyntaxKind::BarToken => {
                             return Ok(Some(StringOrNumber::Number(*left | *right)));
                         }

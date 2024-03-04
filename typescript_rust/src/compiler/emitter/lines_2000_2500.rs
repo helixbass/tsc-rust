@@ -936,8 +936,8 @@ impl Printer {
         }
         self.emit(node.ref_(self).as_binding_element().maybe_name(), None)?;
         self.emit_initializer(
-            node.ref_(self).as_binding_element().maybe_initializer(),
-            node.ref_(self).as_binding_element().name().ref_(self).end(),
+            released!(node.ref_(self).as_binding_element().maybe_initializer()),
+            released!(node.ref_(self).as_binding_element().name().ref_(self).end()),
             node,
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(

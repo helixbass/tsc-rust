@@ -72,7 +72,7 @@ impl TransformGenerators {
         self.context.ref_(self).resume_lexical_environment();
 
         let statement_offset = self.factory.ref_(self).copy_prologue(
-            &released!(body.ref_(self).as_block().statements).ref_(self),
+            &released!(body.ref_(self).as_block().statements.ref_(self).clone()),
             &mut statements,
             Some(false),
             Some(|node: Id<Node>| self.visitor(node)),
@@ -347,11 +347,11 @@ impl TransformGenerators {
         let mut pending_expressions: Vec<Id<Node /*Expression*/>> = _d();
         self.visit_comma_expression_visit(
             &mut pending_expressions,
-            node.ref_(self).as_binary_expression().left,
+            released!(node.ref_(self).as_binary_expression().left),
         );
         self.visit_comma_expression_visit(
             &mut pending_expressions,
-            node.ref_(self).as_binary_expression().right,
+            released!(node.ref_(self).as_binary_expression().right),
         );
         self.factory
             .ref_(self)
@@ -680,7 +680,7 @@ impl TransformGenerators {
         }
 
         let expressions = reduce_left(
-            &elements.ref_(self),
+            &released!(elements.ref_(self).clone()),
             |expressions: Vec<Id<Node>>, &element: &Id<Node>, _| {
                 self.reduce_element(
                     &mut temp,

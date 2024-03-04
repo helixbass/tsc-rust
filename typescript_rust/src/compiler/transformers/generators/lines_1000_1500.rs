@@ -93,7 +93,7 @@ impl TransformGenerators {
         );
 
         let mut expressions = reduce_left(
-            &properties.ref_(self),
+            &released!(properties.ref_(self).clone()),
             |expressions: Vec<Id<Node>>, &property: &Id<Node>, _| {
                 self.reduce_property(temp, multi_line, node, expressions, property)
             },
@@ -321,7 +321,7 @@ impl TransformGenerators {
     pub(super) fn transform_and_emit_embedded_statement(&self, node: Id<Node>) {
         if is_block(&node.ref_(self)) {
             self.transform_and_emit_statements(
-                &released!(node.ref_(self).as_block().statements).ref_(self),
+                &released!(node.ref_(self).as_block().statements.ref_(self).clone()),
                 None,
             );
         } else {
@@ -516,10 +516,11 @@ impl TransformGenerators {
                     ),
                     Some(&*node.ref_(self).as_if_statement().expression.ref_(self)),
                 );
-                self.transform_and_emit_embedded_statement(
-                    node.ref_(self).as_if_statement().then_statement,
-                );
-                if let Some(node_else_statement) = node.ref_(self).as_if_statement().else_statement
+                self.transform_and_emit_embedded_statement(released!(
+                    node.ref_(self).as_if_statement().then_statement
+                ));
+                if let Some(node_else_statement) =
+                    released!(node.ref_(self).as_if_statement().else_statement)
                 {
                     self.emit_break(end_label, Option::<&Node>::None);
                     self.mark_label(else_label.unwrap());
@@ -550,7 +551,9 @@ impl TransformGenerators {
             let loop_label = self.define_label();
             self.begin_loop_block(condition_label);
             self.mark_label(loop_label);
-            self.transform_and_emit_embedded_statement(node.ref_(self).as_do_statement().statement);
+            self.transform_and_emit_embedded_statement(released!(
+                node.ref_(self).as_do_statement().statement
+            ));
             self.mark_label(condition_label);
             self.emit_break_when_true(
                 loop_label,
@@ -609,16 +612,16 @@ impl TransformGenerators {
             self.emit_break_when_false(
                 end_label,
                 visit_node(
-                    node.ref_(self).as_while_statement().expression,
+                    released!(node.ref_(self).as_while_statement().expression),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
                 Option::<&Node>::None,
             );
-            self.transform_and_emit_embedded_statement(
-                node.ref_(self).as_while_statement().statement,
-            );
+            self.transform_and_emit_embedded_statement(released!(
+                node.ref_(self).as_while_statement().statement
+            ));
             self.emit_break(loop_label, Option::<&Node>::None);
             self.end_loop_block();
         } else {
@@ -663,7 +666,9 @@ impl TransformGenerators {
             let condition_label = self.define_label();
             let increment_label = self.define_label();
             let end_label = self.begin_loop_block(increment_label);
-            if let Some(node_initializer) = node.ref_(self).as_for_statement().initializer {
+            if let Some(node_initializer) =
+                released!(node.ref_(self).as_for_statement().initializer)
+            {
                 let initializer = node_initializer;
                 if is_variable_declaration_list(&initializer.ref_(self)) {
                     self.transform_and_emit_variable_declaration_list(initializer);

@@ -142,10 +142,11 @@ impl TransformDeclarations {
                         )?
                         .try_or_else(|| {
                             self.resolver.ref_(self).create_type_of_expression(
-                                node.ref_(self)
+                                released!(node
+                                    .ref_(self)
                                     .as_has_initializer()
                                     .maybe_initializer()
-                                    .unwrap(),
+                                    .unwrap()),
                                 self.enclosing_declaration(),
                                 declaration_emit_node_builder_flags(),
                                 self.symbol_tracker(),
@@ -1431,7 +1432,7 @@ impl TransformDeclarations {
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?;
                     let extends_type = try_visit_node(
-                        input.ref_(self).as_conditional_type_node().extends_type,
+                        released!(input.ref_(self).as_conditional_type_node().extends_type),
                         Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                         Option::<fn(Id<Node>) -> bool>::None,
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -1452,7 +1453,7 @@ impl TransformDeclarations {
                     )?;
                     self.set_enclosing_declaration(old_enclosing_decl);
                     let false_type = try_visit_node(
-                        input.ref_(self).as_conditional_type_node().false_type,
+                        released!(input.ref_(self).as_conditional_type_node().false_type),
                         Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                         Option::<fn(Id<Node>) -> bool>::None,
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

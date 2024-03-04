@@ -113,11 +113,15 @@ impl NodeBuilder {
     ) -> io::Result<Id<Node>> {
         Debug_.assert(type_.ref_(self).flags().intersects(TypeFlags::Object), None);
         let type_declaration = type_.ref_(self).as_mapped_type().declaration;
-        let readonly_token: Option<Id<Node>> = type_declaration
-            .ref_(self)
-            .as_mapped_type_node()
-            .readonly_token
-            .map(|readonly_token| get_factory(self).create_token(readonly_token.ref_(self).kind()));
+        let readonly_token: Option<Id<Node>> = released!(
+            type_declaration
+                .ref_(self)
+                .as_mapped_type_node()
+                .readonly_token
+        )
+        .map(|readonly_token| {
+            get_factory(self).create_token(released!(readonly_token.ref_(self).kind()))
+        });
         let question_token: Option<Id<Node>> = released!(
             type_declaration
                 .ref_(self)
@@ -1294,12 +1298,13 @@ impl NodeBuilder {
                         }
                     } else {
                         self.track_computed_name(
-                            decl.ref_(self)
+                            released!(decl
+                                .ref_(self)
                                 .as_named_declaration()
                                 .name()
                                 .ref_(self)
                                 .as_has_expression()
-                                .expression(),
+                                .expression()),
                             save_enclosing_declaration,
                             context,
                         )?;

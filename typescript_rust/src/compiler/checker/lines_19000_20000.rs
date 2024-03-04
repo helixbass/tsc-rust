@@ -1625,9 +1625,7 @@ impl CheckTypeRelatedTo {
             Some(target_symbol) if self_.ref_(arena).type_checker.ref_(arena).is_js_constructor(target_symbol.ref_(arena).maybe_value_declaration())?
         );
 
-        let source_signatures = self_
-            .ref_(arena)
-            .type_checker
+        let source_signatures = released!(self_.ref_(arena).type_checker)
             .ref_(arena)
             .get_signatures_of_type(
                 source,
@@ -2186,15 +2184,11 @@ impl CheckTypeRelatedTo {
                 result &= related;
             }
         }
-        for &info in &self_
-            .ref_(arena)
-            .type_checker
+        for &info in &released!(self_.ref_(arena).type_checker)
             .ref_(arena)
             .get_index_infos_of_type(source)?
         {
-            if self_
-                .ref_(arena)
-                .type_checker
+            if released!(self_.ref_(arena).type_checker)
                 .ref_(arena)
                 .is_applicable_index_type(info.ref_(arena).key_type, key_type)?
             {

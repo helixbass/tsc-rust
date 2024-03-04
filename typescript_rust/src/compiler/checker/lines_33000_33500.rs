@@ -547,8 +547,11 @@ impl TypeChecker {
             .ref_(self)
             .iter()
         {
-            let type_ =
-                self.check_expression(span.ref_(self).as_template_span().expression, None, None)?;
+            let type_ = self.check_expression(
+                released!(span.ref_(self).as_template_span().expression),
+                None,
+                None,
+            )?;
             if self.maybe_type_of_kind(type_, TypeFlags::ESSymbolLike) {
                 self.error(
                     Some(span.ref_(self).as_template_span().expression),

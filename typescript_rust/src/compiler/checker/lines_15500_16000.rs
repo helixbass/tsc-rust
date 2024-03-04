@@ -1051,7 +1051,7 @@ impl TypeChecker {
                         .set_declarations(prop_declarations.clone());
                 }
                 result_links.ref_mut(self).name_type =
-                    self.get_symbol_links(prop).ref_(self).name_type;
+                    released!(self.get_symbol_links(prop).ref_(self).name_type);
                 result_links.ref_mut(self).synthetic_origin = Some(prop.clone());
                 members.insert(prop.ref_(self).escaped_name().to_owned(), result);
             }

@@ -804,19 +804,21 @@ impl TransformSystemModule {
                         {
                             if is_named_exports(&entry_export_clause.ref_(self)) {
                                 let mut properties: Vec<Id<Node /*PropertyAssignment*/>> = _d();
-                                for e in &*entry_export_clause
-                                    .ref_(self)
-                                    .as_named_exports()
-                                    .elements
-                                    .ref_(self)
+                                for e in &*released!(
+                                    entry_export_clause.ref_(self).as_named_exports().elements
+                                )
+                                .ref_(self)
                                 {
-                                    let e_ref = e.ref_(self);
-                                    let e_as_export_specifier = e_ref.as_export_specifier();
                                     properties.push(
                                         self.factory.ref_(self).create_property_assignment(
                                             self.factory.ref_(self).create_string_literal(
-                                                id_text(&e_as_export_specifier.name.ref_(self))
-                                                    .to_owned(),
+                                                released!(id_text(
+                                                    &e.ref_(self)
+                                                        .as_export_specifier()
+                                                        .name
+                                                        .ref_(self)
+                                                )
+                                                .to_owned()),
                                                 None,
                                                 None,
                                             ),
@@ -825,15 +827,18 @@ impl TransformSystemModule {
                                                 .create_element_access_expression(
                                                     parameter_name.clone(),
                                                     self.factory.ref_(self).create_string_literal(
-                                                        id_text(
-                                                            &e_as_export_specifier
+                                                        released!(id_text(
+                                                            &e.ref_(self)
+                                                                .as_export_specifier()
                                                                 .property_name
                                                                 .unwrap_or(
-                                                                    e_as_export_specifier.name,
+                                                                    e.ref_(self)
+                                                                        .as_export_specifier()
+                                                                        .name,
                                                                 )
                                                                 .ref_(self),
                                                         )
-                                                        .to_owned(),
+                                                        .to_owned()),
                                                         None,
                                                         None,
                                                     ),

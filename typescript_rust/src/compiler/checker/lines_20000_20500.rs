@@ -378,7 +378,7 @@ impl TypeChecker {
                 Ok(self.is_exact_optional_property_mismatch(
                     self.get_type_of_property_of_type_(
                         source,
-                        target_prop.ref_(self).escaped_name(),
+                        &released!(target_prop.ref_(self).escaped_name().to_owned()),
                     )?,
                     Some(self.get_type_of_symbol(target_prop)?),
                 ))

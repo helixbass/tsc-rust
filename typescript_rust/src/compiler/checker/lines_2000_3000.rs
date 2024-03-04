@@ -1216,7 +1216,7 @@ impl TypeChecker {
                 &Diagnostics::Module_0_has_no_default_export_Did_you_mean_to_use_import_1_from_0_instead,
                 Some(vec![
                     self.symbol_to_string_(module_symbol, Option::<Id<Node>>::None, None, None, None)?,
-                    self.symbol_to_string_(node.ref_(self).symbol(), Option::<Id<Node>>::None, None, None, None)?,
+                    self.symbol_to_string_(released!(node.ref_(self).symbol()), Option::<Id<Node>>::None, None, None, None)?,
                 ])
             );
         } else {

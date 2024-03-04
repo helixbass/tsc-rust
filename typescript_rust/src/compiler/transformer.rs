@@ -63,7 +63,7 @@ pub fn no_transformers() -> EmitTransformers {
 }
 
 pub fn get_transformers(
-    compiler_options: &CompilerOptions,
+    compiler_options: Id<CompilerOptions>,
     custom_transformers: Option<&CustomTransformers>,
     emit_only_dts_files: Option<bool>,
     arena: &impl HasArena,
@@ -80,7 +80,7 @@ pub fn get_transformers(
 }
 
 fn get_script_transformers(
-    compiler_options: &CompilerOptions,
+    compiler_options: Id<CompilerOptions>,
     custom_transformers: Option<&CustomTransformers>,
     emit_only_dts_files: Option<bool>,
     arena: &impl HasArena,
@@ -90,8 +90,8 @@ fn get_script_transformers(
         return vec![];
     }
 
-    let language_version = get_emit_script_target(compiler_options);
-    let module_kind = get_emit_module_kind(compiler_options);
+    let language_version = get_emit_script_target(&compiler_options.ref_(arena));
+    let module_kind = get_emit_module_kind(&compiler_options.ref_(arena));
     let mut transformers: Vec<TransformerFactory> = vec![];
 
     add_range(
@@ -110,7 +110,7 @@ fn get_script_transformers(
     transformers.push(transform_type_script(arena));
     transformers.push(transform_class_fields(arena));
 
-    if get_jsx_transform_enabled(compiler_options) {
+    if get_jsx_transform_enabled(&compiler_options.ref_(arena)) {
         transformers.push(transform_jsx(arena));
     }
 

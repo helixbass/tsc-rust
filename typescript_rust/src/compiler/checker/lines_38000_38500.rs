@@ -1056,9 +1056,11 @@ impl TypeChecker {
                         released!(base_type_node
                             .ref_(self)
                             .as_expression_with_type_arguments()
-                            .maybe_type_arguments())
-                        .refed(self)
-                        .as_double_deref(),
+                            .maybe_type_arguments()
+                            .refed(self)
+                            .as_deref()
+                            .cloned())
+                        .as_deref(),
                         base_type_node,
                     )? {
                         if !self.check_type_argument_constraints(

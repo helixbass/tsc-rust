@@ -213,11 +213,12 @@ impl TransformTypeScript {
         );
         self.factory.ref_(self).create_logical_and(
             self.factory.ref_(self).create_logical_and(
-                left.ref_(self).as_binary_expression().left,
+                released!(left.ref_(self).as_binary_expression().left),
                 self.factory.ref_(self).create_strict_inequality(
-                    self.factory
-                        .ref_(self)
-                        .create_assignment(temp, left.ref_(self).as_binary_expression().right),
+                    self.factory.ref_(self).create_assignment(
+                        temp,
+                        released!(left.ref_(self).as_binary_expression().right),
+                    ),
                     self.factory.ref_(self).create_void_zero(),
                 ),
             ),
@@ -304,18 +305,23 @@ impl TransformTypeScript {
         if is_private_identifier(&name.ref_(self)) {
             self.factory.ref_(self).create_identifier("")
         } else if is_computed_property_name(&name.ref_(self)) {
-            let name_ref = name.ref_(self);
-            let name_as_computed_property_name = name_ref.as_computed_property_name();
             if generate_name_for_computed_property_name
                 && !is_simple_inlineable_expression(
-                    &name_as_computed_property_name.expression.ref_(self),
+                    &name
+                        .ref_(self)
+                        .as_computed_property_name()
+                        .expression
+                        .ref_(self),
                 )
             {
                 self.factory
                     .ref_(self)
                     .get_generated_name_for_node(Some(name), None)
             } else {
-                name_as_computed_property_name.expression.clone()
+                name.ref_(self)
+                    .as_computed_property_name()
+                    .expression
+                    .clone()
             }
         } else if is_identifier(&name.ref_(self)) {
             self.factory.ref_(self).create_string_literal(

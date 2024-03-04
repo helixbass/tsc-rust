@@ -506,7 +506,7 @@ impl TransformES2015 {
             {
                 let mut case_clauses: Vec<Id<Node /*CaseClause*/>> = _d();
                 self.process_labeled_jumps(
-                    state.ref_(self).labeled_non_local_breaks.as_ref(),
+                    released!(state.ref_(self).labeled_non_local_breaks.clone()).as_ref(),
                     true,
                     loop_result_name,
                     outer_state.clone(),

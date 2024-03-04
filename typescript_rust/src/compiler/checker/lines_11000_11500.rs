@@ -780,9 +780,9 @@ impl TypeChecker {
             vec![self.alloc_index_info(self.create_index_info(
                 self.string_type(),
                 self.infer_reverse_mapped_type(
-                    index_info.ref_(self).type_,
-                    type_.ref_(self).as_reverse_mapped_type().mapped_type,
-                    type_.ref_(self).as_reverse_mapped_type().constraint_type,
+                    released!(index_info.ref_(self).type_),
+                    released!(type_.ref_(self).as_reverse_mapped_type().mapped_type),
+                    released!(type_.ref_(self).as_reverse_mapped_type().constraint_type),
                 )?,
                 readonly_mask && index_info.ref_(self).is_readonly,
                 None,
@@ -882,7 +882,7 @@ impl TypeChecker {
 
     pub(super) fn get_lower_bound_of_key_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         if type_.ref_(self).flags().intersects(TypeFlags::Index) {
-            let t = self.get_apparent_type(type_.ref_(self).as_index_type().type_)?;
+            let t = self.get_apparent_type(released!(type_.ref_(self).as_index_type().type_))?;
             return Ok(if self.is_generic_tuple_type(t) {
                 self.get_known_keys_of_tuple_type(t)?
             } else {
@@ -903,14 +903,16 @@ impl TypeChecker {
                     return self.get_conditional_type_instantiation(
                         type_,
                         self.prepend_type_mapping(
-                            type_
-                                .ref_(self)
-                                .as_conditional_type()
-                                .root
-                                .ref_(self)
-                                .check_type,
+                            released!(
+                                type_
+                                    .ref_(self)
+                                    .as_conditional_type()
+                                    .root
+                                    .ref_(self)
+                                    .check_type
+                            ),
                             constraint,
-                            type_.ref_(self).as_conditional_type().mapper.clone(),
+                            released!(type_.ref_(self).as_conditional_type().mapper),
                         ),
                         Option::<Id<Symbol>>::None,
                         None,

@@ -413,8 +413,10 @@ impl TypeChecker {
                     released!(node
                         .ref_(self)
                         .as_jsx_opening_like_element()
-                        .maybe_type_arguments())
-                    .refed(self)
+                        .maybe_type_arguments()
+                        .refed(self)
+                        .as_deref()
+                        .cloned())
                     .as_deref(),
                     |&type_argument: &Id<Node>, _| -> io::Result<Option<()>> {
                         self.check_source_element(Some(type_argument))?;

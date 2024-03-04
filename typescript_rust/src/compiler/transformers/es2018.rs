@@ -1061,31 +1061,29 @@ impl TransformES2018 {
     }
 
     fn visit_catch_clause(&self, node: Id<Node> /*CatchClause*/) -> VisitResult {
-        if let Some(node_variable_declaration) = node
-            .ref_(self)
-            .as_catch_clause()
-            .variable_declaration
-            .filter(|node_variable_declaration| {
-                let node_variable_declaration_ref = node_variable_declaration.ref_(self);
-                let node_variable_declaration_as_variable_declaration =
-                    node_variable_declaration_ref.as_variable_declaration();
-                is_binding_pattern(
-                    node_variable_declaration_as_variable_declaration
-                        .maybe_name()
-                        .refed(self)
-                        .as_deref(),
-                ) && node_variable_declaration_as_variable_declaration
-                    .name()
-                    .ref_(self)
-                    .transform_flags()
-                    .intersects(TransformFlags::ContainsObjectRestOrSpread)
-            })
-        {
+        if let Some(node_variable_declaration) = released!(
+            node.ref_(self).as_catch_clause().variable_declaration
+        )
+        .filter(|node_variable_declaration| {
+            let node_variable_declaration_ref = node_variable_declaration.ref_(self);
+            let node_variable_declaration_as_variable_declaration =
+                node_variable_declaration_ref.as_variable_declaration();
+            is_binding_pattern(
+                node_variable_declaration_as_variable_declaration
+                    .maybe_name()
+                    .refed(self)
+                    .as_deref(),
+            ) && node_variable_declaration_as_variable_declaration
+                .name()
+                .ref_(self)
+                .transform_flags()
+                .intersects(TransformFlags::ContainsObjectRestOrSpread)
+        }) {
             let name = self.factory.ref_(self).get_generated_name_for_node(
-                node_variable_declaration
+                released!(node_variable_declaration
                     .ref_(self)
                     .as_variable_declaration()
-                    .maybe_name(),
+                    .maybe_name()),
                 None,
             );
             let updated_decl = self.factory.ref_(self).update_variable_declaration(
@@ -1400,7 +1398,8 @@ impl TransformES2018 {
                         self,
                     )),
                 released!(node.ref_(self).as_for_of_statement().expression),
-                self.factory
+                released!(self
+                    .factory
                     .ref_(self)
                     .create_block(
                         self.factory
@@ -1409,7 +1408,7 @@ impl TransformES2018 {
                             .set_text_range(statements_location.as_ref(), self),
                         Some(true),
                     )
-                    .set_text_range(body_location.refed(self).as_deref(), self),
+                    .set_text_range(body_location.refed(self).as_deref(), self)),
             );
         }
         node
@@ -1422,7 +1421,7 @@ impl TransformES2018 {
     ) -> Id<Node> {
         let binding = create_for_of_binding_statement(
             &self.factory.ref_(self),
-            node.ref_(self).as_for_of_statement().initializer,
+            released!(node.ref_(self).as_for_of_statement().initializer),
             bound_value,
         );
 
@@ -1835,22 +1834,22 @@ impl TransformES2018 {
         &self,
         node: Id<Node>, /*SetAccessorDeclaration*/
     ) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_set_accessor_declaration = node_ref.as_set_accessor_declaration();
         let saved_enclosing_function_flags = self.maybe_enclosing_function_flags();
         self.set_enclosing_function_flags(Some(FunctionFlags::Normal));
         let updated = self.factory.ref_(self).update_set_accessor_declaration(
             node,
             Option::<Id<NodeArray>>::None,
-            node.ref_(self).maybe_modifiers(),
+            released!(node.ref_(self).maybe_modifiers()),
             visit_node(
-                node_as_set_accessor_declaration.name(),
+                released!(node.ref_(self).as_set_accessor_declaration().name()),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node: Id<Node>| is_property_name(&node.ref_(self))),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ),
             visit_parameter_list(
-                Some(node_as_set_accessor_declaration.parameters()),
+                released!(Some(
+                    node.ref_(self).as_set_accessor_declaration().parameters()
+                )),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,

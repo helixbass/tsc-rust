@@ -369,12 +369,7 @@ impl Program {
             emit_resolver,
             self.get_emit_host(write_file_callback),
             source_file,
-            get_transformers(
-                &self.options.ref_(self),
-                custom_transformers,
-                emit_only_dts_files,
-                self,
-            ),
+            get_transformers(self.options, custom_transformers, emit_only_dts_files, self),
             emit_only_dts_files,
             Some(false),
             force_dts_emit,

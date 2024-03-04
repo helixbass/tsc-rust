@@ -228,15 +228,13 @@ impl TransformSystemModule {
         node: Id<Node>, /*ForStatement*/
         is_top_level: bool,
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_ref = node.ref_(self);
-        let node_as_for_statement = node_ref.as_for_statement();
         let saved_enclosing_block_scoped_container = self.maybe_enclosing_block_scoped_container();
         self.set_enclosing_block_scoped_container(Some(node));
 
         let node = self.factory.ref_(self).update_for_statement(
             node,
             try_maybe_visit_node(
-                node_as_for_statement.initializer,
+                released!(node.ref_(self).as_for_statement().initializer),
                 Some(|node: Id<Node>| {
                     Ok(if is_top_level {
                         Some(self.visit_for_initializer(node)?.into())
@@ -248,19 +246,19 @@ impl TransformSystemModule {
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_maybe_visit_node(
-                node_as_for_statement.condition,
+                released!(node.ref_(self).as_for_statement().condition),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_maybe_visit_node(
-                node_as_for_statement.incrementor,
+                released!(node.ref_(self).as_for_statement().incrementor),
                 Some(|node: Id<Node>| self.discarded_value_visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_iteration_body(
-                node_as_for_statement.statement,
+                released!(node.ref_(self).as_for_statement().statement),
                 |node: Id<Node>| {
                     if is_top_level {
                         self.top_level_nested_visitor(node)

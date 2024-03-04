@@ -548,9 +548,12 @@ impl TransformSystemModule {
                     self.append_exports_of_declaration(statements, named_bindings, None);
                 }
                 SyntaxKind::NamedImports => {
-                    for &import_binding in
-                        &*released!(named_bindings.ref_(self).as_named_imports().elements)
-                            .ref_(self)
+                    for &import_binding in &*released!(named_bindings
+                        .ref_(self)
+                        .as_named_imports()
+                        .elements
+                        .ref_(self)
+                        .clone())
                     {
                         self.append_exports_of_declaration(statements, import_binding, None);
                     }

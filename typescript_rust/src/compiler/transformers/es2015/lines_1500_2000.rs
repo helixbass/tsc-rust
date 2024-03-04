@@ -792,7 +792,7 @@ impl TransformES2015 {
 
         if is_block(&body.ref_(self)) {
             statement_offset = self.factory.ref_(self).try_copy_custom_prologue(
-                &body.ref_(self).as_block().statements.ref_(self),
+                &released!(body.ref_(self).as_block().statements.ref_(self).clone()),
                 &mut statements,
                 statement_offset,
                 Some(|node: Id<Node>| self.visitor(node)),

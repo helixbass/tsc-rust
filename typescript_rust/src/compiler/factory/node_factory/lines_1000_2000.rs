@@ -1338,12 +1338,10 @@ impl NodeFactory {
         question_token: Option<Id<Node /*QuestionToken*/>>,
         type_: Id<Node /*TypeNode*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_named_tuple_member = node_ref.as_named_tuple_member();
-        if node_as_named_tuple_member.dot_dot_dot_token != dot_dot_dot_token
-            || node_as_named_tuple_member.name != name
-            || node_as_named_tuple_member.question_token != question_token
-            || node_as_named_tuple_member.type_ != type_
+        if node.ref_(self).as_named_tuple_member().dot_dot_dot_token != dot_dot_dot_token
+            || node.ref_(self).as_named_tuple_member().name != name
+            || node.ref_(self).as_named_tuple_member().question_token != question_token
+            || node.ref_(self).as_named_tuple_member().type_ != type_
         {
             self.update(
                 self.create_named_tuple_member(dot_dot_dot_token, name, question_token, type_),
@@ -1505,12 +1503,10 @@ impl NodeFactory {
         true_type: Id<Node /*TypeNode*/>,
         false_type: Id<Node /*TypeNode*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_conditional_type_node = node_ref.as_conditional_type_node();
-        if node_as_conditional_type_node.check_type != check_type
-            || node_as_conditional_type_node.extends_type != extends_type
-            || node_as_conditional_type_node.true_type != true_type
-            || node_as_conditional_type_node.false_type != false_type
+        if node.ref_(self).as_conditional_type_node().check_type != check_type
+            || node.ref_(self).as_conditional_type_node().extends_type != extends_type
+            || node.ref_(self).as_conditional_type_node().true_type != true_type
+            || node.ref_(self).as_conditional_type_node().false_type != false_type
         {
             self.update(
                 self.create_conditional_type_node(check_type, extends_type, true_type, false_type),

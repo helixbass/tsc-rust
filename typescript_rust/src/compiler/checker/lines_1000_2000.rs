@@ -1052,7 +1052,7 @@ impl TypeChecker {
                                 && !main_module_exports.ref_(self).contains_key(key)
                             {
                                 self.merge_symbol(
-                                    *resolved_exports.ref_(self).get(key).unwrap(),
+                                    released!(*resolved_exports.ref_(self).get(key).unwrap()),
                                     value,
                                     None,
                                 )?;

@@ -556,9 +556,7 @@ pub fn expand_pre_or_postfix_increment_or_decrement_expression(
     record_temp_variable: impl FnMut(Id<Node> /*Expression*/),
     result_variable: Option<Id<Node /*Identifier*/>>,
 ) -> Id<Node /*Expression*/> {
-    let node_ref = node.ref_(factory);
-    let node_as_unary_expression = node_ref.as_unary_expression();
-    let operator = node_as_unary_expression.operator();
+    let operator = node.ref_(factory).as_unary_expression().operator();
     Debug_.assert(
         matches!(
             operator,
@@ -569,7 +567,13 @@ pub fn expand_pre_or_postfix_increment_or_decrement_expression(
 
     let temp = factory.create_temp_variable(Some(record_temp_variable), None);
     let mut expression = factory.create_assignment(temp, expression).set_text_range(
-        Some(&*node_as_unary_expression.operand().ref_(factory)),
+        Some(
+            &*node
+                .ref_(factory)
+                .as_unary_expression()
+                .operand()
+                .ref_(factory),
+        ),
         factory,
     );
 

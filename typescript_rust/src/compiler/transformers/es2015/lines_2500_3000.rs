@@ -789,13 +789,11 @@ impl TransformES2015 {
         node: Id<Node>,                /*DoStatement*/
         converted_loop_body: Id<Node>, /*Statement*/
     ) -> io::Result<Id<Node>> {
-        let node_ref = node.ref_(self);
-        let node_as_do_statement = node_ref.as_do_statement();
         Ok(self.factory.ref_(self).update_do_statement(
             node,
             converted_loop_body,
             try_visit_node(
-                node_as_do_statement.expression,
+                released!(node.ref_(self).as_do_statement().expression),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

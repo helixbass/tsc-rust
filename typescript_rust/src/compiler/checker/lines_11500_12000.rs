@@ -35,7 +35,7 @@ impl TypeChecker {
             {
                 let name_type = self.instantiate_type(
                     self.get_type_from_type_node_(type_declaration_name_type)?,
-                    type_.ref_(self).as_mapped_type().maybe_mapper(),
+                    released!(type_.ref_(self).as_mapped_type().maybe_mapper()),
                 )?;
                 type_
                     .ref_(self)
@@ -594,9 +594,9 @@ impl TypeChecker {
                 return Ok(indexed_access);
             }
         }
-        let object_constraint = self.get_simplified_type_or_constraint(
-            type_.ref_(self).as_indexed_access_type().object_type,
-        )?;
+        let object_constraint = self.get_simplified_type_or_constraint(released!(
+            type_.ref_(self).as_indexed_access_type().object_type
+        ))?;
         if let Some(object_constraint) = object_constraint.filter(|&object_constraint| {
             object_constraint != type_.ref_(self).as_indexed_access_type().object_type
         }) {

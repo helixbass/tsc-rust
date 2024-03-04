@@ -968,7 +968,7 @@ impl TransformDeclarations {
                                     input,
                                     Option::<Id<NodeArray>>::None,
                                     Some(modifiers),
-                                    input.ref_(self).as_class_declaration().maybe_name(),
+                                    released!(input.ref_(self).as_class_declaration().maybe_name()),
                                     type_parameters,
                                     Some(heritage_clauses),
                                     members,
@@ -1085,7 +1085,13 @@ impl TransformDeclarations {
         pattern: Id<Node>, /*BindingPattern*/
     ) -> io::Result<Option<Vec<Id<Node>>>> {
         let mut elems: Option<Vec<Id<Node /*PropertyDeclaration*/>>> = Default::default();
-        for &elem in &*released!(pattern.ref_(self).as_has_elements().elements()).ref_(self) {
+        for &elem in &*released!(pattern
+            .ref_(self)
+            .as_has_elements()
+            .elements()
+            .ref_(self)
+            .clone())
+        {
             if is_omitted_expression(&elem.ref_(self)) {
                 continue;
             }

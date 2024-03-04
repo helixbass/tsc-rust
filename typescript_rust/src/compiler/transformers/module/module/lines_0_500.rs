@@ -26,7 +26,7 @@ use crate::{
     try_visit_node, try_visit_nodes, AllArenas, CoreTransformationContext, EmitFlags,
     EmitHelperFactory, EmitHint, EmitHost, GeneratedIdentifierFlags, HasArena,
     HasStatementsInterface, InArena, Matches, NamedDeclarationInterface, NodeArray, NodeArrayExt,
-    NodeExt, NodeInterface, NonEmpty, SyntaxKind, TransformFlags,
+    NodeExt, NodeInterface, NonEmpty, ReadonlyTextRangeConcrete, SyntaxKind, TransformFlags,
     TransformNodesTransformationResult, TransformationContextOnEmitNodeOverrider,
     TransformationContextOnSubstituteNodeOverrider, VecExt,
 };
@@ -1283,17 +1283,23 @@ impl TransformModuleOnSubstituteNodeOverrider {
         &self,
         node: Id<Node>, /*BinaryExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_binary_expression = node_ref.as_binary_expression();
-        if is_assignment_operator(node_as_binary_expression.operator_token.ref_(self).kind())
-            && is_identifier(&node_as_binary_expression.left.ref_(self))
-            && !is_generated_identifier(&node_as_binary_expression.left.ref_(self))
-            && !is_local_name(node_as_binary_expression.left, self)
-            && !is_declaration_name_of_enum_or_namespace(node_as_binary_expression.left, self)
+        if is_assignment_operator(
+            node.ref_(self)
+                .as_binary_expression()
+                .operator_token
+                .ref_(self)
+                .kind(),
+        ) && is_identifier(&node.ref_(self).as_binary_expression().left.ref_(self))
+            && !is_generated_identifier(&node.ref_(self).as_binary_expression().left.ref_(self))
+            && !is_local_name(node.ref_(self).as_binary_expression().left, self)
+            && !is_declaration_name_of_enum_or_namespace(
+                node.ref_(self).as_binary_expression().left,
+                self,
+            )
         {
             let exported_names = self
                 .transform_module()
-                .get_exports(node_as_binary_expression.left)?;
+                .get_exports(node.ref_(self).as_binary_expression().left)?;
             if let Some(exported_names) = exported_names {
                 let mut expression/*: Expression*/ = node;
                 for &export_name in &exported_names {
@@ -1303,7 +1309,9 @@ impl TransformModuleOnSubstituteNodeOverrider {
                     expression = self.transform_module().create_export_expression(
                         export_name,
                         expression,
-                        Some(&*node.ref_(self)),
+                        Some(&released!(ReadonlyTextRangeConcrete::from(
+                            &*node.ref_(self)
+                        ))),
                         None,
                     );
                 }

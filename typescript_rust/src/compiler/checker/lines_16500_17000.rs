@@ -352,11 +352,12 @@ impl TypeChecker {
                 &element_types,
                 Some(&new_tuple_modifiers),
                 Some(new_readonly),
-                tuple_type_target
+                released!(tuple_type_target
                     .ref_(self)
                     .as_tuple_type()
                     .labeled_element_declarations
-                    .as_deref(),
+                    .clone())
+                .as_deref(),
             )?
         })
     }

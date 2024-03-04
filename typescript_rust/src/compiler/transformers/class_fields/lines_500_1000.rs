@@ -447,10 +447,7 @@ impl TransformClassFields {
                                     Option::<fn(Id<Node>) -> bool>::None,
                                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 ),
-                                node.ref_(self)
-                                    .as_call_expression()
-                                    .question_dot_token
-                                    .clone(),
+                                released!(node.ref_(self).as_call_expression().question_dot_token),
                                 "call",
                             ),
                             None,
@@ -574,16 +571,14 @@ impl TransformClassFields {
         &self,
         node: Id<Node>, /*TaggedTemplateExpression*/
     ) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_tagged_template_expression = node_ref.as_tagged_template_expression();
         if self.should_transform_private_elements_or_class_static_blocks
             && is_private_identifier_property_access_expression(
-                node_as_tagged_template_expression.tag,
+                node.ref_(self).as_tagged_template_expression().tag,
                 self,
             )
         {
             let CallBinding { this_arg, target } = self.factory.ref_(self).create_call_binding(
-                node_as_tagged_template_expression.tag,
+                node.ref_(self).as_tagged_template_expression().tag,
                 |node: Id<Node>| {
                     self.context.ref_(self).hoist_variable_declaration(node);
                 },
@@ -615,7 +610,7 @@ impl TransformClassFields {
                         ),
                         Option::<Id<NodeArray>>::None,
                         visit_node(
-                            node_as_tagged_template_expression.template,
+                            node.ref_(self).as_tagged_template_expression().template,
                             Some(|node: Id<Node>| self.visitor(node)),
                             Some(|node: Id<Node>| is_template_literal(&node.ref_(self))),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -625,7 +620,7 @@ impl TransformClassFields {
             );
         }
         if self.should_transform_super_in_static_initializers
-            && is_super_property(node_as_tagged_template_expression.tag, self)
+            && is_super_property(node.ref_(self).as_tagged_template_expression().tag, self)
             && self
                 .maybe_current_static_property_declaration_or_static_block()
                 .is_some()
@@ -644,7 +639,7 @@ impl TransformClassFields {
                     .ref_(self)
                     .create_function_bind_call(
                         visit_node(
-                            node_as_tagged_template_expression.tag,
+                            node.ref_(self).as_tagged_template_expression().tag,
                             Some(|node: Id<Node>| self.visitor(node)),
                             Some(|node| is_expression(node, self)),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -662,7 +657,7 @@ impl TransformClassFields {
                             invocation,
                             Option::<Id<NodeArray>>::None,
                             visit_node(
-                                node_as_tagged_template_expression.template,
+                                released!(node.ref_(self).as_tagged_template_expression().template),
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node: Id<Node>| is_template_literal(&node.ref_(self))),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -944,11 +939,12 @@ impl TransformClassFields {
                                         .create_binary_expression(
                                             super_property_get,
                                             get_non_assignment_operator_for_compound_assignment(
-                                                node.ref_(self)
+                                                released!(node
+                                                    .ref_(self)
                                                     .as_binary_expression()
                                                     .operator_token
                                                     .ref_(self)
-                                                    .kind(),
+                                                    .kind()),
                                             ),
                                             expression,
                                         )

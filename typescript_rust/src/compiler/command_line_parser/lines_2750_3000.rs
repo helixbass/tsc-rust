@@ -15,7 +15,7 @@ use crate::{
     create_diagnostic_for_node_in_source_file, create_get_canonical_file_name, ends_with,
     extend_watch_options, filter_mutate, find, get_directory_path, get_normalized_absolute_path,
     get_text_of_property_name, index_of, is_rooted_disk_path, map, maybe_extend_compiler_options,
-    node_module_name_resolver, normalize_slashes, set_type_acquisition_value,
+    node_module_name_resolver, normalize_slashes, released, set_type_acquisition_value,
     set_watch_option_value, starts_with, AllArenas, CommandLineOption, CommandLineOptionInterface,
     CompilerOptions, ConfigFileSpecs, Debug_, Diagnostic, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, Diagnostics, ExtendedConfigCacheEntry, Extension,
@@ -241,9 +241,11 @@ pub(super) fn parse_config(
                 raw.entry("compileOnSave")
                     .or_insert_with(|| base_raw_compile_on_save.clone());
             }
-            own_config.options = Some(arena.alloc_compiler_options(maybe_extend_compiler_options(
-                extended_config.options.refed(arena).as_deref(),
-                own_config.options.refed(arena).as_deref(),
+            own_config.options = Some(arena.alloc_compiler_options(released!(
+                maybe_extend_compiler_options(
+                    extended_config.options.refed(arena).as_deref(),
+                    own_config.options.refed(arena).as_deref(),
+                )
             )));
             own_config.watch_options =
                 if own_config.watch_options.is_some() && extended_config.watch_options.is_some() {

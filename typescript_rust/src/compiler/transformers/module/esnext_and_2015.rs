@@ -680,8 +680,7 @@ impl TransformEcmascriptModuleOnSubstituteNodeOverrider {
         &self,
         node: Id<Node>, /*Identifier*/
     ) -> Id<Node /*Expression*/> {
-        let node_ref = node.ref_(self);
-        let name = id_text(&node_ref);
+        let ref name = id_text(&node.ref_(self)).to_owned();
         let mut substitution = self
             .transform_ecmascript_module()
             .helper_name_substitutions()

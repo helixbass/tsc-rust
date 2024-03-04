@@ -354,9 +354,12 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*ResolvedType*/
     ) -> io::Result<Id<Type>> {
-        let type_ref = type_.ref_(self);
-        let type_construct_signatures = type_ref.as_resolved_type().construct_signatures();
-        if type_construct_signatures.is_empty() {
+        if type_
+            .ref_(self)
+            .as_resolved_type()
+            .construct_signatures()
+            .is_empty()
+        {
             return Ok(type_);
         }
         if let Some(type_object_type_without_abstract_construct_signatures) = type_
@@ -366,26 +369,34 @@ impl TypeChecker {
         {
             return Ok(type_object_type_without_abstract_construct_signatures);
         }
-        let construct_signatures =
-            filter(&*type_construct_signatures, |signature: &Id<Signature>| {
+        let construct_signatures = filter(
+            &*type_.ref_(self).as_resolved_type().construct_signatures(),
+            |signature: &Id<Signature>| {
                 !signature
                     .ref_(self)
                     .flags
                     .intersects(SignatureFlags::Abstract)
-            });
-        if type_construct_signatures.len() == construct_signatures.len() {
+            },
+        );
+        if type_
+            .ref_(self)
+            .as_resolved_type()
+            .construct_signatures()
+            .len()
+            == construct_signatures.len()
+        {
             return Ok(type_);
         }
         let type_copy = self.create_anonymous_type(
-            type_.ref_(self).maybe_symbol(),
-            type_.ref_(self).as_resolved_type().members(),
-            type_
+            released!(type_.ref_(self).maybe_symbol()),
+            released!(type_.ref_(self).as_resolved_type().members()),
+            released!(type_
                 .ref_(self)
                 .as_resolved_type()
                 .call_signatures()
-                .clone(),
+                .clone()),
             construct_signatures,
-            type_.ref_(self).as_resolved_type().index_infos().clone(),
+            released!(type_.ref_(self).as_resolved_type().index_infos().clone()),
         )?;
         type_
             .ref_(self)
