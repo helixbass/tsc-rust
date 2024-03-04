@@ -17,12 +17,12 @@ mod parse_command_line {
 
     use super::*;
 
-    fn assert_parse_result<'command_line>(
-        command_line: impl IntoIterator<Item = &'command_line str>,
+    fn assert_parse_result<'a>(
+        command_line: impl IntoIterator<Item = &'a str>,
         expected_parsed_command_line: ParsedCommandLine,
         worker_diagnostic: Option<impl FnMut() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>,
+        arena: &impl HasArena,
     ) {
-        let ref arena = AllArenasHarness::default();
         let parsed = parse_command_line_worker(
             if let Some(mut worker_diagnostic) = worker_diagnostic {
                 worker_diagnostic()
@@ -121,12 +121,13 @@ mod parse_command_line {
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+            arena,
         );
     }
 
     #[test]
     fn test_handles_may_only_be_used_with_build_flags() {
-        let arena = AllArenasHarness::default();
+        let ref arena = AllArenasHarness::default();
         let build_flags = ["--clean", "--dry", "--force", "--verbose"];
 
         assert_parse_result(
@@ -147,17 +148,18 @@ mod parse_command_line {
                             None,
                         ).into())
                     }).collect_vec(),
-                    &arena,
+                    arena,
                 )
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+            arena,
         );
     }
 
     #[test]
     fn test_handles_did_you_mean_for_misspelt_flags() {
-        let arena = AllArenasHarness::default();
+        let ref arena = AllArenasHarness::default();
         assert_parse_result(
             ["--declarations", "--allowTS"],
             ParsedCommandLineBuilder::default()
@@ -186,10 +188,11 @@ mod parse_command_line {
                         .build().unwrap(),
                         None,
                     ).into()),
-                ], &arena)
+                ], arena)
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+            arena,
         );
     }
 
@@ -214,6 +217,7 @@ mod parse_command_line {
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+            arena,
         );
     }
 
@@ -255,6 +259,7 @@ mod parse_command_line {
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+            arena,
         );
     }
 
@@ -307,6 +312,7 @@ mod parse_command_line {
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+            arena,
         );
     }
 
@@ -358,6 +364,7 @@ mod parse_command_line {
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+            arena,
         );
     }
 
@@ -413,6 +420,7 @@ mod parse_command_line {
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+            arena,
         );
     }
 
@@ -461,6 +469,7 @@ mod parse_command_line {
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+            arena,
         );
     }
 
@@ -509,6 +518,7 @@ mod parse_command_line {
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+            arena,
         );
     }
 
@@ -549,6 +559,7 @@ mod parse_command_line {
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+            arena,
         );
     }
 
@@ -589,6 +600,7 @@ mod parse_command_line {
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+            arena,
         );
     }
 
@@ -611,6 +623,7 @@ mod parse_command_line {
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+            arena,
         );
     }
 
@@ -652,6 +665,7 @@ mod parse_command_line {
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+            arena,
         );
     }
 
@@ -693,6 +707,7 @@ mod parse_command_line {
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+            arena,
         );
     }
 
@@ -724,6 +739,7 @@ mod parse_command_line {
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+            arena,
         );
     }
 
@@ -758,6 +774,7 @@ mod parse_command_line {
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+            arena,
         );
     }
 
@@ -794,6 +811,7 @@ mod parse_command_line {
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+            arena,
         );
     }
 
@@ -815,6 +833,7 @@ mod parse_command_line {
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+            arena,
         );
     }
 
@@ -836,6 +855,7 @@ mod parse_command_line {
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+            arena,
         );
     }
 
@@ -856,6 +876,7 @@ mod parse_command_line {
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+            arena,
         );
     }
 
@@ -877,6 +898,7 @@ mod parse_command_line {
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+            arena,
         );
     }
 
@@ -898,6 +920,7 @@ mod parse_command_line {
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+            arena,
         );
     }
 
@@ -944,6 +967,7 @@ mod parse_command_line {
                     .build()
                     .unwrap(),
                 worker_diagnostic,
+                arena,
             );
         }
 
@@ -986,6 +1010,7 @@ mod parse_command_line {
                     .build()
                     .unwrap(),
                 worker_diagnostic,
+                arena,
             );
         }
 
@@ -1030,6 +1055,7 @@ mod parse_command_line {
                     .build()
                     .unwrap(),
                 worker_diagnostic,
+                arena,
             );
         }
 
@@ -1071,6 +1097,7 @@ mod parse_command_line {
                     .build()
                     .unwrap(),
                 worker_diagnostic,
+                arena,
             );
         }
 
@@ -1237,6 +1264,7 @@ mod parse_command_line {
                         .build()
                         .unwrap(),
                     Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+                    arena,
                 );
             }
 
@@ -1315,6 +1343,7 @@ mod parse_command_line {
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+            arena,
         );
     }
 
@@ -1327,6 +1356,7 @@ mod parse_command_line {
 
         #[test]
         fn test_parse_watch_file() {
+            let ref arena = AllArenasHarness::default();
             assert_parse_result(
                 ["--watchFile", "UseFsEvents", "0.ts"],
                 ParsedCommandLineBuilder::default()
@@ -1337,14 +1367,17 @@ mod parse_command_line {
                             .build()
                             .unwrap(),
                     )
+                    .options(arena.alloc_compiler_options(Default::default()))
                     .build()
                     .unwrap(),
                 Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+                arena,
             );
         }
 
         #[test]
         fn test_parse_watch_directory() {
+            let ref arena = AllArenasHarness::default();
             assert_parse_result(
                 ["--watchDirectory", "FixedPollingInterval", "0.ts"],
                 ParsedCommandLineBuilder::default()
@@ -1358,11 +1391,13 @@ mod parse_command_line {
                     .build()
                     .unwrap(),
                 Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+                arena,
             );
         }
 
         #[test]
         fn test_parse_fallback_polling() {
+            let ref arena = AllArenasHarness::default();
             assert_parse_result(
                 ["--fallbackPolling", "PriorityInterval", "0.ts"],
                 ParsedCommandLineBuilder::default()
@@ -1376,11 +1411,13 @@ mod parse_command_line {
                     .build()
                     .unwrap(),
                 Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+                arena,
             );
         }
 
         #[test]
         fn test_parse_synchronous_watch_directory() {
+            let ref arena = AllArenasHarness::default();
             assert_parse_result(
                 ["--synchronousWatchDirectory", "0.ts"],
                 ParsedCommandLineBuilder::default()
@@ -1394,12 +1431,13 @@ mod parse_command_line {
                     .build()
                     .unwrap(),
                 Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+                arena,
             );
         }
 
         #[test]
         fn test_errors_on_missing_argument_to_fallback_polling() {
-            let arena = AllArenasHarness::default();
+            let ref arena = AllArenasHarness::default();
             assert_parse_result(
                 ["0.ts", "--fallbackPolling"],
                 ParsedCommandLineBuilder::default()
@@ -1428,17 +1466,19 @@ mod parse_command_line {
                             )
                             .into(),
                         ),
-                    ], &arena)
+                    ], arena)
                     .file_names(["0.ts".to_owned()])
                     .watch_options(WatchOptions::default())
                     .build()
                     .unwrap(),
                 Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+                arena,
             );
         }
 
         #[test]
         fn test_parse_exclude_directories() {
+            let ref arena = AllArenasHarness::default();
             assert_parse_result(
                 ["--excludeDirectories", "**/temp", "0.ts"],
                 ParsedCommandLineBuilder::default()
@@ -1452,12 +1492,13 @@ mod parse_command_line {
                     .build()
                     .unwrap(),
                 Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+                arena,
             );
         }
 
         #[test]
         fn test_errors_on_invalid_exclude_directories() {
-            let arena = AllArenasHarness::default();
+            let ref arena = AllArenasHarness::default();
             assert_parse_result(
                 ["--excludeDirectories", "**/../*", "0.ts"],
                 ParsedCommandLineBuilder::default()
@@ -1474,7 +1515,7 @@ mod parse_command_line {
                             )
                             .into(),
                         ),
-                    ], &arena)
+                    ], arena)
                     .file_names(["0.ts".to_owned()])
                     .watch_options(
                         WatchOptionsBuilder::default()
@@ -1485,11 +1526,13 @@ mod parse_command_line {
                     .build()
                     .unwrap(),
                 Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+                arena,
             );
         }
 
         #[test]
         fn test_parse_exclude_files() {
+            let ref arena = AllArenasHarness::default();
             assert_parse_result(
                 ["--excludeFiles", "**/temp/*.ts", "0.ts"],
                 ParsedCommandLineBuilder::default()
@@ -1503,12 +1546,13 @@ mod parse_command_line {
                     .build()
                     .unwrap(),
                 Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+                arena,
             );
         }
 
         #[test]
         fn test_errors_on_invalid_exclude_files() {
-            let arena = AllArenasHarness::default();
+            let ref arena = AllArenasHarness::default();
             assert_parse_result(
                 ["--excludeFiles", "**/../*", "0.ts"],
                 ParsedCommandLineBuilder::default()
@@ -1525,7 +1569,7 @@ mod parse_command_line {
                             )
                             .into(),
                         ),
-                    ], &arena)
+                    ], arena)
                     .file_names(["0.ts".to_owned()])
                     .watch_options(
                         WatchOptionsBuilder::default()
@@ -1536,6 +1580,7 @@ mod parse_command_line {
                     .build()
                     .unwrap(),
                 Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
+                arena,
             );
         }
     }
