@@ -712,7 +712,9 @@ impl TransformGenerators {
             );
 
             self.mark_label(increment_label);
-            if let Some(node_incrementor) = node.ref_(self).as_for_statement().incrementor {
+            if let Some(node_incrementor) =
+                released!(node.ref_(self).as_for_statement().incrementor)
+            {
                 self.emit_statement(
                     self.factory
                         .ref_(self)

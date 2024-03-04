@@ -983,12 +983,11 @@ impl TypeChecker {
                 .flags()
                 .intersects(TypeFlags::UnionOrIntersection)
                 && try_some(
-                    Some(
-                        type_
-                            .ref_(self)
-                            .as_union_or_intersection_type_interface()
-                            .types(),
-                    ),
+                    Some(&released!(type_
+                        .ref_(self)
+                        .as_union_or_intersection_type_interface()
+                        .types()
+                        .to_owned())),
                     Some(|&t: &Id<Type>| self.is_type_parameter_at_top_level(t, type_parameter)),
                 )?
             || type_.ref_(self).flags().intersects(TypeFlags::Conditional)

@@ -578,7 +578,7 @@ impl TransformClassFields {
             )
         {
             let CallBinding { this_arg, target } = self.factory.ref_(self).create_call_binding(
-                node.ref_(self).as_tagged_template_expression().tag,
+                released!(node.ref_(self).as_tagged_template_expression().tag),
                 |node: Id<Node>| {
                     self.context.ref_(self).hoist_variable_declaration(node);
                 },

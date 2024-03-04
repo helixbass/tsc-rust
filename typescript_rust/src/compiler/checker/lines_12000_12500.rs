@@ -709,7 +709,9 @@ impl TypeChecker {
         for info in index_infos {
             if info.ref_(self).key_type == self.string_type() {
                 string_index_info = Some(info.clone());
-            } else if self.is_applicable_index_type(key_type, info.ref_(self).key_type)? {
+            } else if self
+                .is_applicable_index_type(key_type, released!(info.ref_(self).key_type))?
+            {
                 if applicable_info.is_none() {
                     applicable_info = Some(info.clone());
                 } else {

@@ -629,7 +629,7 @@ impl TransformES2015 {
                 node,
                 initializer_function.as_ref(),
                 try_visit_node(
-                    node.ref_(self).as_has_statement().statement(),
+                    released!(node.ref_(self).as_has_statement().statement()),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_statement(node, self)),
                     Some(&|nodes: &[Id<Node>]| self.factory.ref_(self).lift_to_block(nodes)),
@@ -923,7 +923,7 @@ impl TransformES2015 {
         }
 
         if let Some(state_hoisted_local_variables) =
-            state.ref_(self).hoisted_local_variables.as_ref()
+            released!(state.ref_(self).hoisted_local_variables.clone()).as_ref()
         {
             if let Some(outer_state) = outer_state.as_ref() {
                 outer_state.ref_mut(self).hoisted_local_variables =

@@ -482,7 +482,7 @@ impl TypeChecker {
                     },
                 )?;
                 self.infer_types(
-                    &return_context.ref_(self).inferences(),
+                    &released!(return_context.ref_(self).inferences().clone()),
                     return_source_type,
                     inference_target_type,
                     None,

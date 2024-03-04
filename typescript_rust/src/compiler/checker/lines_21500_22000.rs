@@ -153,7 +153,9 @@ impl TypeChecker {
         inference: Id<InferenceInfo>,
     ) -> io::Result<Option<Id<Type>>> {
         Ok(
-            if let Some(inference_candidates) = inference.ref_(self).maybe_candidates().as_ref() {
+            if let Some(inference_candidates) =
+                released!(inference.ref_(self).maybe_candidates().clone()).as_ref()
+            {
                 Some(self.get_union_type(
                     inference_candidates,
                     Some(UnionReduction::Subtype),

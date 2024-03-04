@@ -558,13 +558,11 @@ impl TransformGenerators {
             if let Some(node_catch_clause) =
                 released!(node.ref_(self).as_try_statement().catch_clause)
             {
-                self.begin_catch_block(
-                    node_catch_clause
-                        .ref_(self)
-                        .as_catch_clause()
-                        .variable_declaration
-                        .unwrap(),
-                );
+                self.begin_catch_block(released!(node_catch_clause
+                    .ref_(self)
+                    .as_catch_clause()
+                    .variable_declaration
+                    .unwrap()));
                 self.transform_and_emit_embedded_statement(
                     node_catch_clause.ref_(self).as_catch_clause().block,
                 );

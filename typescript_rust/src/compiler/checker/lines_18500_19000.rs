@@ -75,9 +75,7 @@ impl CheckTypeRelatedTo {
             {
                 return Ok(Ternary::True);
             }
-            let match_ = self_
-                .ref_(arena)
-                .type_checker
+            let match_ = released!(self_.ref_(arena).type_checker)
                 .ref_(arena)
                 .get_matching_union_constituent_for_type(target, source)?;
             if let Some(match_) = match_ {
@@ -2154,13 +2152,17 @@ impl CheckTypeRelatedTo {
                                 TypeComparerIsRelatedToWorker::new(self_, arena),
                             ))),
                         );
-                    self_.ref_(arena).type_checker.ref_(arena).infer_types(
-                        &ctx.ref_(arena).inferences(),
-                        released!(target.ref_(arena).as_conditional_type().extends_type),
-                        source_extends,
-                        Some(InferencePriority::NoConstraints | InferencePriority::AlwaysStrict),
-                        None,
-                    )?;
+                    released!(self_.ref_(arena).type_checker)
+                        .ref_(arena)
+                        .infer_types(
+                            &ctx.ref_(arena).inferences(),
+                            released!(target.ref_(arena).as_conditional_type().extends_type),
+                            source_extends,
+                            Some(
+                                InferencePriority::NoConstraints | InferencePriority::AlwaysStrict,
+                            ),
+                            None,
+                        )?;
                     source_extends = self_
                         .ref_(arena)
                         .type_checker
