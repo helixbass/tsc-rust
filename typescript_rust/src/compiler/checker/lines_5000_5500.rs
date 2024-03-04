@@ -48,7 +48,7 @@ impl NodeBuilder {
             .clone();
         let extends_type_node = self
             .type_to_type_node_helper(
-                Some(type_.ref_(self).as_conditional_type().extends_type),
+                released!(Some(type_.ref_(self).as_conditional_type().extends_type)),
                 context,
             )?
             .unwrap();

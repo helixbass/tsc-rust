@@ -545,40 +545,38 @@ impl TransformES2017 {
         &self,
         node: Id<Node>, /*ForOfStatement*/
     ) -> io::Result<Id<Node>> {
-        let node_ref = node.ref_(self);
-        let node_as_for_of_statement = node_ref.as_for_of_statement();
         Ok(self.factory.ref_(self).update_for_of_statement(
             node,
             try_maybe_visit_node(
-                node_as_for_of_statement.await_modifier,
+                released!(node.ref_(self).as_for_of_statement().await_modifier),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node: Id<Node>| is_token(&node.ref_(self))),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
-            if self.is_variable_declaration_list_with_colliding_name(Some(
-                node_as_for_of_statement.initializer,
-            )) {
+            if self.is_variable_declaration_list_with_colliding_name(Some(released!(
+                node.ref_(self).as_for_of_statement().initializer
+            ))) {
                 self.visit_variable_declaration_list_with_colliding_names(
-                    node_as_for_of_statement.initializer,
+                    released!(node.ref_(self).as_for_of_statement().initializer),
                     true,
                 )?
                 .unwrap()
             } else {
                 try_visit_node(
-                    node_as_for_of_statement.initializer,
+                    released!(node.ref_(self).as_for_of_statement().initializer),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_for_initializer(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?
             },
             try_visit_node(
-                node_as_for_of_statement.expression,
+                released!(node.ref_(self).as_for_of_statement().expression),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_iteration_body(
-                node_as_for_of_statement.statement,
+                released!(node.ref_(self).as_for_of_statement().statement),
                 |node: Id<Node>| self.async_body_visitor(node),
                 &*self.context.ref_(self),
                 self,

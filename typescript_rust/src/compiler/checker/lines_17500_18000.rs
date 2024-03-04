@@ -375,8 +375,8 @@ impl TypeChecker {
             if s.intersects(TypeFlags::Union)
                 && t.intersects(TypeFlags::Union)
                 && self.is_enum_type_related_to(
-                    source.ref_(self).symbol(),
-                    target.ref_(self).symbol(),
+                    released!(source.ref_(self).symbol()),
+                    released!(target.ref_(self).symbol()),
                     &mut error_reporter,
                 )?
             {

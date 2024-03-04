@@ -110,9 +110,9 @@ impl TransformTypeScript {
                     return Ok(self.factory.ref_(self).create_identifier("Object"));
                 }
 
-                let serialized = self.serialize_entity_name_as_expression_fallback(
-                    node.ref_(self).as_type_reference_node().type_name,
-                );
+                let serialized = self.serialize_entity_name_as_expression_fallback(released!(
+                    node.ref_(self).as_type_reference_node().type_name
+                ));
                 let temp = self.factory.ref_(self).create_temp_variable(
                     Some(|node: Id<Node>| self.context.ref_(self).hoist_variable_declaration(node)),
                     None,
@@ -196,15 +196,14 @@ impl TransformTypeScript {
             let copied = self.serialize_entity_name_as_expression(node);
             return self.create_checked_value(copied.clone(), copied);
         }
-        let node_ref = node.ref_(self);
-        let node_as_qualified_name = node_ref.as_qualified_name();
-        if node_as_qualified_name.left.ref_(self).kind() == SyntaxKind::Identifier {
+        if node.ref_(self).as_qualified_name().left.ref_(self).kind() == SyntaxKind::Identifier {
             return self.create_checked_value(
-                self.serialize_entity_name_as_expression(node_as_qualified_name.left),
+                self.serialize_entity_name_as_expression(node.ref_(self).as_qualified_name().left),
                 self.serialize_entity_name_as_expression(node),
             );
         }
-        let left = self.serialize_entity_name_as_expression_fallback(node_as_qualified_name.left);
+        let left = self
+            .serialize_entity_name_as_expression_fallback(node.ref_(self).as_qualified_name().left);
         let temp = self.factory.ref_(self).create_temp_variable(
             Some(|node: Id<Node>| self.context.ref_(self).hoist_variable_declaration(node)),
             None,
@@ -219,9 +218,10 @@ impl TransformTypeScript {
                     self.factory.ref_(self).create_void_zero(),
                 ),
             ),
-            self.factory
-                .ref_(self)
-                .create_property_access_expression(temp, node_as_qualified_name.right.clone()),
+            self.factory.ref_(self).create_property_access_expression(
+                temp,
+                released!(node.ref_(self).as_qualified_name().right),
+            ),
         )
     }
 

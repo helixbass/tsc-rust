@@ -159,11 +159,11 @@ impl TypeChecker {
         self.check_signature_declaration(node)?;
         let function_flags = get_function_flags(Some(node), self);
 
-        if let Some(node_name) = node
+        if let Some(node_name) = released!(node
             .ref_(self)
             .as_signature_declaration()
             .maybe_name()
-            .filter(|node_name| node_name.ref_(self).kind() == SyntaxKind::ComputedPropertyName)
+            .filter(|node_name| node_name.ref_(self).kind() == SyntaxKind::ComputedPropertyName))
         {
             self.check_computed_property_name(node_name)?;
         }

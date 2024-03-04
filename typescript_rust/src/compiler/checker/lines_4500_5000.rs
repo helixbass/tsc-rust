@@ -1057,9 +1057,9 @@ impl NodeBuilder {
                 )));
             } else if is_type_reference_node(&parent_name.ref_(self)) {
                 return Ok(Some(get_factory(self).create_indexed_access_type_node(
-                    get_factory(self).create_type_query_node(
-                        parent_name.ref_(self).as_type_reference_node().type_name,
-                    ),
+                    get_factory(self).create_type_query_node(released!(
+                        parent_name.ref_(self).as_type_reference_node().type_name
+                    )),
                     get_factory(self).create_literal_type_node(
                         get_factory(self).create_string_literal(member_name, None, None),
                     ),
@@ -1292,18 +1292,18 @@ impl NodeBuilder {
         }
 
         if !in_type_alias {
-            if let Some(type_alias_symbol) = type_.ref_(self).maybe_alias_symbol() {
+            if let Some(type_alias_symbol) = released!(type_.ref_(self).maybe_alias_symbol()) {
                 if context
                     .ref_(self)
                     .flags()
                     .intersects(NodeBuilderFlags::UseAliasDefinedOutsideCurrentScope)
                     || self.type_checker.ref_(self).is_type_symbol_accessible(
                         type_alias_symbol,
-                        context.ref_(self).maybe_enclosing_declaration(),
+                        released!(context.ref_(self).maybe_enclosing_declaration()),
                     )?
                 {
                     let type_argument_nodes = self.map_to_type_nodes(
-                        type_.ref_(self).maybe_alias_type_arguments().as_deref(),
+                        released!(type_.ref_(self).maybe_alias_type_arguments().clone()).as_deref(),
                         context,
                         None,
                     )?;

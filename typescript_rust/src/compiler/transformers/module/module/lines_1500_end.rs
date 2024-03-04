@@ -7,8 +7,8 @@ use crate::{
     get_original_node_id, has_syntactic_modifier, id_text, is_binding_pattern,
     is_generated_identifier, is_omitted_expression, released, set_emit_flags, EmitFlags,
     EmitHelper, GetOrInsertDefault, HasArena, InArena, ModifierFlags, Node, NodeArray, NodeExt,
-    NodeInterface, OptionInArena, OptionTry, ReadonlyTextRange, ReadonlyTextRangeConcrete,
-    ScopedEmitHelperBuilder, ScriptTarget, SyntaxKind, VisitResult,
+    NodeInterface, OptionInArena, OptionTry, ReadonlyTextRange, ScopedEmitHelperBuilder,
+    ScriptTarget, SyntaxKind, VisitResult,
 };
 
 impl TransformModule {
@@ -83,14 +83,14 @@ impl TransformModule {
                 .refed(self)
                 .as_deref(),
         ) {
-            for &element in &*decl
+            for &element in &*released!(decl
                 .ref_(self)
                 .as_named_declaration()
                 .name()
                 .ref_(self)
                 .as_has_elements()
-                .elements()
-                .ref_(self)
+                .elements())
+            .ref_(self)
             {
                 if !is_omitted_expression(&element.ref_(self)) {
                     self.append_exports_of_binding_element(statements, element);

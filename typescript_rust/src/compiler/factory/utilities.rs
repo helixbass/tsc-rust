@@ -1013,14 +1013,24 @@ pub fn try_get_module_name_from_file(
     options: &CompilerOptions,
 ) -> Option<Id<Node /*StringLiteral*/>> {
     let file = file?;
-    let file_ref = file.ref_(factory);
-    let file_as_source_file = file_ref.as_source_file();
-    if let Some(file_module_name) = file_as_source_file.maybe_module_name().clone().non_empty() {
+    if let Some(file_module_name) = file
+        .ref_(factory)
+        .as_source_file()
+        .maybe_module_name()
+        .clone()
+        .non_empty()
+    {
         return Some(factory.create_string_literal(file_module_name, None, None));
     }
-    if !file_as_source_file.is_declaration_file() && out_file(options).is_non_empty() {
+    if !file.ref_(factory).as_source_file().is_declaration_file()
+        && out_file(options).is_non_empty()
+    {
         return Some(factory.create_string_literal(
-            get_external_module_name_from_path(host, &file_as_source_file.file_name(), None),
+            released!(get_external_module_name_from_path(
+                host,
+                &file.ref_(factory).as_source_file().file_name(),
+                None
+            )),
             None,
             None,
         ));

@@ -586,7 +586,7 @@ impl TransformES2015 {
 
         self.add_extra_declarations_for_converted_loop(
             &mut statements,
-            &current_state.ref_(self),
+            current_state,
             outer_converted_loop_state,
         );
 
@@ -892,11 +892,11 @@ impl TransformES2015 {
     pub(super) fn add_extra_declarations_for_converted_loop(
         &self,
         statements: &mut Vec<Id<Node /*Statement*/>>,
-        state: &ConvertedLoopState,
+        state: Id<ConvertedLoopState>,
         outer_state: Option<Id<ConvertedLoopState>>,
     ) {
         let mut extra_variable_declarations: Option<Vec<Id<Node /*VariableDeclaration*/>>> = _d();
-        if let Some(state_arguments_name) = state.arguments_name.as_ref() {
+        if let Some(state_arguments_name) = state.ref_(self).arguments_name.as_ref() {
             if let Some(outer_state) = outer_state {
                 outer_state.ref_mut(self).arguments_name = Some(state_arguments_name.clone());
             } else {
@@ -911,7 +911,7 @@ impl TransformES2015 {
             }
         }
 
-        if let Some(state_this_name) = state.this_name {
+        if let Some(state_this_name) = state.ref_(self).this_name {
             if let Some(outer_state) = outer_state {
                 outer_state.ref_mut(self).this_name = Some(state_this_name);
             } else {
@@ -926,7 +926,9 @@ impl TransformES2015 {
             }
         }
 
-        if let Some(state_hoisted_local_variables) = state.hoisted_local_variables.as_ref() {
+        if let Some(state_hoisted_local_variables) =
+            state.ref_(self).hoisted_local_variables.as_ref()
+        {
             if let Some(outer_state) = outer_state.as_ref() {
                 outer_state.ref_mut(self).hoisted_local_variables =
                     Some(state_hoisted_local_variables.clone());
@@ -946,9 +948,9 @@ impl TransformES2015 {
             }
         }
 
-        if !state.loop_out_parameters.is_empty() {
+        if !state.ref_(self).loop_out_parameters.is_empty() {
             let extra_variable_declarations = extra_variable_declarations.get_or_insert_default_();
-            for out_param in &state.loop_out_parameters {
+            for out_param in &state.ref_(self).loop_out_parameters {
                 extra_variable_declarations.push(
                     self.factory.ref_(self).create_variable_declaration(
                         Some(out_param.out_param_name.clone()),
@@ -960,7 +962,7 @@ impl TransformES2015 {
             }
         }
 
-        if let Some(state_condition_variable) = state.condition_variable.as_ref() {
+        if let Some(state_condition_variable) = state.ref_(self).condition_variable.as_ref() {
             extra_variable_declarations.get_or_insert_default_().push(
                 self.factory.ref_(self).create_variable_declaration(
                     Some(state_condition_variable.clone()),

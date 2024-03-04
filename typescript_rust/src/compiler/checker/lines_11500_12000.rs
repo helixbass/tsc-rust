@@ -135,18 +135,20 @@ impl TypeChecker {
             .is_none()
         {
             if self.is_mapped_type_with_keyof_constraint_declaration(type_) {
-                type_.ref_(self).as_mapped_type().set_modifiers_type(Some(
-                    self.instantiate_type(
-                        self.get_type_from_type_node_(
-                            self.get_constraint_declaration_for_mapped_type(type_)
-                                .unwrap()
-                                .ref_(self)
-                                .as_type_operator_node()
-                                .type_,
-                        )?,
-                        type_.ref_(self).as_mapped_type().maybe_mapper(),
+                let modifiers_type = self.instantiate_type(
+                    self.get_type_from_type_node_(
+                        self.get_constraint_declaration_for_mapped_type(type_)
+                            .unwrap()
+                            .ref_(self)
+                            .as_type_operator_node()
+                            .type_,
                     )?,
-                ));
+                    type_.ref_(self).as_mapped_type().maybe_mapper(),
+                )?;
+                type_
+                    .ref_(self)
+                    .as_mapped_type()
+                    .set_modifiers_type(Some(modifiers_type));
             } else {
                 let declared_type = self.get_type_from_mapped_type_node(
                     type_.ref_(self).as_mapped_type().declaration,

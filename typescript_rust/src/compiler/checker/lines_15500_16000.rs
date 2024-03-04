@@ -1022,7 +1022,7 @@ impl TypeChecker {
                 let result = self.alloc_symbol(
                     self.create_symbol(
                         flags,
-                        prop.ref_(self).escaped_name().to_owned(),
+                        released!(prop.ref_(self).escaped_name().to_owned()),
                         Some(
                             self.get_is_late_check_flag(prop)
                                 | if readonly {

@@ -473,10 +473,10 @@ impl TypeChecker {
                             );
                             self.check_property_accessibility(
                                 node,
-                                matches!(
+                                released!(matches!(
                                     parent.ref_(self).as_has_initializer().maybe_initializer(),
                                     Some(parent_initializer) if parent_initializer.ref_(self).kind() == SyntaxKind::SuperKeyword
-                                ),
+                                )),
                                 false,
                                 parent_type,
                                 property,

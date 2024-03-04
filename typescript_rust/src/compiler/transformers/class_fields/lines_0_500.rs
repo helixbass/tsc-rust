@@ -758,25 +758,28 @@ impl TransformClassFields {
         &self,
         node: Id<Node>, /*BinaryExpression*/
     ) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_binary_expression = node_ref.as_binary_expression();
         if !self.should_transform_private_elements_or_class_static_blocks {
             return Some(node.into());
         }
-        let priv_id = node_as_binary_expression.left;
+        let priv_id = node.ref_(self).as_binary_expression().left;
         Debug_.assert_node(
             Some(priv_id),
             Some(|node: Id<Node>| is_private_identifier(&node.ref_(self))),
             None,
         );
         Debug_.assert(
-            node_as_binary_expression.operator_token.ref_(self).kind() == SyntaxKind::InKeyword,
+            node.ref_(self)
+                .as_binary_expression()
+                .operator_token
+                .ref_(self)
+                .kind()
+                == SyntaxKind::InKeyword,
             None,
         );
         let info = self.access_private_identifier(priv_id);
         if let Some(info) = info {
             let receiver = visit_node(
-                node_as_binary_expression.right,
+                node.ref_(self).as_binary_expression().right,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

@@ -822,12 +822,11 @@ impl InferTypes {
             .flags()
             .intersects(TypeFlags::Intersection)
             && try_some(
-                Some(
-                    target
-                        .ref_(self)
-                        .as_union_or_intersection_type_interface()
-                        .types(),
-                ),
+                Some(&released!(target
+                    .ref_(self)
+                    .as_union_or_intersection_type_interface()
+                    .types()
+                    .to_owned())),
                 Some(|&t: &Id<Type>| -> io::Result<_> {
                     Ok(self.get_inference_info_for_type(t).is_some()
                         || (self.type_checker.ref_(self).is_generic_mapped_type(t)?

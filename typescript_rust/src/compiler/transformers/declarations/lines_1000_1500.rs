@@ -826,10 +826,12 @@ impl TransformDeclarations {
                         Some(new_id.clone()),
                         None,
                         self.resolver.ref_(self).create_type_of_expression(
-                            extends_clause
-                                .ref_(self)
-                                .as_expression_with_type_arguments()
-                                .expression,
+                            released!(
+                                extends_clause
+                                    .ref_(self)
+                                    .as_expression_with_type_arguments()
+                                    .expression
+                            ),
                             input,
                             declaration_emit_node_builder_flags(),
                             self.symbol_tracker(),

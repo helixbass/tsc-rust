@@ -275,12 +275,12 @@ impl InferTypes {
     ) -> io::Result<()> {
         if source.ref_(self).flags().intersects(TypeFlags::Conditional) {
             self.infer_from_types(
-                source.ref_(self).as_conditional_type().check_type,
-                target.ref_(self).as_conditional_type().check_type,
+                released!(source.ref_(self).as_conditional_type().check_type),
+                released!(target.ref_(self).as_conditional_type().check_type),
             )?;
             self.infer_from_types(
-                source.ref_(self).as_conditional_type().extends_type,
-                target.ref_(self).as_conditional_type().extends_type,
+                released!(source.ref_(self).as_conditional_type().extends_type),
+                released!(target.ref_(self).as_conditional_type().extends_type),
             )?;
             self.infer_from_types(
                 self.type_checker

@@ -398,7 +398,7 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
                 &flatten_context,
                 value.unwrap(),
                 true,
-                &*location.ref_(arena),
+                &released!(ReadonlyTextRangeConcrete::from(&*location.ref_(arena))),
                 arena,
             )?);
         } else if node_is_synthesized(&*node.ref_(arena)) {

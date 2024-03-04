@@ -1248,7 +1248,10 @@ impl Printer {
             node,
             None,
         );
-        self.emit_expression(Some(node.ref_(self).as_with_statement().expression), None)?;
+        self.emit_expression(
+            Some(released!(node.ref_(self).as_with_statement().expression)),
+            None,
+        )?;
         self.emit_token_with_comment(
             SyntaxKind::CloseParenToken,
             node.ref_(self)

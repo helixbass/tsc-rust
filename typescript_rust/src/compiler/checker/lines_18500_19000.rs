@@ -2276,9 +2276,7 @@ impl CheckTypeRelatedTo {
                     }
                 }
             } else {
-                let distributive_constraint = self_
-                    .ref_(arena)
-                    .type_checker
+                let distributive_constraint = released!(self_.ref_(arena).type_checker)
                     .ref_(arena)
                     .get_constraint_of_distributive_conditional_type(source)?;
                 if let Some(distributive_constraint) = distributive_constraint {

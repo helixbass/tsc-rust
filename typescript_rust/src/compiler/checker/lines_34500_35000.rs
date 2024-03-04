@@ -814,8 +814,8 @@ impl TypeChecker {
         self.check_source_element(Some(released!(
             node.ref_(self).as_mapped_type_node().type_parameter
         )))?;
-        self.check_source_element(node.ref_(self).as_mapped_type_node().name_type)?;
-        self.check_source_element(node.ref_(self).as_mapped_type_node().type_)?;
+        self.check_source_element(released!(node.ref_(self).as_mapped_type_node().name_type))?;
+        self.check_source_element(released!(node.ref_(self).as_mapped_type_node().type_))?;
 
         if node.ref_(self).as_mapped_type_node().type_.is_none() {
             self.report_implicit_any(node, self.any_type(), None)?;
