@@ -2,6 +2,8 @@ use typescript_rust::{debug_cell::Ref, id_arena::Id};
 
 mod all_arenas_harness;
 pub use all_arenas_harness::*;
+mod eq_arena;
+pub use eq_arena::*;
 mod has_arena_harness;
 pub use has_arena_harness::*;
 mod in_arena_harness;

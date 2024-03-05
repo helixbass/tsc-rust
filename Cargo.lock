@@ -475,6 +475,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "speculoos",
  "threadpool",
  "typescript_rust",
  "typescript_services_rust",

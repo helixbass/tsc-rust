@@ -1584,6 +1584,7 @@ export = C;
 mod files_with_different_casing_with_force_consistent_casing_in_file_names {
     use std::any::Any;
 
+    use harness::VecEqArena;
     use once_cell::unsync::OnceCell;
     use typescript_rust::{
         combine_paths, create_get_canonical_file_name, create_program, create_source_file,
@@ -1650,20 +1651,12 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
             arena,
         )
         .into();
-        assert_that(
-            &diagnostics
-                .iter()
-                .map(|diagnostic| diagnostic.ref_(arena).clone())
-                .collect::<Vec<_>>(),
-        )
-        .is_equal_to(
-            Vec::<_>::from(sort_and_deduplicate_diagnostics(
+        assert_that(&diagnostics).is_equal_to_arena(
+            &Vec::<_>::from(sort_and_deduplicate_diagnostics(
                 &expected_diagnostics(&program.ref_(arena)),
                 arena,
-            ))
-            .iter()
-            .map(|diagnostic| diagnostic.ref_(arena).clone())
-            .collect::<Vec<_>>(),
+            )),
+            arena,
         );
     }
 
