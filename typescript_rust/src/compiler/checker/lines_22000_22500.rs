@@ -1092,8 +1092,8 @@ impl TypeChecker {
                     )
                 })));
 
-            let constraint =
-                self.get_constraint_of_type_parameter(inference.ref_(self).type_parameter)?;
+            let constraint = self
+                .get_constraint_of_type_parameter(released!(inference.ref_(self).type_parameter))?;
             if let Some(constraint) = constraint {
                 let instantiated_constraint = self.instantiate_type(
                     constraint,
