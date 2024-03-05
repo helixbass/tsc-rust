@@ -2152,7 +2152,7 @@ impl CheckTypeRelatedTo {
                     self_,
                     arena,
                     type_,
-                    target_info.ref_(arena).type_,
+                    released!(target_info.ref_(arena).type_),
                     Some(RecursionFlags::Both),
                     Some(report_errors),
                     None,
