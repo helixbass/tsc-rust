@@ -46,7 +46,7 @@ pub fn try_process_tagged_template_expression(
     arena: &impl HasArena,
 ) -> io::Result<Id<Node>> {
     let tag = try_visit_node(
-        node.ref_(arena).as_tagged_template_expression().tag,
+        released!(node.ref_(arena).as_tagged_template_expression().tag),
         Some(|node: Id<Node>| visitor(node)),
         Some(|node| is_expression(node, arena)),
         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
