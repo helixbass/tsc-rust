@@ -277,8 +277,12 @@ impl TypeChecker {
             self.get_jsx_namespace_at(Some(opening_like_element))?,
         )?;
 
-        for &attribute_decl in
-            &*released!(attributes.ref_(self).as_jsx_attributes().properties).ref_(self)
+        for &attribute_decl in &*released!(attributes
+            .ref_(self)
+            .as_jsx_attributes()
+            .properties
+            .ref_(self)
+            .clone())
         {
             let member = attribute_decl.ref_(self).maybe_symbol();
             if is_jsx_attribute(&attribute_decl.ref_(self)) {
