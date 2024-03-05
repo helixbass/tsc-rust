@@ -836,41 +836,40 @@ mod parse_config_file_text_to_json {
         assert_that!(&parsed.errors.ref_(arena).len()).is_greater_than(0);
     }
 
-    // TODO: re-enable these and figure out how to handle?
-    // #[test]
-    // fn test_generates_errors_when_files_is_not_string() {
-    //     assert_parse_file_diagnostics(
-    //         json!({
-    //             "files": [{
-    //                 "compilerOptions": {
-    //                     "experimentalDecorators": true,
-    //                     "allowJs": true
-    //                 }
-    //             }]
-    //         })
-    //         .to_string(),
-    //         "/apath/tsconfig.json",
-    //         "tests/cases/unittests",
-    //         &["/apath/a.ts"].owned(),
-    //         Diagnostics::Compiler_option_0_requires_a_value_of_type_1.code,
-    //         Some(true),
-    //     );
-    // }
+    #[test]
+    fn test_generates_errors_when_files_is_not_string() {
+        assert_parse_file_diagnostics(
+            json!({
+                "files": [{
+                    "compilerOptions": {
+                        "experimentalDecorators": true,
+                        "allowJs": true
+                    }
+                }]
+            })
+            .to_string(),
+            "/apath/tsconfig.json",
+            "tests/cases/unittests",
+            &["/apath/a.ts"].owned(),
+            Diagnostics::Compiler_option_0_requires_a_value_of_type_1.code,
+            Some(true),
+        );
+    }
 
-    // #[test]
-    // fn test_generates_errors_when_include_is_not_string() {
-    //     assert_parse_file_diagnostics(
-    //         json!({
-    //             "include": [
-    //                 ["./**/*.ts"]
-    //             ]
-    //         })
-    //         .to_string(),
-    //         "/apath/tsconfig.json",
-    //         "tests/cases/unittests",
-    //         &["/apath/a.ts"].owned(),
-    //         Diagnostics::Compiler_option_0_requires_a_value_of_type_1.code,
-    //         Some(true),
-    //     );
-    // }
+    #[test]
+    fn test_generates_errors_when_include_is_not_string() {
+        assert_parse_file_diagnostics(
+            json!({
+                "include": [
+                    ["./**/*.ts"]
+                ]
+            })
+            .to_string(),
+            "/apath/tsconfig.json",
+            "tests/cases/unittests",
+            &["/apath/a.ts"].owned(),
+            Diagnostics::Compiler_option_0_requires_a_value_of_type_1.code,
+            Some(true),
+        );
+    }
 }

@@ -932,6 +932,7 @@ impl TransformES2018 {
                     self.record_tagged_template_string(node);
                 },
                 ProcessLevel::LiftRestriction,
+                self,
             )
             .into(),
         )

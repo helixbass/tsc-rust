@@ -175,6 +175,7 @@ impl TransformES2015 {
                 self.current_source_file(),
                 |node: Id<Node>| self.record_tagged_template_string(node),
                 ProcessLevel::All,
+                self,
             )?
             .into(),
         ))
