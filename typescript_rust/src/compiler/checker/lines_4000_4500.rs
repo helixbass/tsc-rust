@@ -40,14 +40,16 @@ impl TypeChecker {
             return Ok(Some(container));
         }
         let exports = self.get_exports_of_symbol(container)?;
-        let exports = exports.ref_(self);
-        let quick = exports.get(symbol.ref_(self).escaped_name());
-        if let Some(&quick) = quick {
+        let quick = exports
+            .ref_(self)
+            .get(symbol.ref_(self).escaped_name())
+            .copied();
+        if let Some(quick) = quick {
             if self.get_symbol_if_same_reference(quick, symbol)?.is_some() {
                 return Ok(Some(quick.clone()));
             }
         }
-        try_for_each_entry(&*exports, |&exported: &Id<Symbol>, _| {
+        try_for_each_entry(&*exports.ref_(self), |&exported: &Id<Symbol>, _| {
             if self
                 .get_symbol_if_same_reference(exported, symbol)?
                 .is_some()
