@@ -575,15 +575,21 @@ pub fn get_parsed_command_line_of_config_file(
 
     let result = parse_json_text(config_file_name, config_file_text, arena);
     let cwd = host.get_current_directory()?;
-    let result_ref = result.ref_(arena);
-    let result_as_source_file = result_ref.as_source_file();
-    result_as_source_file.set_path(to_path(
+    result.ref_(arena).as_source_file().set_path(to_path(
         config_file_name,
         Some(&cwd),
         create_get_canonical_file_name(host.use_case_sensitive_file_names()),
     ));
-    result_as_source_file.set_resolved_path(Some(result_as_source_file.path().clone()));
-    result_as_source_file.set_original_file_name(Some(result_as_source_file.file_name().clone()));
+    result
+        .ref_(arena)
+        .as_source_file()
+        .set_resolved_path(Some(result.ref_(arena).as_source_file().path().clone()));
+    result
+        .ref_(arena)
+        .as_source_file()
+        .set_original_file_name(Some(
+            result.ref_(arena).as_source_file().file_name().clone(),
+        ));
     Ok(Some(parse_json_source_file_config_file_content(
         result,
         host,
