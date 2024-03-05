@@ -805,9 +805,7 @@ impl TypeChecker {
         t: Id<Type>,
         fix: bool,
     ) -> io::Result<Id<Type>> {
-        let context_ref = context.ref_(self);
-        let inferences = context_ref.inferences();
-        let inferences = &*inferences;
+        let ref inferences = context.ref_(self).inferences().clone();
         for (i, inference) in inferences.into_iter().enumerate() {
             if t == inference.ref_(self).type_parameter {
                 if fix && !inference.ref_(self).is_fixed() {

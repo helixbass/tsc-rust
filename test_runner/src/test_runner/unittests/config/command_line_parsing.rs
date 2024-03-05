@@ -191,6 +191,7 @@ mod parse_command_line {
                         None,
                     ).into()),
                 ], arena)
+                .options(arena.alloc_compiler_options(Default::default()))
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
@@ -941,9 +942,10 @@ mod parse_command_line {
         use indexmap::IndexMap;
         use typescript_rust::{
             create_option_name_map, format_string_from_args, id_arena::Id, impl_has_arena,
-            AllArenas, AlternateModeDiagnostics, CommandLineOption, CommandLineOptionBaseBuilder,
-            CommandLineOptionType, DiagnosticMessage, DidYouMeanOptionsDiagnostics, HasArena,
-            ModuleResolutionKind, NonEmpty, OptionsNameMap, VecExt,
+            released, AllArenas, AlternateModeDiagnostics, CommandLineOption,
+            CommandLineOptionBaseBuilder, CommandLineOptionType, DiagnosticMessage,
+            DidYouMeanOptionsDiagnostics, HasArena, ModuleResolutionKind, NonEmpty, OptionsNameMap,
+            VecExt,
         };
 
         use super::*;
@@ -1232,8 +1234,9 @@ mod parse_command_line {
                     diagnostic_message: &Diagnostics::Option_0_can_only_be_specified_in_tsconfig_json_file_or_set_to_null_on_command_line,
                     worker_diagnostic: Some(Rc::new(move || {
                         let option_declarations: Id<Vec<Id<CommandLineOption>>> =
-                            arena.alloc_vec_command_line_option(compiler_options_did_you_mean_diagnostics(arena)
-                                .ref_(arena).option_declarations()
+                            arena.alloc_vec_command_line_option(released!(compiler_options_did_you_mean_diagnostics(arena)
+                                .ref_(arena)
+                                .option_declarations()
                                 .ref_(arena)
                                 .clone()
                                 .and_push(
@@ -1245,7 +1248,7 @@ mod parse_command_line {
                                         .description(&*Diagnostics::Enable_project_compilation)
                                         .default_value_description("undefined".to_owned())
                                         .build().unwrap().try_into_command_line_option(arena).unwrap())
-                                ));
+                                )));
                         arena.alloc_parse_command_line_worker_diagnostics(Box::new(VerifyNullNonIncludedOptionParseCommandLineWorkerDiagnostics {
                             arena: arena.arena(),
                             option_declarations,
@@ -1354,6 +1357,7 @@ mod parse_command_line {
                     arena
                         .alloc_compiler_options(CompilerOptionsBuilder::default().build().unwrap()),
                 )
+                .errors(vec![], arena)
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
