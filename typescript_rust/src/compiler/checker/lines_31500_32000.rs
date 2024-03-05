@@ -222,9 +222,10 @@ impl TypeChecker {
                         .ref_mut(self)
                         .type_ = self.get_type_for_binding_element(element)?;
                 } else {
-                    self.assign_binding_element_types(
-                        element.ref_(self).as_binding_element().name(),
-                    )?;
+                    self.assign_binding_element_types(released!(element
+                        .ref_(self)
+                        .as_binding_element()
+                        .name()))?;
                 }
             }
         }

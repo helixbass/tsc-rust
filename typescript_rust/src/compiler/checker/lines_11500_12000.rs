@@ -1092,17 +1092,18 @@ impl TypeChecker {
             {
                 let target_default =
                     self.get_resolved_type_parameter_default(type_parameter_target)?;
+                let default = if let Some(target_default) = target_default {
+                    self.instantiate_type(
+                        target_default,
+                        released!(type_parameter.ref_(self).as_type_parameter().maybe_mapper()),
+                    )?
+                } else {
+                    self.no_constraint_type()
+                };
                 type_parameter
                     .ref_(self)
                     .as_type_parameter()
-                    .set_default(Some(if let Some(target_default) = target_default {
-                        self.instantiate_type(
-                            target_default,
-                            type_parameter.ref_(self).as_type_parameter().maybe_mapper(),
-                        )?
-                    } else {
-                        self.no_constraint_type()
-                    }));
+                    .set_default(Some(default));
             } else {
                 type_parameter
                     .ref_(self)
