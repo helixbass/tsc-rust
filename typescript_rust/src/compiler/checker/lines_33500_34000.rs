@@ -518,8 +518,7 @@ impl TypeChecker {
         let mut new_type_parameters: Option<Vec<Id<Type /*TypeParameter*/>>> = None;
         for &tp in type_parameters {
             let tp_symbol = tp.ref_(self).symbol();
-            let tp_symbol_ref = tp_symbol.ref_(self);
-            let name = tp_symbol_ref.escaped_name();
+            let ref name = tp_symbol.ref_(self).escaped_name().to_owned();
             if self.has_type_parameter_by_name(
                 context
                     .ref_(self)
