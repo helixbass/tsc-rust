@@ -250,22 +250,20 @@ impl TransformClassFields {
                                             }),
                                             None,
                                         ));
-                                    setter_name = Some(
-                                        self.factory.ref_(self).create_assignment(
-                                            getter_name.clone().unwrap(),
-                                            visit_node(
-                                                released!(
+                                    setter_name = Some(self.factory.ref_(self).create_assignment(
+                                        getter_name.clone().unwrap(),
+                                        visit_node(
+                                            released!(
                                                     node_operand
                                                         .ref_(self)
                                                         .as_element_access_expression()
                                                         .argument_expression
                                                 ),
-                                                Some(|node: Id<Node>| self.visitor(node)),
-                                                Some(|node| is_expression(node, self)),
-                                                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
-                                            ),
+                                            Some(|node: Id<Node>| self.visitor(node)),
+                                            Some(|node| is_expression(node, self)),
+                                            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                         ),
-                                    );
+                                    ));
                                 }
                             }
                             if let (Some(setter_name), Some(getter_name)) =
@@ -648,7 +646,7 @@ impl TransformClassFields {
                     .ref_(self)
                     .create_function_bind_call(
                         visit_node(
-                            node.ref_(self).as_tagged_template_expression().tag,
+                            released!(node.ref_(self).as_tagged_template_expression().tag),
                             Some(|node: Id<Node>| self.visitor(node)),
                             Some(|node| is_expression(node, self)),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
