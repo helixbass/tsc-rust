@@ -225,16 +225,17 @@ impl TransformClassFields {
                                     getter_name = setter_name.clone();
                                 }
                             } else {
-                                let node_operand_ref = node_operand.ref_(self);
-                                let node_operand_as_element_access_expression =
-                                    node_operand_ref.as_element_access_expression();
                                 if is_simple_inlineable_expression(
-                                    &node_operand_as_element_access_expression
+                                    &node_operand
+                                        .ref_(self)
+                                        .as_element_access_expression()
                                         .argument_expression
                                         .ref_(self),
                                 ) {
                                     setter_name = Some(
-                                        node_operand_as_element_access_expression
+                                        node_operand
+                                            .ref_(self)
+                                            .as_element_access_expression()
                                             .argument_expression
                                             .clone(),
                                     );
@@ -253,8 +254,12 @@ impl TransformClassFields {
                                         self.factory.ref_(self).create_assignment(
                                             getter_name.clone().unwrap(),
                                             visit_node(
-                                                node_operand_as_element_access_expression
-                                                    .argument_expression,
+                                                released!(
+                                                    node_operand
+                                                        .ref_(self)
+                                                        .as_element_access_expression()
+                                                        .argument_expression
+                                                ),
                                                 Some(|node: Id<Node>| self.visitor(node)),
                                                 Some(|node| is_expression(node, self)),
                                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

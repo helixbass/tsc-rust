@@ -49,15 +49,18 @@ impl TypeChecker {
                 return Ok(Some(quick.clone()));
             }
         }
-        try_for_each_entry(&*exports.ref_(self), |&exported: &Id<Symbol>, _| {
-            if self
-                .get_symbol_if_same_reference(exported, symbol)?
-                .is_some()
-            {
-                return Ok(Some(exported.clone()));
-            }
-            Ok(None)
-        })
+        try_for_each_entry(
+            &released!(exports.ref_(self).clone()),
+            |&exported: &Id<Symbol>, _| {
+                if self
+                    .get_symbol_if_same_reference(exported, symbol)?
+                    .is_some()
+                {
+                    return Ok(Some(exported.clone()));
+                }
+                Ok(None)
+            },
+        )
     }
 
     pub(super) fn get_symbol_if_same_reference(

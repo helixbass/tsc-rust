@@ -396,9 +396,10 @@ impl Printer {
         )?;
         self.emit_type_arguments(
             node,
-            node.ref_(self)
+            released!(node
+                .ref_(self)
                 .as_type_reference_node()
-                .maybe_type_arguments(),
+                .maybe_type_arguments()),
         )?;
 
         Ok(())

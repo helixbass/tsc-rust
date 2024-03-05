@@ -2105,14 +2105,10 @@ impl CheckTypeRelatedTo {
             {
                 continue;
             }
-            if self_
-                .ref_(arena)
-                .type_checker
+            if released!(self_.ref_(arena).type_checker)
                 .ref_(arena)
                 .is_applicable_index_type(
-                    self_
-                        .ref_(arena)
-                        .type_checker
+                    released!(self_.ref_(arena).type_checker)
                         .ref_(arena)
                         .get_literal_type_from_property(
                             prop,

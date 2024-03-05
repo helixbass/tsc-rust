@@ -149,7 +149,9 @@ impl TransformES2015 {
         {
             current_state.ref_mut(self).condition_variable =
                 Some(self.factory.ref_(self).create_unique_name("inc", None));
-            if let Some(node_incrementor) = node.ref_(self).as_for_statement().incrementor {
+            if let Some(node_incrementor) =
+                released!(node.ref_(self).as_for_statement().incrementor)
+            {
                 statements.push(
                     self.factory.ref_(self).create_if_statement(
                         current_state.ref_(self).condition_variable.clone().unwrap(),
