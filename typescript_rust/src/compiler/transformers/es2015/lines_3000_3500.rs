@@ -149,9 +149,7 @@ impl TransformES2015 {
         {
             current_state.ref_mut(self).condition_variable =
                 Some(self.factory.ref_(self).create_unique_name("inc", None));
-            let node_ref = node.ref_(self);
-            let node_as_for_statement = node_ref.as_for_statement();
-            if let Some(node_incrementor) = node_as_for_statement.incrementor {
+            if let Some(node_incrementor) = node.ref_(self).as_for_statement().incrementor {
                 statements.push(
                     self.factory.ref_(self).create_if_statement(
                         current_state.ref_(self).condition_variable.clone().unwrap(),
@@ -192,7 +190,7 @@ impl TransformES2015 {
                         self.factory.ref_(self).create_prefix_unary_expression(
                             SyntaxKind::ExclamationToken,
                             try_visit_node(
-                                node_as_for_statement.condition.unwrap(),
+                                released!(node.ref_(self).as_for_statement().condition.unwrap()),
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

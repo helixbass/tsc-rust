@@ -134,7 +134,10 @@ impl Printer {
             Printer::write_property,
         )?;
         self.emit(node.ref_(self).as_property_signature().question_token, None)?;
-        self.emit_type_annotation(node.ref_(self).as_property_signature().maybe_type())?;
+        self.emit_type_annotation(released!(node
+            .ref_(self)
+            .as_property_signature()
+            .maybe_type()))?;
         self.write_trailing_semicolon();
 
         Ok(())
@@ -387,10 +390,16 @@ impl Printer {
         &self,
         node: Id<Node>, /*TypeReferenceNode*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_type_reference_node = node_ref.as_type_reference_node();
-        self.emit(Some(node_as_type_reference_node.type_name), None)?;
-        self.emit_type_arguments(node, node_as_type_reference_node.maybe_type_arguments())?;
+        self.emit(
+            Some(node.ref_(self).as_type_reference_node().type_name),
+            None,
+        )?;
+        self.emit_type_arguments(
+            node,
+            node.ref_(self)
+                .as_type_reference_node()
+                .maybe_type_arguments(),
+        )?;
 
         Ok(())
     }
@@ -627,7 +636,7 @@ impl Printer {
     pub(super) fn emit_union_type(&self, node: Id<Node> /*UnionTypeNode*/) -> io::Result<()> {
         self.emit_list(
             Some(node),
-            Some(node.ref_(self).as_union_type_node().types),
+            released!(Some(node.ref_(self).as_union_type_node().types)),
             ListFormat::UnionTypeConstituents,
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeMemberOfElementTypeCurrentParenthesizerRule::new(

@@ -1005,14 +1005,10 @@ impl CheckTypeRelatedTo {
                             result &= Self::is_related_to(
                                 self_,
                                 arena,
-                                self_
-                                    .ref_(arena)
-                                    .type_checker
+                                released!(self_.ref_(arena).type_checker)
                                     .ref_(arena)
                                     .get_true_type_from_conditional_type(source)?,
-                                self_
-                                    .ref_(arena)
-                                    .type_checker
+                                released!(self_.ref_(arena).type_checker)
                                     .ref_(arena)
                                     .get_true_type_from_conditional_type(target)?,
                                 Some(RecursionFlags::Both),

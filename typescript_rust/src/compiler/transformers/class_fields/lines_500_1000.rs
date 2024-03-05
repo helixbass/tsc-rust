@@ -207,15 +207,19 @@ impl TransformClassFields {
                             let mut setter_name: Option<Id<Node /*Expression*/>> = None;
                             let mut getter_name: Option<Id<Node /*Expression*/>> = None;
                             if is_property_access_expression(&node_operand.ref_(self)) {
-                                let node_operand_ref = node_operand.ref_(self);
-                                let node_operand_as_property_access_expression =
-                                    node_operand_ref.as_property_access_expression();
                                 if is_identifier(
-                                    &node_operand_as_property_access_expression.name().ref_(self),
+                                    &node_operand
+                                        .ref_(self)
+                                        .as_property_access_expression()
+                                        .name()
+                                        .ref_(self),
                                 ) {
                                     setter_name = Some(
                                         self.factory.ref_(self).create_string_literal_from_node(
-                                            node_operand_as_property_access_expression.name(),
+                                            released!(node_operand
+                                                .ref_(self)
+                                                .as_property_access_expression()
+                                                .name()),
                                         ),
                                     );
                                     getter_name = setter_name.clone();

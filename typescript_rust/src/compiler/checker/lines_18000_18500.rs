@@ -1913,9 +1913,7 @@ impl CheckTypeRelatedTo {
                     .ref_(arena)
                     .is_ignored_jsx_property(source, prop)
             {
-                if !self_
-                    .ref_(arena)
-                    .type_checker
+                if !released!(self_.ref_(arena).type_checker)
                     .ref_(arena)
                     .is_known_property(
                         reduced_target,
