@@ -1097,8 +1097,8 @@ impl InferTypes {
                 .intersects(TypeFlags::IndexedAccess)
         {
             self.infer_from_types(
-                source.ref_(self).as_indexed_access_type().object_type,
-                target.ref_(self).as_indexed_access_type().object_type,
+                released!(source.ref_(self).as_indexed_access_type().object_type),
+                released!(target.ref_(self).as_indexed_access_type().object_type),
             )?;
             self.infer_from_types(
                 released!(source.ref_(self).as_indexed_access_type().index_type),

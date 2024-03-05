@@ -967,8 +967,8 @@ mod parse_command_line {
             worker_diagnostic: Option<
                 impl FnMut() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>,
             >,
+            arena: &impl HasArena,
         ) {
-            let ref arena = AllArenasHarness::default();
             assert_parse_result(
                 [&*format!("--{option_name}"), "null", "0.ts"],
                 ParsedCommandLineBuilder::default()
@@ -993,8 +993,8 @@ mod parse_command_line {
             worker_diagnostic: Option<
                 impl FnMut() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>,
             >,
+            arena: &impl HasArena,
         ) {
-            let ref arena = AllArenasHarness::default();
             assert_parse_result(
                 [&*format!("--{option_name}"), non_null_value, "0.ts"],
                 ParsedCommandLineBuilder::default()
@@ -1035,8 +1035,8 @@ mod parse_command_line {
             worker_diagnostic: Option<
                 impl FnMut() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>,
             >,
+            arena: &impl HasArena,
         ) {
-            let ref arena = AllArenasHarness::default();
             assert_parse_result(
                 ["0.ts", "--strictNullChecks", &*format!("--{option_name}")],
                 ParsedCommandLineBuilder::default()
@@ -1080,8 +1080,8 @@ mod parse_command_line {
             worker_diagnostic: Option<
                 impl FnMut() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>,
             >,
+            arena: &impl HasArena,
         ) {
-            let ref arena = AllArenasHarness::default();
             assert_parse_result(
                 ["0.ts", &*format!("--{option_name}")],
                 ParsedCommandLineBuilder::default()
@@ -1123,12 +1123,14 @@ mod parse_command_line {
                 worker_diagnostic,
                 diagnostic_message,
             }: VerifyNull,
+            arena: &impl HasArena,
         ) {
             verify_null_allows_setting_it_to_null(
                 &option_name,
                 worker_diagnostic
                     .as_ref()
                     .map(|worker_diagnostic| || worker_diagnostic()),
+                arena,
             );
 
             if let Some(non_null_value) = non_null_value.as_ref().non_empty() {
@@ -1139,6 +1141,7 @@ mod parse_command_line {
                     worker_diagnostic
                         .as_ref()
                         .map(|worker_diagnostic| || worker_diagnostic()),
+                    arena,
                 );
             }
 
@@ -1148,6 +1151,7 @@ mod parse_command_line {
                 worker_diagnostic
                     .as_ref()
                     .map(|worker_diagnostic| || worker_diagnostic()),
+                arena,
             );
 
             verify_null_errors_if_its_last_option(
@@ -1156,6 +1160,7 @@ mod parse_command_line {
                 worker_diagnostic
                     .as_ref()
                     .map(|worker_diagnostic| || worker_diagnostic()),
+                arena,
             );
         }
 
@@ -1255,7 +1260,8 @@ mod parse_command_line {
                             compiler_options_did_you_mean_diagnostics: compiler_options_did_you_mean_diagnostics(arena)
                         }))
                     })),
-                }
+                },
+                arena,
             );
         }
 
@@ -1287,34 +1293,40 @@ mod parse_command_line {
 
             #[test]
             fn test_verify_null() {
+                let ref arena = AllArenasHarness::default();
                 verify_null(
                     VerifyNullBuilder::default()
                         .option_name("composite")
                         .non_null_value("true")
                         .diagnostic_message(&*Diagnostics::Option_0_can_only_be_specified_in_tsconfig_json_file_or_set_to_false_or_null_on_command_line)
-                        .build().unwrap()
+                        .build().unwrap(),
+                    arena,
                 );
             }
         }
 
         #[test]
         fn test_option_of_type_object() {
+            let ref arena = AllArenasHarness::default();
             verify_null(
                 VerifyNullBuilder::default()
                     .option_name("paths")
                     .diagnostic_message(&*Diagnostics::Option_0_can_only_be_specified_in_tsconfig_json_file_or_set_to_null_on_command_line)
-                    .build().unwrap()
+                    .build().unwrap(),
+                arena,
             );
         }
 
         #[test]
         fn test_option_of_type_list() {
+            let ref arena = AllArenasHarness::default();
             verify_null(
                 VerifyNullBuilder::default()
                     .option_name("rootDirs")
                     .non_null_value("abc,xyz")
                     .diagnostic_message(&*Diagnostics::Option_0_can_only_be_specified_in_tsconfig_json_file_or_set_to_null_on_command_line)
-                    .build().unwrap()
+                    .build().unwrap(),
+                arena,
             );
         }
 
