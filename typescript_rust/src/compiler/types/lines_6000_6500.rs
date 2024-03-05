@@ -2055,43 +2055,38 @@ impl ParsedCommandLineWithBaseOptions {
     }
 }
 
-mod _ParsedCommandLineDeriveTraceScope {
-    use super::*;
+#[derive(Builder, Debug)]
+#[builder(setter(into, strip_option))]
+pub struct ParsedCommandLine {
+    pub options: Id<CompilerOptions>,
+    #[builder(default)]
+    pub type_acquisition: Option<Rc<TypeAcquisition>>,
+    #[builder(default)]
+    pub file_names: Vec<String>,
+    #[builder(default)]
+    pub project_references: Option<Vec<Rc<ProjectReference>>>,
+    #[builder(default)]
+    pub watch_options: Option<Rc<WatchOptions>>,
+    #[builder(default)]
+    pub raw: Option<serde_json::Value>,
+    #[builder(setter(custom))]
+    pub errors: Id<Vec<Id<Diagnostic>>>,
+    #[builder(default)]
+    pub wildcard_directories: Option<HashMap<String, WatchDirectoryFlags>>,
+    #[builder(default)]
+    pub compile_on_save: Option<bool>,
+}
 
-    #[derive(Builder, Debug)]
-    #[builder(setter(into, strip_option))]
-    pub struct ParsedCommandLine {
-        pub options: Id<CompilerOptions>,
-        #[builder(default)]
-        pub type_acquisition: Option<Rc<TypeAcquisition>>,
-        #[builder(default)]
-        pub file_names: Vec<String>,
-        #[builder(default)]
-        pub project_references: Option<Vec<Rc<ProjectReference>>>,
-        #[builder(default)]
-        pub watch_options: Option<Rc<WatchOptions>>,
-        #[builder(default)]
-        pub raw: Option<serde_json::Value>,
-        #[builder(setter(custom))]
-        pub errors: Id<Vec<Id<Diagnostic>>>,
-        #[builder(default)]
-        pub wildcard_directories: Option<HashMap<String, WatchDirectoryFlags>>,
-        #[builder(default)]
-        pub compile_on_save: Option<bool>,
-    }
-
-    impl ParsedCommandLineBuilder {
-        pub fn errors(
-            &mut self,
-            value: impl Into<Vec<Id<Diagnostic>>>,
-            arena: &impl HasArena,
-        ) -> &mut Self {
-            self.errors = Some(arena.alloc_vec_diagnostic(value.into()));
-            self
-        }
+impl ParsedCommandLineBuilder {
+    pub fn errors(
+        &mut self,
+        value: impl Into<Vec<Id<Diagnostic>>>,
+        arena: &impl HasArena,
+    ) -> &mut Self {
+        self.errors = Some(arena.alloc_vec_diagnostic(value.into()));
+        self
     }
 }
-pub use _ParsedCommandLineDeriveTraceScope::{ParsedCommandLine, ParsedCommandLineBuilder};
 
 bitflags! {
     pub struct WatchDirectoryFlags: u32 {

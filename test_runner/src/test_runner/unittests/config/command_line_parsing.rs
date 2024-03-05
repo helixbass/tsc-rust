@@ -118,6 +118,7 @@ mod parse_command_line {
                             .unwrap(),
                     ),
                 )
+                .errors(vec![], arena)
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
@@ -150,6 +151,7 @@ mod parse_command_line {
                     }).collect_vec(),
                     arena,
                 )
+                .options(arena.alloc_compiler_options(Default::default()))
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
@@ -214,6 +216,7 @@ mod parse_command_line {
                             .unwrap(),
                     ),
                 )
+                .errors(vec![], arena)
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
@@ -620,6 +623,7 @@ mod parse_command_line {
                             .unwrap(),
                     ),
                 )
+                .errors(vec![], arena)
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
@@ -736,6 +740,7 @@ mod parse_command_line {
                             .unwrap(),
                     ),
                 )
+                .errors(vec![], arena)
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
@@ -771,6 +776,7 @@ mod parse_command_line {
                             .unwrap(),
                     ),
                 )
+                .errors(vec![], arena)
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
@@ -808,6 +814,7 @@ mod parse_command_line {
                             .unwrap(),
                     ),
                 )
+                .errors(vec![], arena)
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
@@ -830,6 +837,7 @@ mod parse_command_line {
                             .unwrap(),
                     ),
                 )
+                .errors(vec![], arena)
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
@@ -852,6 +860,7 @@ mod parse_command_line {
                             .unwrap(),
                     ),
                 )
+                .errors(vec![], arena)
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
@@ -873,6 +882,7 @@ mod parse_command_line {
                             .unwrap(),
                     ),
                 )
+                .errors(vec![], arena)
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
@@ -895,6 +905,7 @@ mod parse_command_line {
                             .unwrap(),
                     ),
                 )
+                .errors(vec![], arena)
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
@@ -917,6 +928,7 @@ mod parse_command_line {
                             .unwrap(),
                     ),
                 )
+                .errors(vec![], arena)
                 .build()
                 .unwrap(),
             Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
@@ -964,6 +976,7 @@ mod parse_command_line {
                             CompilerOptionsBuilder::default().build().unwrap(),
                         ),
                     )
+                    .errors(vec![], arena)
                     .build()
                     .unwrap(),
                 worker_diagnostic,
@@ -1261,6 +1274,7 @@ mod parse_command_line {
                                     .unwrap(),
                             ),
                         )
+                        .errors(vec![], arena)
                         .build()
                         .unwrap(),
                     Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
@@ -1368,6 +1382,7 @@ mod parse_command_line {
                             .unwrap(),
                     )
                     .options(arena.alloc_compiler_options(Default::default()))
+                    .errors(vec![], arena)
                     .build()
                     .unwrap(),
                 Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
@@ -1388,6 +1403,8 @@ mod parse_command_line {
                             .build()
                             .unwrap(),
                     )
+                    .options(arena.alloc_compiler_options(Default::default()))
+                    .errors(vec![], arena)
                     .build()
                     .unwrap(),
                 Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
@@ -1408,6 +1425,8 @@ mod parse_command_line {
                             .build()
                             .unwrap(),
                     )
+                    .options(arena.alloc_compiler_options(Default::default()))
+                    .errors(vec![], arena)
                     .build()
                     .unwrap(),
                 Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
@@ -1428,6 +1447,8 @@ mod parse_command_line {
                             .build()
                             .unwrap(),
                     )
+                    .options(arena.alloc_compiler_options(Default::default()))
+                    .errors(vec![], arena)
                     .build()
                     .unwrap(),
                 Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
@@ -1469,6 +1490,7 @@ mod parse_command_line {
                     ], arena)
                     .file_names(["0.ts".to_owned()])
                     .watch_options(WatchOptions::default())
+                    .options(arena.alloc_compiler_options(Default::default()))
                     .build()
                     .unwrap(),
                 Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
@@ -1489,6 +1511,8 @@ mod parse_command_line {
                             .build()
                             .unwrap(),
                     )
+                    .options(arena.alloc_compiler_options(Default::default()))
+                    .errors(vec![], arena)
                     .build()
                     .unwrap(),
                 Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
@@ -1523,6 +1547,7 @@ mod parse_command_line {
                             .build()
                             .unwrap(),
                     )
+                    .options(arena.alloc_compiler_options(Default::default()))
                     .build()
                     .unwrap(),
                 Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
@@ -1543,6 +1568,8 @@ mod parse_command_line {
                             .build()
                             .unwrap(),
                     )
+                    .options(arena.alloc_compiler_options(Default::default()))
+                    .errors(vec![], arena)
                     .build()
                     .unwrap(),
                 Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
@@ -1577,6 +1604,7 @@ mod parse_command_line {
                             .build()
                             .unwrap(),
                     )
+                    .options(arena.alloc_compiler_options(Default::default()))
                     .build()
                     .unwrap(),
                 Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
