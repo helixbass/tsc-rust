@@ -433,7 +433,7 @@ impl TransformGenerators {
             }
             OpCode::Yield => self.write_yield(args.as_option_node(), location.as_ref()),
             OpCode::YieldStar => self.write_yield_star(args.as_node(), location.as_ref()),
-            OpCode::Return => self.write_return(Some(args.as_node()), location.as_ref()),
+            OpCode::Return => self.write_return(args.as_option_node(), location.as_ref()),
             OpCode::Throw => self.write_throw(args.as_node(), location.as_ref()),
             _ => (),
         }

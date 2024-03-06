@@ -375,10 +375,11 @@ impl TransformGenerators {
     }
 
     pub(super) fn transform_and_emit_block(&self, node: Id<Node> /*Block*/) {
-        let node_ref = node.ref_(self);
-        let node_as_block = node_ref.as_block();
         if self.contains_yield(Some(node)) {
-            self.transform_and_emit_statements(&node_as_block.statements.ref_(self), None);
+            self.transform_and_emit_statements(
+                &released!(node.ref_(self).as_block().statements.ref_(self).clone()),
+                None,
+            );
         } else {
             self.emit_statement(maybe_visit_node(
                 Some(node),
