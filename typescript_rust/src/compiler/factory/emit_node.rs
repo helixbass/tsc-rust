@@ -332,20 +332,24 @@ pub fn move_emit_helpers(
     arena: &impl HasArena,
 ) {
     let source_emit_node = return_if_none!(source.ref_(arena).maybe_emit_node());
-    let mut source_emit_node = source_emit_node.ref_mut(arena);
-    if source_emit_node.helpers.is_none() {
+    if source_emit_node.ref_(arena).helpers.is_none() {
         return;
     }
-    let source_emit_helpers = source_emit_node.helpers.as_mut().unwrap();
-    if source_emit_helpers.is_empty() {
+    if source_emit_node
+        .ref_(arena)
+        .helpers
+        .as_ref()
+        .unwrap()
+        .is_empty()
+    {
         return;
     }
 
     let target_emit_node = get_or_create_emit_node(target, arena);
     let mut target_emit_node = target_emit_node.ref_mut(arena);
     let mut helpers_removed = 0;
-    for i in 0..source_emit_helpers.len() {
-        let helper = source_emit_helpers[i].clone();
+    for i in 0..source_emit_node.ref_(arena).helpers.as_ref().unwrap().len() {
+        let helper = source_emit_node.ref_(arena).helpers.as_ref().unwrap()[i].clone();
         if predicate(&helper.ref_(arena)) {
             helpers_removed += 1;
             target_emit_node
@@ -353,12 +357,17 @@ pub fn move_emit_helpers(
                 .get_or_insert_default_()
                 .push(helper);
         } else if helpers_removed > 0 {
-            source_emit_helpers[i - helpers_removed] = helper;
+            source_emit_node.ref_(arena).helpers.as_mut().unwrap()[i - helpers_removed] = helper;
         }
     }
 
     if helpers_removed > 0 {
-        source_emit_helpers.truncate(source_emit_helpers.len() - helpers_removed);
+        source_emit_node
+            .ref_(arena)
+            .helpers
+            .as_mut()
+            .unwrap()
+            .truncate(source_emit_helpers.len() - helpers_removed);
     }
 }
 

@@ -14,8 +14,8 @@ use crate::{
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, _d, chain_bundle, downcast_transformer_ref,
     get_emit_script_target, get_original_node, get_original_node_id, id_text, impl_has_arena,
-    is_function_like_declaration, is_generated_identifier, is_identifier, ref_mut_unwrapped,
-    ref_unwrapped, released, visit_each_child, visit_parameter_list, AllArenas,
+    is_function_like_declaration, is_generated_identifier, is_identifier, maybe_visit_each_child,
+    ref_mut_unwrapped, ref_unwrapped, released, visit_each_child, visit_parameter_list, AllArenas,
     CoreTransformationContext, Debug_, FunctionLikeDeclarationInterface, HasArena, InArena,
     Matches, NamedDeclarationInterface, NodeArray, NodeExt, NodeInterface, ScriptTarget,
     SignatureDeclarationInterface, SyntaxKind, TransformFlags, TransformNodesTransformationResult,
@@ -820,15 +820,13 @@ impl TransformGenerators {
         {
             self.visit_generator(node)
         } else if transform_flags.intersects(TransformFlags::ContainsGenerator) {
-            Some(
-                visit_each_child(
-                    node,
-                    |node: Id<Node>| self.visitor(node),
-                    &*self.context.ref_(self),
-                    self,
-                )
-                .into(),
+            maybe_visit_each_child(
+                Some(node),
+                |node: Id<Node>| self.visitor(node),
+                &*self.context.ref_(self),
+                self,
             )
+            .map(Into::into)
         } else {
             Some(node.into())
         }
@@ -876,15 +874,13 @@ impl TransformGenerators {
                     TransformFlags::ContainsGenerator
                         | TransformFlags::ContainsHoistedDeclarationOrCompletion,
                 ) {
-                    Some(
-                        visit_each_child(
-                            node,
-                            |node: Id<Node>| self.visitor(node),
-                            &*self.context.ref_(self),
-                            self,
-                        )
-                        .into(),
+                    maybe_visit_each_child(
+                        Some(node),
+                        |node: Id<Node>| self.visitor(node),
+                        &*self.context.ref_(self),
+                        self,
                     )
+                    .map(Into::into)
                 } else {
                     Some(node.into())
                 }
@@ -906,15 +902,13 @@ impl TransformGenerators {
             SyntaxKind::ElementAccessExpression => self.visit_element_access_expression(node),
             SyntaxKind::CallExpression => self.visit_call_expression(node),
             SyntaxKind::NewExpression => self.visit_new_expression(node),
-            _ => Some(
-                visit_each_child(
-                    node,
-                    |node: Id<Node>| self.visitor(node),
-                    &*self.context.ref_(self),
-                    self,
-                )
-                .into(),
-            ),
+            _ => maybe_visit_each_child(
+                Some(node),
+                |node: Id<Node>| self.visitor(node),
+                &*self.context.ref_(self),
+                self,
+            )
+            .map(Into::into),
         }
     }
 

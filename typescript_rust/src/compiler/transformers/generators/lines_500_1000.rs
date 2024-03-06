@@ -556,7 +556,7 @@ impl TransformGenerators {
             self.emit_assignment(
                 result_local.clone(),
                 visit_node(
-                    node.ref_(self).as_conditional_expression().when_false,
+                    released!(node.ref_(self).as_conditional_expression().when_false),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

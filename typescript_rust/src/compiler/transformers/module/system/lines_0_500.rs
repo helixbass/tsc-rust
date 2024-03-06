@@ -870,14 +870,14 @@ impl TransformSystemModule {
                                             Option::<Id<NodeArray>>::None,
                                             Some(vec![
                                                 self.factory.ref_(self).create_string_literal(
-                                                    id_text(
+                                                    released!(id_text(
                                                         &entry_export_clause
                                                             .ref_(self)
                                                             .as_namespace_export()
                                                             .name
                                                             .ref_(self),
                                                     )
-                                                    .to_owned(),
+                                                    .to_owned()),
                                                     None,
                                                     None,
                                                 ),
@@ -1207,7 +1207,7 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
                                 .factory
                                 .ref_(self)
                                 .get_generated_name_for_node(
-                                    import_declaration.ref_(self).maybe_parent(),
+                                    released!(import_declaration.ref_(self).maybe_parent()),
                                     None,
                                 ),
                             self.transform_system_module()
@@ -1263,11 +1263,14 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
         &self,
         node: Id<Node>, /*BinaryExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_binary_expression = node_ref.as_binary_expression();
-        let node_left = node_as_binary_expression.left;
-        if is_assignment_operator(node_as_binary_expression.operator_token.ref_(self).kind())
-            && is_identifier(&node_left.ref_(self))
+        let node_left = node.ref_(self).as_binary_expression().left;
+        if is_assignment_operator(
+            node.ref_(self)
+                .as_binary_expression()
+                .operator_token
+                .ref_(self)
+                .kind(),
+        ) && is_identifier(&node_left.ref_(self))
             && !is_generated_identifier(&node_left.ref_(self))
             && !is_local_name(node_left, self)
             && !is_declaration_name_of_enum_or_namespace(node_left, self)

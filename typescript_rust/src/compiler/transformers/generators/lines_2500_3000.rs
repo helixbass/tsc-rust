@@ -10,12 +10,13 @@ impl TransformGenerators {
         self.emit_worker(OpCode::Nop, None, Option::<&Node>::None);
     }
 
-    pub(super) fn emit_statement(&self, node: Id<Node /*Statement*/>) {
-        // if (node) {
-        self.emit_worker(OpCode::Statement, Some(node.into()), Option::<&Node>::None);
-        // } else {
-        //     emitNop();
-        // }
+    pub(super) fn emit_statement(&self, node: Option<Id<Node /*Statement*/>>) {
+        match node {
+            Some(node) => {
+                self.emit_worker(OpCode::Statement, Some(node.into()), Option::<&Node>::None)
+            }
+            None => self.emit_nop(),
+        }
     }
 
     pub(super) fn emit_assignment(

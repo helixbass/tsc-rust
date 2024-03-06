@@ -30,10 +30,8 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*SpreadElement*/
     ) -> io::Result<SpreadSegment> {
-        let node_ref = node.ref_(self);
-        let node_as_spread_element = node_ref.as_spread_element();
         let mut expression = try_visit_node(
-            node_as_spread_element.expression,
+            node.ref_(self).as_spread_element().expression,
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_expression(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

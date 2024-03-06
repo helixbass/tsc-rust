@@ -51,15 +51,13 @@ impl TransformSystemModule {
         node: Id<Node>, /*ParenthesizedExpression*/
         value_is_discarded: bool,
     ) -> io::Result<VisitResult> {
-        let node_ref = node.ref_(self);
-        let node_as_parenthesized_expression = node_ref.as_parenthesized_expression();
         Ok(Some(
             self.factory
                 .ref_(self)
                 .update_parenthesized_expression(
                     node,
                     try_visit_node(
-                        node_as_parenthesized_expression.expression,
+                        released!(node.ref_(self).as_parenthesized_expression().expression),
                         Some(|node: Id<Node>| {
                             if value_is_discarded {
                                 self.discarded_value_visitor(node)
@@ -80,15 +78,13 @@ impl TransformSystemModule {
         node: Id<Node>, /*PartiallyEmittedExpression*/
         value_is_discarded: bool,
     ) -> io::Result<VisitResult> {
-        let node_ref = node.ref_(self);
-        let node_as_partially_emitted_expression = node_ref.as_partially_emitted_expression();
         Ok(Some(
             self.factory
                 .ref_(self)
                 .update_partially_emitted_expression(
                     node,
                     try_visit_node(
-                        node_as_partially_emitted_expression.expression,
+                        released!(node.ref_(self).as_partially_emitted_expression().expression),
                         Some(|node: Id<Node>| {
                             if value_is_discarded {
                                 self.discarded_value_visitor(node)
@@ -117,7 +113,10 @@ impl TransformSystemModule {
             &self.compiler_options.ref_(self),
         )?;
         let first_argument = try_maybe_visit_node(
-            first_or_undefined(&node.ref_(self).as_call_expression().arguments.ref_(self)).cloned(),
+            released!(first_or_undefined(
+                &node.ref_(self).as_call_expression().arguments.ref_(self)
+            )
+            .cloned()),
             Some(|node: Id<Node>| self.visitor(node)),
             Option::<fn(Id<Node>) -> bool>::None,
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

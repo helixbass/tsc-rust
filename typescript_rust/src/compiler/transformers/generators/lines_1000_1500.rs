@@ -128,9 +128,9 @@ impl TransformGenerators {
         property: Id<Node>,
     ) -> Vec<Id<Node>> {
         if self.contains_yield(Some(property)) && !expressions.is_empty() {
-            self.emit_statement(self.factory.ref_(self).create_expression_statement(
+            self.emit_statement(Some(self.factory.ref_(self).create_expression_statement(
                 self.factory.ref_(self).inline_expressions(&expressions),
-            ));
+            )));
             expressions = _d();
         }
 
@@ -258,16 +258,19 @@ impl TransformGenerators {
         &self,
         node: Id<Node>, /*NewExpression*/
     ) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_new_expression = node_ref.as_new_expression();
         if maybe_for_each_bool(
-            node_as_new_expression.arguments.refed(self).as_deref(),
+            node.ref_(self)
+                .as_new_expression()
+                .arguments
+                .refed(self)
+                .as_deref(),
             |&argument: &Id<Node>, _| self.contains_yield(Some(argument)),
         ) {
             let CallBinding { target, this_arg } = self.factory.ref_(self).create_call_binding(
-                self.factory
-                    .ref_(self)
-                    .create_property_access_expression(node_as_new_expression.expression, "bind"),
+                self.factory.ref_(self).create_property_access_expression(
+                    released!(node.ref_(self).as_new_expression().expression),
+                    "bind",
+                ),
                 |node: Id<Node>| {
                     self.context.ref_(self).hoist_variable_declaration(node);
                 },
@@ -287,7 +290,7 @@ impl TransformGenerators {
                             )),
                             this_arg,
                             self.visit_elements(
-                                node_as_new_expression.arguments.unwrap(),
+                                released!(node.ref_(self).as_new_expression().arguments.unwrap()),
                                 Some(self.factory.ref_(self).create_void_zero()),
                                 Option::<&Node>::None,
                                 None,
@@ -362,8 +365,8 @@ impl TransformGenerators {
             SyntaxKind::LabeledStatement => self.transform_and_emit_labeled_statement(node),
             SyntaxKind::ThrowStatement => self.transform_and_emit_throw_statement(node),
             SyntaxKind::TryStatement => self.transform_and_emit_try_statement(node),
-            _ => self.emit_statement(visit_node(
-                node,
+            _ => self.emit_statement(maybe_visit_node(
+                Some(node),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_statement(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -377,8 +380,8 @@ impl TransformGenerators {
         if self.contains_yield(Some(node)) {
             self.transform_and_emit_statements(&node_as_block.statements.ref_(self), None);
         } else {
-            self.emit_statement(visit_node(
-                node,
+            self.emit_statement(maybe_visit_node(
+                Some(node),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_statement(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -390,8 +393,8 @@ impl TransformGenerators {
         &self,
         node: Id<Node>, /*ExpressionStatement*/
     ) {
-        self.emit_statement(visit_node(
-            node,
+        self.emit_statement(maybe_visit_node(
+            Some(node),
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_statement(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -447,13 +450,13 @@ impl TransformGenerators {
             }
 
             if !pending_expressions.is_empty() {
-                self.emit_statement(
+                self.emit_statement(Some(
                     self.factory.ref_(self).create_expression_statement(
                         self.factory
                             .ref_(self)
                             .inline_expressions(&pending_expressions),
                     ),
-                );
+                ));
                 variables_written += pending_expressions.len();
                 pending_expressions = _d();
             }
@@ -534,16 +537,16 @@ impl TransformGenerators {
                 }
                 self.mark_label(end_label);
             } else {
-                self.emit_statement(visit_node(
-                    node,
+                self.emit_statement(maybe_visit_node(
+                    Some(node),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_statement(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ));
             }
         } else {
-            self.emit_statement(visit_node(
-                node,
+            self.emit_statement(maybe_visit_node(
+                Some(node),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_statement(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -573,8 +576,8 @@ impl TransformGenerators {
             );
             self.end_loop_block();
         } else {
-            self.emit_statement(visit_node(
-                node,
+            self.emit_statement(maybe_visit_node(
+                Some(node),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_statement(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -631,8 +634,8 @@ impl TransformGenerators {
             self.emit_break(loop_label, Option::<&Node>::None);
             self.end_loop_block();
         } else {
-            self.emit_statement(visit_node(
-                node,
+            self.emit_statement(maybe_visit_node(
+                Some(node),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_statement(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -679,7 +682,7 @@ impl TransformGenerators {
                 if is_variable_declaration_list(&initializer.ref_(self)) {
                     self.transform_and_emit_variable_declaration_list(initializer);
                 } else {
-                    self.emit_statement(
+                    self.emit_statement(Some(
                         self.factory
                             .ref_(self)
                             .create_expression_statement(visit_node(
@@ -689,12 +692,12 @@ impl TransformGenerators {
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ))
                             .set_text_range(Some(&*initializer.ref_(self)), self),
-                    );
+                    ));
                 }
             }
 
             self.mark_label(condition_label);
-            if let Some(node_condition) = node.ref_(self).as_for_statement().condition {
+            if let Some(node_condition) = released!(node.ref_(self).as_for_statement().condition) {
                 self.emit_break_when_false(
                     end_label,
                     visit_node(
@@ -707,15 +710,15 @@ impl TransformGenerators {
                 );
             }
 
-            self.transform_and_emit_embedded_statement(
-                node.ref_(self).as_for_statement().statement,
-            );
+            self.transform_and_emit_embedded_statement(released!(
+                node.ref_(self).as_for_statement().statement
+            ));
 
             self.mark_label(increment_label);
             if let Some(node_incrementor) =
                 released!(node.ref_(self).as_for_statement().incrementor)
             {
-                self.emit_statement(
+                self.emit_statement(Some(
                     self.factory
                         .ref_(self)
                         .create_expression_statement(visit_node(
@@ -725,13 +728,13 @@ impl TransformGenerators {
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         ))
                         .set_text_range(Some(&*node_incrementor.ref_(self)), self),
-                );
+                ));
             }
             self.emit_break(condition_label, Option::<&Node>::None);
             self.end_loop_block();
         } else {
-            self.emit_statement(visit_node(
-                node,
+            self.emit_statement(maybe_visit_node(
+                Some(node),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_statement(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

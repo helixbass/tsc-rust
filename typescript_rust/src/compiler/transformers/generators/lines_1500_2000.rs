@@ -5,8 +5,8 @@ use crate::{
     id_text, is_expression, is_statement, is_variable_declaration_list, maybe_visit_node,
     visit_each_child, visit_node, Matches, NamedDeclarationInterface, Node, NodeArray,
     NodeInterface, Number, SyntaxKind, TransformFlags, VisitResult, _d, get_emit_flags,
-    is_generated_identifier, released, CoreTransformationContext, EmitFlags, InArena,
-    ReadonlyTextRangeConcrete,
+    is_generated_identifier, maybe_visit_each_child, released, CoreTransformationContext,
+    EmitFlags, InArena, ReadonlyTextRangeConcrete,
 };
 
 impl TransformGenerators {
@@ -30,7 +30,7 @@ impl TransformGenerators {
                 Option::<&Node>::None,
             );
 
-            self.emit_statement(
+            self.emit_statement(Some(
                 self.factory.ref_(self).create_for_in_statement(
                     key.clone(),
                     visit_node(
@@ -49,7 +49,7 @@ impl TransformGenerators {
                         ),
                     ),
                 ),
-            );
+            ));
 
             self.emit_assignment(
                 keys_index.clone(),
@@ -113,20 +113,20 @@ impl TransformGenerators {
                     .create_element_access_expression(keys_array, keys_index.clone()),
                 Option::<&Node>::None,
             );
-            self.transform_and_emit_embedded_statement(
-                node.ref_(self).as_for_in_statement().statement,
-            );
+            self.transform_and_emit_embedded_statement(released!(
+                node.ref_(self).as_for_in_statement().statement
+            ));
 
             self.mark_label(increment_label);
-            self.emit_statement(self.factory.ref_(self).create_expression_statement(
+            self.emit_statement(Some(self.factory.ref_(self).create_expression_statement(
                 self.factory.ref_(self).create_postfix_increment(keys_index),
-            ));
+            )));
 
             self.emit_break(condition_label, Option::<&Node>::None);
             self.end_loop_block();
         } else {
-            self.emit_statement(visit_node(
-                node,
+            self.emit_statement(maybe_visit_node(
+                Some(node),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_statement(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -209,7 +209,7 @@ impl TransformGenerators {
         if label > 0 {
             self.emit_break(label, Some(&*node.ref_(self)));
         } else {
-            self.emit_statement(node);
+            self.emit_statement(Some(node));
         }
     }
 
@@ -258,7 +258,7 @@ impl TransformGenerators {
         if label > 0 {
             self.emit_break(label, Some(&*node.ref_(self)));
         } else {
-            self.emit_statement(node)
+            self.emit_statement(Some(node))
         }
     }
 
@@ -335,13 +335,13 @@ impl TransformGenerators {
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )));
-            self.transform_and_emit_embedded_statement(
-                node.ref_(self).as_with_statement().statement,
-            );
+            self.transform_and_emit_embedded_statement(released!(
+                node.ref_(self).as_with_statement().statement
+            ));
             self.end_with_block();
         } else {
-            self.emit_statement(visit_node(
-                node,
+            self.emit_statement(maybe_visit_node(
+                Some(node),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_statement(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -355,13 +355,16 @@ impl TransformGenerators {
     ) {
         if self.contains_yield(Some(node.ref_(self).as_switch_statement().case_block)) {
             let case_block = node.ref_(self).as_switch_statement().case_block;
-            let case_block_ref = case_block.ref_(self);
-            let case_block_as_case_block = case_block_ref.as_case_block();
-            let num_clauses = case_block_as_case_block.clauses.ref_(self).len();
+            let num_clauses = case_block
+                .ref_(self)
+                .as_case_block()
+                .clauses
+                .ref_(self)
+                .len();
             let end_label = self.begin_switch_block();
 
             let expression = self.cache_expression(visit_node(
-                node.ref_(self).as_switch_statement().expression,
+                released!(node.ref_(self).as_switch_statement().expression),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -369,7 +372,9 @@ impl TransformGenerators {
 
             let mut clause_labels: Vec<Label> = _d();
             let mut default_clause_index: Option<usize> = _d();
-            for (i, clause) in case_block_as_case_block
+            for (i, clause) in case_block
+                .ref_(self)
+                .as_case_block()
                 .clauses
                 .ref_(self)
                 .iter()
@@ -388,7 +393,9 @@ impl TransformGenerators {
             let mut pending_clauses: Vec<Id<Node /*CaseClause*/>> = _d();
             while clauses_written < num_clauses {
                 let mut default_clauses_skipped = 0;
-                for (i, clause) in case_block_as_case_block
+                for (i, clause) in case_block
+                    .ref_(self)
+                    .as_case_block()
                     .clauses
                     .ref_(self)
                     .iter()
@@ -424,10 +431,10 @@ impl TransformGenerators {
 
                 if !pending_clauses.is_empty() {
                     let pending_clauses_len = pending_clauses.len();
-                    self.emit_statement(self.factory.ref_(self).create_switch_statement(
+                    self.emit_statement(Some(self.factory.ref_(self).create_switch_statement(
                         expression.clone(),
                         self.factory.ref_(self).create_case_block(pending_clauses),
-                    ));
+                    )));
                     clauses_written += pending_clauses_len;
                     pending_clauses = _d();
                 }
@@ -446,7 +453,7 @@ impl TransformGenerators {
             for (i, &clause_label) in clause_labels.iter().enumerate().take(num_clauses) {
                 self.mark_label(clause_label);
                 self.transform_and_emit_statements(
-                    &case_block_as_case_block.clauses.ref_(self)[i]
+                    &case_block.ref_(self).as_case_block().clauses.ref_(self)[i]
                         .ref_(self)
                         .as_has_statements()
                         .statements()
@@ -457,8 +464,8 @@ impl TransformGenerators {
 
             self.end_switch_block();
         } else {
-            self.emit_statement(visit_node(
-                node,
+            self.emit_statement(maybe_visit_node(
+                Some(node),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_statement(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -501,8 +508,8 @@ impl TransformGenerators {
             ));
             self.end_labeled_block();
         } else {
-            self.emit_statement(visit_node(
-                node,
+            self.emit_statement(maybe_visit_node(
+                Some(node),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_statement(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -581,8 +588,8 @@ impl TransformGenerators {
 
             self.end_exception_block();
         } else {
-            self.emit_statement(visit_each_child(
-                node,
+            self.emit_statement(maybe_visit_each_child(
+                Some(node),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
