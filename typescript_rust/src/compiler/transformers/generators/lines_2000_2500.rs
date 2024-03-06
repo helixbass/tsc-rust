@@ -239,9 +239,10 @@ impl TransformGenerators {
         Debug_.assert(self.peek_block_kind() == Some(CodeBlockKind::Loop), None);
         let block = self.end_block();
         let block = block.ref_(self);
-        let block_as_switch_block = block.as_switch_block();
-        let break_label = block_as_switch_block.break_label;
-        if !block_as_switch_block.is_script {
+        // TODO: the Typescript version has this as `as SwitchBlock`, upstream fix?
+        let block_as_loop_block = block.as_loop_block();
+        let break_label = block_as_loop_block.break_label;
+        if !block_as_loop_block.is_script {
             self.mark_label(break_label);
         }
     }
