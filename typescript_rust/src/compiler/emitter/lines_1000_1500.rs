@@ -85,9 +85,7 @@ impl Printer {
         self.emit_helpers(bundle);
         self.emit_synthetic_triple_slash_references_if_needed(bundle)?;
 
-        let bundle_ref = bundle.ref_(self);
-        let bundle_as_bundle = bundle_ref.as_bundle();
-        for &prepend in &bundle_as_bundle.prepends {
+        for &prepend in &bundle.ref_(self).as_bundle().prepends {
             self.write_line(None);
             let pos = self.writer().get_text_pos();
             let bundle_file_info = self.maybe_bundle_file_info();
@@ -129,13 +127,13 @@ impl Printer {
         }
 
         self.set_source_file_text_pos(self.get_text_pos_with_write_line());
-        for source_file in &bundle_as_bundle.source_files {
+        for source_file in &bundle.ref_(self).as_bundle().source_files {
             let source_file = source_file.unwrap();
             self.print(EmitHint::SourceFile, source_file, Some(source_file))?;
         }
         let bundle_file_info = self.maybe_bundle_file_info();
         if let Some(bundle_file_info) = bundle_file_info {
-            if !bundle_as_bundle.source_files.is_empty() {
+            if !bundle.ref_(self).as_bundle().source_files.is_empty() {
                 let end = self.writer().get_text_pos();
                 if self.record_bundle_file_text_like_section(end) {
                     let prologues = self.get_prologue_directives_from_bundled_source_files(bundle);
