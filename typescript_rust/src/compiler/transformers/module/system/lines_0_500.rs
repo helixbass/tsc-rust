@@ -502,7 +502,7 @@ impl TransformSystemModule {
             self,
         );
 
-        let export_star_function = self.add_export_star_if_needed(&mut statements).unwrap();
+        let export_star_function = self.add_export_star_if_needed(&mut statements);
         let modifiers = node
             .ref_(self)
             .transform_flags()
@@ -747,7 +747,7 @@ impl TransformSystemModule {
 
     pub(super) fn create_setters_array(
         &self,
-        export_star_function: Id<Node /*Identifier*/>,
+        export_star_function: Option<Id<Node /*Identifier*/>>,
         dependency_groups: &[DependencyGroup],
     ) -> Id<Node> {
         let mut setters: Vec<Id<Node /*Expression*/>> = _d();
@@ -890,7 +890,7 @@ impl TransformSystemModule {
                         } else {
                             statements.push(self.factory.ref_(self).create_expression_statement(
                                 self.factory.ref_(self).create_call_expression(
-                                    export_star_function.clone(),
+                                    export_star_function.unwrap(),
                                     Option::<Id<NodeArray>>::None,
                                     Some(vec![parameter_name.clone()]),
                                 ),

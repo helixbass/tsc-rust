@@ -266,17 +266,21 @@ impl TransformGenerators {
         &self,
         node: Id<Node>, /*BreakStatement*/
     ) -> Id<Node /*Statement*/> {
-        let node_ref = node.ref_(self);
-        let node_as_break_statement = node_ref.as_break_statement();
         if self.maybe_in_statement_containing_yield() == Some(true) {
             let label = self.find_break_target(
-                node_as_break_statement
+                node.ref_(self)
+                    .as_break_statement()
                     .label
                     .map(|node_label| id_text(&node_label.ref_(self)).to_owned())
                     .as_deref(),
             );
             if label > 0 {
-                return self.create_inline_break(label, Some(&*node.ref_(self)));
+                return self.create_inline_break(
+                    label,
+                    Some(&released!(ReadonlyTextRangeConcrete::from(
+                        &*node.ref_(self)
+                    ))),
+                );
             }
         }
 
