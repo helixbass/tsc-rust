@@ -66,7 +66,7 @@ pub fn try_process_tagged_template_expression(
         raw_strings.push(get_raw_literal(template, current_source_file, arena));
     } else {
         cooked_strings.push(create_template_cooked(
-            template.ref_(arena).as_template_expression().head,
+            released!(template.ref_(arena).as_template_expression().head),
             arena,
         ));
         raw_strings.push(get_raw_literal(

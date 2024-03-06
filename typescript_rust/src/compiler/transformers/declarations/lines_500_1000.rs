@@ -589,21 +589,21 @@ impl TransformDeclarations {
                         self.factory.ref_(self).update_import_declaration(
                             decl,
                             Option::<Id<NodeArray>>::None,
-                            decl.ref_(self).maybe_modifiers().clone(),
-                            Some(
-                                self.factory.ref_(self).update_import_clause(
-                                    decl_import_clause,
-                                    decl_import_clause
+                            released!(decl.ref_(self).maybe_modifiers()),
+                            Some(self.factory.ref_(self).update_import_clause(
+                                decl_import_clause,
+                                released!(decl_import_clause
                                         .ref_(self)
                                         .as_import_clause()
-                                        .is_type_only,
-                                    visible_default_binding,
-                                    named_bindings,
-                                ),
-                            ),
+                                        .is_type_only),
+                                visible_default_binding,
+                                named_bindings,
+                            )),
                             self.rewrite_module_specifier(
                                 decl,
-                                Some(decl.ref_(self).as_import_declaration().module_specifier),
+                                released!(Some(
+                                    decl.ref_(self).as_import_declaration().module_specifier
+                                )),
                             )?
                             .unwrap(),
                             None,
@@ -1552,8 +1552,6 @@ impl TransformDeclarations {
                     ),
                 )?,
                 SyntaxKind::ImportType => {
-                    let input_ref = input.ref_(self);
-                    let input_as_import_type_node = input_ref.as_import_type_node();
                     if !is_literal_import_type_node(input, self) {
                         return self.visit_declaration_subtree_cleanup(
                             input,
@@ -1576,29 +1574,36 @@ impl TransformDeclarations {
                             self.factory.ref_(self).update_import_type_node(
                                 input,
                                 self.factory.ref_(self).update_literal_type_node(
-                                    input_as_import_type_node.argument,
+                                    released!(input.ref_(self).as_import_type_node().argument),
                                     self.rewrite_module_specifier(
                                         input,
-                                        Some(
-                                            input_as_import_type_node
+                                        Some(released!(
+                                            input
+                                                .ref_(self)
+                                                .as_import_type_node()
                                                 .argument
                                                 .ref_(self)
                                                 .as_literal_type_node()
-                                                .literal,
-                                        ),
+                                                .literal
+                                        )),
                                     )?
                                     .unwrap(),
                                 ),
-                                input_as_import_type_node.qualifier.clone(),
+                                released!(input.ref_(self).as_import_type_node().qualifier.clone()),
                                 try_maybe_visit_nodes(
-                                    input_as_import_type_node.maybe_type_arguments(),
+                                    released!(input
+                                        .ref_(self)
+                                        .as_import_type_node()
+                                        .maybe_type_arguments()),
                                     Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                                     Some(|node: Id<Node>| is_type_node(&node.ref_(self))),
                                     None,
                                     None,
                                     self,
                                 )?,
-                                Some(input_as_import_type_node.is_type_of()),
+                                released!(Some(
+                                    input.ref_(self).as_import_type_node().is_type_of()
+                                )),
                             ),
                         ),
                     )?

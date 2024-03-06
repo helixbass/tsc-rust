@@ -700,7 +700,7 @@ impl TransformDeclarations {
                                 )
                             } else {
                                 try_visit_nodes(
-                                    source_file.ref_(self).as_source_file().statements(),
+                                    released!(source_file.ref_(self).as_source_file().statements()),
                                     Some(|node: Id<Node>| self.visit_declaration_statements(node)),
                                     Option::<fn(Id<Node>) -> bool>::None,
                                     None,
