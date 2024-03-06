@@ -129,7 +129,7 @@ impl TransformGenerators {
 
     pub(super) fn write_yield(
         &self,
-        expression: Id<Node /*Expression*/>,
+        expression: Option<Id<Node /*Expression*/>>,
         operation_location: Option<&impl ReadonlyTextRange>,
     ) {
         self.set_last_operation_was_abrupt(true);
@@ -138,12 +138,12 @@ impl TransformGenerators {
                 .ref_(self)
                 .create_return_statement(Some(
                     self.factory.ref_(self).create_array_literal_expression(
-                        // expression ?
-                        Some(vec![
-                            self.create_instruction(Instruction::Yield),
-                            expression,
-                        ]),
-                        // : [createInstruction(Instruction.Yield)]
+                        Some(match expression {
+                            Some(expression) => {
+                                vec![self.create_instruction(Instruction::Yield), expression]
+                            }
+                            None => vec![self.create_instruction(Instruction::Yield)],
+                        }),
                         None,
                     ),
                 ))
