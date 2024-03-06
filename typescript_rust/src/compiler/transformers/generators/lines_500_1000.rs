@@ -197,35 +197,34 @@ impl TransformGenerators {
         let left = node.ref_(self).as_binary_expression().left;
         let right = node.ref_(self).as_binary_expression().right;
         if self.contains_yield(Some(right)) {
-            let target: Id<Node /*Expression*/> = match left.ref_(self).kind() {
+            let target: Id<Node /*Expression*/> = match released!(left.ref_(self).kind()) {
                 SyntaxKind::PropertyAccessExpression => {
-                    let left_ref = left.ref_(self);
-                    let left_as_property_access_expression =
-                        left_ref.as_property_access_expression();
                     self.factory.ref_(self).update_property_access_expression(
                         left,
                         self.cache_expression(visit_node(
-                            left_as_property_access_expression.expression,
+                            released!(left.ref_(self).as_property_access_expression().expression),
                             Some(|node: Id<Node>| self.visitor(node)),
                             Some(|node| is_left_hand_side_expression(node, self)),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )),
-                        left_as_property_access_expression.name,
+                        released!(left.ref_(self).as_property_access_expression().name),
                     )
                 }
                 SyntaxKind::ElementAccessExpression => {
-                    let left_ref = left.ref_(self);
-                    let left_as_element_access_expression = left_ref.as_element_access_expression();
                     self.factory.ref_(self).update_element_access_expression(
                         left,
                         self.cache_expression(visit_node(
-                            left_as_element_access_expression.expression,
+                            released!(left.ref_(self).as_element_access_expression().expression),
                             Some(|node: Id<Node>| self.visitor(node)),
                             Some(|node| is_left_hand_side_expression(node, self)),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )),
                         self.cache_expression(visit_node(
-                            left_as_element_access_expression.argument_expression,
+                            released!(
+                                left.ref_(self)
+                                    .as_element_access_expression()
+                                    .argument_expression
+                            ),
                             Some(|node: Id<Node>| self.visitor(node)),
                             Some(|node| is_expression(node, self)),
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -627,14 +626,12 @@ impl TransformGenerators {
         &self,
         node: Id<Node>, /*ArrayLiteralExpression*/
     ) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_array_literal_expression = node_ref.as_array_literal_expression();
         Some(
             self.visit_elements(
-                node_as_array_literal_expression.elements,
+                released!(node.ref_(self).as_array_literal_expression().elements),
                 Option::<Id<Node>>::None,
                 Option::<&Node>::None,
-                node_as_array_literal_expression.multi_line,
+                released!(node.ref_(self).as_array_literal_expression().multi_line),
             )
             .into(),
         )

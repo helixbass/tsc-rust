@@ -142,29 +142,32 @@ impl TransformGenerators {
             self.begin_script_loop_block();
         }
 
-        let node_ref = node.ref_(self);
-        let initializer = node_ref.as_for_in_statement().initializer;
+        let initializer = node.ref_(self).as_for_in_statement().initializer;
         if is_variable_declaration_list(&initializer.ref_(self)) {
-            let initializer_ref = initializer.ref_(self);
-            let initializer_as_variable_declaration_list =
-                initializer_ref.as_variable_declaration_list();
-            for &variable in &*initializer_as_variable_declaration_list
+            for &variable in &*initializer
+                .ref_(self)
+                .as_variable_declaration_list()
                 .declarations
                 .ref_(self)
             {
-                self.context.ref_(self).hoist_variable_declaration(
-                    variable.ref_(self).as_variable_declaration().name(),
-                );
+                self.context
+                    .ref_(self)
+                    .hoist_variable_declaration(released!(variable
+                        .ref_(self)
+                        .as_variable_declaration()
+                        .name()));
             }
 
             node = self.factory.ref_(self).update_for_in_statement(
                 node,
-                initializer_as_variable_declaration_list
+                released!(initializer
+                    .ref_(self)
+                    .as_variable_declaration_list()
                     .declarations
                     .ref_(self)[0]
                     .ref_(self)
                     .as_variable_declaration()
-                    .name(),
+                    .name()),
                 visit_node(
                     node.ref_(self).as_for_in_statement().expression,
                     Some(|node: Id<Node>| self.visitor(node)),
@@ -393,10 +396,7 @@ impl TransformGenerators {
             let mut pending_clauses: Vec<Id<Node /*CaseClause*/>> = _d();
             while clauses_written < num_clauses {
                 let mut default_clauses_skipped = 0;
-                for (i, clause) in case_block
-                    .ref_(self)
-                    .as_case_block()
-                    .clauses
+                for (i, clause) in released!(case_block.ref_(self).as_case_block().clauses)
                     .ref_(self)
                     .iter()
                     .enumerate()
@@ -404,9 +404,7 @@ impl TransformGenerators {
                     .take(num_clauses - clauses_written)
                 {
                     if clause.ref_(self).kind() == SyntaxKind::CaseClause {
-                        let clause_ref = clause.ref_(self);
-                        let clause_as_case_clause = clause_ref.as_case_clause();
-                        if self.contains_yield(Some(clause_as_case_clause.expression))
+                        if self.contains_yield(Some(clause.ref_(self).as_case_clause().expression))
                             && !pending_clauses.is_empty()
                         {
                             break;
@@ -414,14 +412,16 @@ impl TransformGenerators {
 
                         pending_clauses.push(self.factory.ref_(self).create_case_clause(
                             visit_node(
-                                clause_as_case_clause.expression,
+                                released!(clause.ref_(self).as_case_clause().expression),
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ),
                             vec![self.create_inline_break(
                                 clause_labels[i],
-                                Some(&*clause_as_case_clause.expression.ref_(self)),
+                                Some(&released!(ReadonlyTextRangeConcrete::from(
+                                    &*clause.ref_(self).as_case_clause().expression.ref_(self)
+                                ))),
                             )],
                         ));
                     } else {

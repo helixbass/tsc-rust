@@ -82,7 +82,7 @@ pub fn try_process_tagged_template_expression(
                 arena,
             ));
             raw_strings.push(get_raw_literal(
-                template_span.ref_(arena).as_template_span().literal,
+                released!(template_span.ref_(arena).as_template_span().literal),
                 current_source_file,
                 arena,
             ));

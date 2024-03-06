@@ -998,13 +998,11 @@ impl TransformJsx {
                 .set_text_range(Some(&*node.ref_(self)), self);
             ret
         } else if node.ref_(self).kind() == SyntaxKind::JsxExpression {
-            let node_ref = node.ref_(self);
-            let node_as_jsx_expression = node_ref.as_jsx_expression();
-            if node_as_jsx_expression.expression.is_none() {
+            if node.ref_(self).as_jsx_expression().expression.is_none() {
                 return self.factory.ref_(self).create_true();
             }
             visit_node(
-                node_as_jsx_expression.expression.unwrap(),
+                node.ref_(self).as_jsx_expression().expression.unwrap(),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
