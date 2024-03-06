@@ -5,14 +5,14 @@ use id_arena::Id;
 use crate::{
     find_ancestor, first_or_undefined, for_each_child_recursively,
     get_effective_type_annotation_node, get_root_declaration, has_jsdoc_nodes,
-    has_syntactic_modifier, ignored_paths, is_binary_expression, is_comma_list_expression,
-    is_expression_node, is_expression_statement, is_for_statement, is_identifier, is_jsdoc_node,
-    is_parameter, is_parenthesized_expression, is_part_of_type_query,
-    is_shorthand_property_assignment, is_type_reference_node, is_void_expression, last,
-    parameter_is_this_keyword, some, string_contains, CharacterCodes, CompilerOptions, Debug_,
-    FindAncestorCallbackReturn, ForEachChildRecursivelyCallbackReturn, HasArena, InArena,
-    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
-    PseudoBigInt, ReadonlyTextRange, Symbol, SymbolInterface, SyntaxKind,
+    has_syntactic_modifier, ignored_paths, is_array_literal_expression, is_binary_expression,
+    is_comma_list_expression, is_expression_node, is_expression_statement, is_for_statement,
+    is_identifier, is_jsdoc_node, is_omitted_expression, is_parameter, is_parenthesized_expression,
+    is_part_of_type_query, is_shorthand_property_assignment, is_type_reference_node,
+    is_void_expression, last, parameter_is_this_keyword, some, string_contains, CharacterCodes,
+    CompilerOptions, Debug_, FindAncestorCallbackReturn, ForEachChildRecursivelyCallbackReturn,
+    HasArena, InArena, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeFlags,
+    NodeInterface, PseudoBigInt, ReadonlyTextRange, Symbol, SymbolInterface, SyntaxKind,
 };
 
 pub fn skip_type_checking(
@@ -346,8 +346,19 @@ fn bind_parent_to_child(
         .or_else(|| bind_jsdoc(incremental, child, arena))
 }
 
-pub fn is_packed_array_literal(_node: Id<Node> /*Expression*/) -> bool {
-    unimplemented!()
+fn is_packed_element(node: &Node /*Expression*/) -> bool {
+    !is_omitted_expression(node)
+}
+
+pub fn is_packed_array_literal(node: Id<Node> /*Expression*/, arena: &impl HasArena) -> bool {
+    is_array_literal_expression(&node.ref_(arena))
+        && node
+            .ref_(arena)
+            .as_array_literal_expression()
+            .elements
+            .ref_(arena)
+            .iter()
+            .all(|element| is_packed_element(&element.ref_(arena)))
 }
 
 pub fn expression_result_is_unused(

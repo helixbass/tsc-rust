@@ -40,7 +40,7 @@ impl TransformES2015 {
         )?;
 
         let is_call_to_read_helper = is_call_to_helper(expression, "___read", self);
-        let mut kind = if is_call_to_read_helper || is_packed_array_literal(expression) {
+        let mut kind = if is_call_to_read_helper || is_packed_array_literal(expression, self) {
             SpreadSegmentKind::PackedSpread
         } else {
             SpreadSegmentKind::UnpackedSpread
