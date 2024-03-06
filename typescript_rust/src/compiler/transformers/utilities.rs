@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io};
+use std::{any::Any, collections::HashMap, io};
 
 use id_arena::Id;
 
@@ -9,13 +9,14 @@ use crate::{
     WrapCustomTransformerFactoryHandleDefault, _d, cast,
     create_external_helpers_import_declaration_if_needed, create_multi_map,
     get_namespace_declaration_node, has_static_modifier, has_syntactic_modifier, id_text,
-    is_binding_pattern, is_class_static_block_declaration, is_default_import,
+    impl_has_arena, is_binding_pattern, is_class_static_block_declaration, is_default_import,
     is_expression_statement, is_generated_identifier, is_identifier, is_keyword,
     is_method_or_accessor, is_named_exports, is_named_imports, is_omitted_expression,
     is_private_identifier, is_property_declaration, is_statement, is_static,
     is_string_literal_like, is_super_call, per_arena, released, return_default_if_none,
-    try_visit_node, FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface, InArena,
-    InternalSymbolName, Matches, ModifierFlags, MultiMap, TransformNodesTransformationResult,
+    try_visit_node, AllArenas, FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface,
+    InArena, InternalSymbolName, Matches, ModifierFlags, MultiMap,
+    TransformNodesTransformationResult, TransformerInterface,
 };
 
 pub fn get_original_node_id(node: Id<Node>, arena: &impl HasArena) -> NodeId {
@@ -52,17 +53,82 @@ pub struct ExternalModuleInfo {
 //     transform_source_file: Transformer,
 // ) -> Transformer {
 
-struct ChainBundle;
+struct ChainBundle {
+    arena: *const AllArenas,
+}
+
+impl ChainBundle {
+    pub fn new(arena: &impl HasArena) -> Self {
+        Self {
+            arena: arena.arena(),
+        }
+    }
+}
 
 impl WrapCustomTransformerFactoryHandleDefault for ChainBundle {
     fn call(
         &self,
-        _context: Id<TransformNodesTransformationResult>,
+        context: Id<TransformNodesTransformationResult>,
         transform_source_file: Transformer,
     ) -> Transformer {
-        transform_source_file
+        ChainBundleTransformer::new(context, transform_source_file, self)
     }
 }
+
+impl_has_arena!(ChainBundle);
+
+struct ChainBundleTransformer {
+    arena: *const AllArenas,
+    context: Id<TransformNodesTransformationResult>,
+    transform_source_file: Transformer,
+}
+
+impl ChainBundleTransformer {
+    pub fn new(
+        context: Id<TransformNodesTransformationResult>,
+        transform_source_file: Transformer,
+        arena: &impl HasArena,
+    ) -> Transformer {
+        arena.alloc_transformer(Box::new(Self {
+            context,
+            transform_source_file,
+            arena: arena.arena(),
+        }))
+    }
+
+    fn transform_bundle(&self, node: Id<Node>) -> io::Result<Id<Node>> {
+        Ok(self.context.ref_(self).factory.ref_(self).create_bundle(
+            node.ref_(self)
+                .as_bundle()
+                .source_files
+                .iter()
+                .map(|source_file| {
+                    self.transform_source_file
+                        .ref_(self)
+                        .call(source_file.unwrap())
+                        .map(Option::Some)
+                })
+                .collect::<Result<Vec<_>, _>>()?,
+            Some(node.ref_(self).as_bundle().prepends.clone()),
+        ))
+    }
+}
+
+impl TransformerInterface for ChainBundleTransformer {
+    fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
+        match node.ref_(self).kind() {
+            SyntaxKind::SourceFile => self.transform_source_file.ref_(self).call(node),
+            SyntaxKind::Bundle => self.transform_bundle(node),
+            _ => unreachable!(),
+        }
+    }
+
+    fn as_dyn_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl_has_arena!(ChainBundleTransformer);
 
 fn contains_default_reference(
     node: Option<Id<Node /*NamedImportBindings*/>>,
@@ -96,7 +162,7 @@ pub fn chain_bundle(
     per_arena!(
         Box<dyn WrapCustomTransformerFactoryHandleDefault>,
         arena,
-        arena.alloc_wrap_custom_transformer_factory_handle_default(Box::new(ChainBundle))
+        arena.alloc_wrap_custom_transformer_factory_handle_default(Box::new(ChainBundle::new(arena)))
     )
 }
 

@@ -410,7 +410,7 @@ pub struct TransformNodesTransformationResult {
     resolver: Option<Id<Box<dyn EmitResolver>>>,
     host: Option<Id<Box<dyn EmitHost>>>,
     created_emit_helper_factory: Cell<Option<Id<EmitHelperFactory>>>,
-    factory: Id<NodeFactory>,
+    pub factory: Id<NodeFactory>,
 }
 
 impl TransformNodesTransformationResult {
