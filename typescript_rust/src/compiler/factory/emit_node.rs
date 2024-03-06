@@ -357,17 +357,19 @@ pub fn move_emit_helpers(
                 .get_or_insert_default_()
                 .push(helper);
         } else if helpers_removed > 0 {
-            source_emit_node.ref_(arena).helpers.as_mut().unwrap()[i - helpers_removed] = helper;
+            source_emit_node.ref_mut(arena).helpers.as_mut().unwrap()[i - helpers_removed] = helper;
         }
     }
 
     if helpers_removed > 0 {
+        let truncate_len =
+            source_emit_node.ref_(arena).helpers.as_ref().unwrap().len() - helpers_removed;
         source_emit_node
-            .ref_(arena)
+            .ref_mut(arena)
             .helpers
             .as_mut()
             .unwrap()
-            .truncate(source_emit_helpers.len() - helpers_removed);
+            .truncate(truncate_len);
     }
 }
 
