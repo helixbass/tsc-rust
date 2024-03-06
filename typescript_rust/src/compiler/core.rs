@@ -1037,8 +1037,37 @@ pub fn add_range<TItem: Clone>(
     };
     let mut i = start;
     while i < end && i < from.len() {
-        // if from[i] !== undefined
         to.push(from[i].clone());
+        i += 1;
+    }
+}
+
+pub fn add_range_option<TItem: Clone>(
+    to: &mut Vec<TItem>,
+    from: Option<&[Option<TItem>]>,
+    start: Option<isize>,
+    end: Option<isize>,
+) {
+    if from.is_none() {
+        return;
+    }
+    let from = from.unwrap();
+    if from.is_empty() {
+        return;
+    }
+    let start: usize = match start {
+        None => 0,
+        Some(start) => to_offset(from, start),
+    };
+    let end: usize = match end {
+        None => from.len(),
+        Some(end) => to_offset(from, end),
+    };
+    let mut i = start;
+    while i < end && i < from.len() {
+        if let Some(from_i) = from[i].as_ref() {
+            to.push(from_i.clone());
+        }
         i += 1;
     }
 }

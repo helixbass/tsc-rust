@@ -379,7 +379,7 @@ impl TransformSystemModule {
             );
         }
 
-        if let Some(no_substitution) = self.maybe_no_substitution().clone() {
+        if let Some(no_substitution) = released!(self.maybe_no_substitution().clone()) {
             self.no_substitution_map_mut().insert(id, no_substitution);
             self.set_no_substitution(None);
         }

@@ -5,10 +5,10 @@ use itertools::Itertools;
 
 use super::TransformTypeScript;
 use crate::{
-    add_range, find_ancestor, get_parse_node_factory, get_parse_tree_node, has_static_modifier,
-    has_syntactic_modifier, id_text, is_computed_property_name, is_conditional_type_node,
-    is_expression, is_identifier, is_left_hand_side_expression, is_modifier,
-    is_parameter_property_declaration, is_private_identifier, is_property_name,
+    add_range, add_range_option, find_ancestor, get_parse_node_factory, get_parse_tree_node,
+    has_static_modifier, has_syntactic_modifier, id_text, is_computed_property_name,
+    is_conditional_type_node, is_expression, is_identifier, is_left_hand_side_expression,
+    is_modifier, is_parameter_property_declaration, is_private_identifier, is_property_name,
     is_simple_inlineable_expression, is_statement, move_range_past_decorators, move_range_pos,
     node_is_missing, released, set_comment_range, set_source_map_range,
     skip_partially_emitted_expressions, try_add_prologue_directives_and_initial_super_call,
@@ -551,15 +551,12 @@ impl TransformTypeScript {
             self,
         )?;
 
-        add_range(
+        add_range_option(
             &mut statements,
             Some(
                 &parameters_with_property_assignments
                     .into_iter()
-                    .map(|parameter| {
-                        self.transform_parameter_with_property_assignment(parameter)
-                            .unwrap()
-                    })
+                    .map(|parameter| self.transform_parameter_with_property_assignment(parameter))
                     .collect_vec(),
             ),
             None,

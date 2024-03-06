@@ -70,7 +70,7 @@ pub fn try_process_tagged_template_expression(
             arena,
         ));
         raw_strings.push(get_raw_literal(
-            template.ref_(arena).as_template_expression().head,
+            released!(template.ref_(arena).as_template_expression().head),
             current_source_file,
             arena,
         ));

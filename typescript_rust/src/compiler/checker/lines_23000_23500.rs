@@ -53,7 +53,7 @@ impl TypeChecker {
         } else {
             self.get_type_of_destructured_spread_expression(parent_type)?
         };
-        self.get_type_with_default(type_, node_as_binding_element.maybe_initializer().unwrap())
+        self.get_type_with_default(type_, node_as_binding_element.maybe_initializer())
     }
 
     pub(super) fn get_type_of_initializer(

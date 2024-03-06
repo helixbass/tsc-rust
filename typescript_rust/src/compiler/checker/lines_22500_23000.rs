@@ -986,19 +986,21 @@ impl TypeChecker {
     pub(super) fn get_type_with_default(
         &self,
         type_: Id<Type>,
-        default_expression: Id<Node>, /*Expression*/
+        default_expression: Option<Id<Node>>, /*Expression*/
     ) -> io::Result<Id<Type>> {
-        /*defaultExpression ? */
-        self.get_union_type(
-            &[
-                self.get_non_undefined_type(type_)?,
-                self.get_type_of_expression(default_expression)?,
-            ],
-            None,
-            Option::<Id<Symbol>>::None,
-            None,
-            None,
-        )
+        Ok(match default_expression {
+            Some(default_expression) => self.get_union_type(
+                &[
+                    self.get_non_undefined_type(type_)?,
+                    self.get_type_of_expression(default_expression)?,
+                ],
+                None,
+                Option::<Id<Symbol>>::None,
+                None,
+                None,
+            )?,
+            None => type_,
+        })
         /*: type*/
     }
 
@@ -1098,7 +1100,7 @@ impl TypeChecker {
         Ok(if is_destructuring_default_assignment {
             self.get_type_with_default(
                 self.get_assigned_type(node)?,
-                node.ref_(self).as_binary_expression().right,
+                Some(node.ref_(self).as_binary_expression().right),
             )?
         } else {
             self.get_type_of_expression(released!(node.ref_(self).as_binary_expression().right))?
@@ -1168,8 +1170,7 @@ impl TypeChecker {
             self.get_assigned_type_of_property_assignment(node)?,
             node.ref_(self)
                 .as_shorthand_property_assignment()
-                .object_assignment_initializer
-                .unwrap(),
+                .object_assignment_initializer,
         )
     }
 
