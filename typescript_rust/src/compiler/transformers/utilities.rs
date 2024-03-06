@@ -98,9 +98,7 @@ impl ChainBundleTransformer {
 
     fn transform_bundle(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         Ok(self.context.ref_(self).factory.ref_(self).create_bundle(
-            node.ref_(self)
-                .as_bundle()
-                .source_files
+            released!(node.ref_(self).as_bundle().source_files.clone())
                 .iter()
                 .map(|source_file| {
                     self.transform_source_file
@@ -109,14 +107,14 @@ impl ChainBundleTransformer {
                         .map(Option::Some)
                 })
                 .collect::<Result<Vec<_>, _>>()?,
-            Some(node.ref_(self).as_bundle().prepends.clone()),
+            released!(Some(node.ref_(self).as_bundle().prepends.clone())),
         ))
     }
 }
 
 impl TransformerInterface for ChainBundleTransformer {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
-        match node.ref_(self).kind() {
+        match released!(node.ref_(self).kind()) {
             SyntaxKind::SourceFile => self.transform_source_file.ref_(self).call(node),
             SyntaxKind::Bundle => self.transform_bundle(node),
             _ => unreachable!(),
