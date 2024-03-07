@@ -115,10 +115,10 @@ impl Printer {
         }
     }
 
-    pub(super) fn make_unique_name<TCheckFn: Fn(&str) -> bool>(
+    pub(super) fn make_unique_name(
         &self,
         base_name: &str,
-        check_fn: Option<TCheckFn>,
+        check_fn: Option<impl Fn(&str) -> bool>,
         optimistic: Option<bool>,
         scoped: Option<bool>,
     ) -> String {
@@ -137,7 +137,7 @@ impl Printer {
             }
         }
         let mut base_name = base_name.to_owned();
-        if &base_name[base_name.len() - 1..] != "_" {
+        if base_name.is_empty() || &base_name[base_name.len() - 1..] != "_" {
             base_name.push_str("_");
         }
         let mut i = 1;
