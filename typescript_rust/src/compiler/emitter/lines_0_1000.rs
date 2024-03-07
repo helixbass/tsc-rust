@@ -2016,6 +2016,10 @@ impl Printer {
         self.bundled_helpers.borrow_mut()
     }
 
+    pub(super) fn node_id_to_generated_name(&self) -> Ref<HashMap<NodeId, String>> {
+        self.node_id_to_generated_name.borrow()
+    }
+
     pub(super) fn node_id_to_generated_name_mut(&self) -> RefMut<HashMap<NodeId, String>> {
         self.node_id_to_generated_name.borrow_mut()
     }

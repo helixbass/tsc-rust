@@ -22,10 +22,13 @@ impl Printer {
         flags: Option<GeneratedIdentifierFlags>,
     ) -> String {
         let node_id = get_node_id(&node.ref_(self));
+        if let Some(existing) = self.node_id_to_generated_name().get(&node_id).cloned() {
+            return existing;
+        }
+        let new_value = self.generate_name_for_node(node, flags);
         self.node_id_to_generated_name_mut()
-            .entry(node_id)
-            .or_insert_with(|| self.generate_name_for_node(node, flags))
-            .clone()
+            .insert(node_id, new_value.clone());
+        new_value
     }
 
     pub(super) fn is_unique_name(&self, name: &str) -> bool {
