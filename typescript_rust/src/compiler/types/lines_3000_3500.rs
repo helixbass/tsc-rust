@@ -206,6 +206,20 @@ impl NamespaceExport {
     }
 }
 
+impl NamedDeclarationInterface for NamespaceExport {
+    fn maybe_name(&self) -> Option<Id<Node>> {
+        Some(self.name)
+    }
+
+    fn name(&self) -> Id<Node> {
+        self.name
+    }
+
+    fn set_name(&mut self, name: Id<Node>) {
+        self.name = name;
+    }
+}
+
 #[derive(Debug)]
 #[ast_type(interfaces = "NamedDeclarationInterface")]
 pub struct NamespaceExportDeclaration {

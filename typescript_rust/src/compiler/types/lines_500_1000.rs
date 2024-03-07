@@ -481,6 +481,7 @@ impl Node {
             Node::NamespaceImport(node) => Some(node),
             Node::SpreadAssignment(node) => Some(node),
             Node::SemicolonClassElement(node) => Some(node),
+            Node::NamespaceExport(node) => Some(node),
             _ => None,
         }
     }
