@@ -411,10 +411,14 @@ impl TransformGenerators {
         &self,
         node: Id<Node>, /*CommaListExpression*/
     ) -> VisitResult {
-        let node_ref = node.ref_(self);
-        let node_as_comma_list_expression = node_ref.as_comma_list_expression();
         let mut pending_expressions: Vec<Id<Node /*Expression*/>> = _d();
-        for &elem in &*node_as_comma_list_expression.elements.ref_(self) {
+        for &elem in &*released!(node
+            .ref_(self)
+            .as_comma_list_expression()
+            .elements
+            .ref_(self)
+            .clone())
+        {
             if is_binary_expression(&elem.ref_(self))
                 && elem
                     .ref_(self)

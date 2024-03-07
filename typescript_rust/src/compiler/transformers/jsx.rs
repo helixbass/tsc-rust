@@ -534,11 +534,12 @@ impl TransformJsx {
     ) -> Option<Id<Node>> {
         let non_whitespace_children = get_semantic_jsx_children(children, self);
         if non_whitespace_children.len() == 1
-            && non_whitespace_children[0]
-                .ref_(self)
-                .as_jsx_expression()
-                .dot_dot_dot_token
-                .is_none()
+            && !(non_whitespace_children[0].ref_(self).kind() == SyntaxKind::JsxExpression
+                && non_whitespace_children[0]
+                    .ref_(self)
+                    .as_jsx_expression()
+                    .dot_dot_dot_token
+                    .is_some())
         {
             let result = self.transform_jsx_child_to_expression(non_whitespace_children[0]);
             return result.map(|result| {
