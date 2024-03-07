@@ -649,11 +649,12 @@ impl TransformJsx {
             || non_whitespace_children
                 .get(0)
                 .matches(|non_whitespace_children_0| {
-                    non_whitespace_children_0
-                        .ref_(self)
-                        .as_jsx_expression()
-                        .dot_dot_dot_token
-                        .is_some()
+                    non_whitespace_children_0.ref_(self).kind() == SyntaxKind::JsxExpression
+                        && non_whitespace_children_0
+                            .ref_(self)
+                            .as_jsx_expression()
+                            .dot_dot_dot_token
+                            .is_some()
                 });
         let mut args/*: Expression[]*/ = vec![
             tag_name,
