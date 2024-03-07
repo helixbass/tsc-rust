@@ -4,9 +4,9 @@ use id_arena::Id;
 
 use crate::{
     get_parse_tree_node, is_parse_tree_node, maybe_get_source_file_of_node, push_if_unique_eq,
-    return_if_none, BaseTextRange, Debug_, EmitFlags, EmitHelper, EmitNode, GetOrInsertDefault,
-    HasArena, InArena, Node, NodeInterface, NonEmpty, ReadonlyTextRange, SnippetElement,
-    SourceMapRange, StringOrNumber, SyntaxKind, SynthesizedComment,
+    released, return_if_none, BaseTextRange, Debug_, EmitFlags, EmitHelper, EmitNode,
+    GetOrInsertDefault, HasArena, InArena, Node, NodeInterface, NonEmpty, ReadonlyTextRange,
+    SnippetElement, SourceMapRange, StringOrNumber, SyntaxKind, SynthesizedComment,
 };
 
 pub(crate) fn get_or_create_emit_node(node: Id<Node>, arena: &impl HasArena) -> Id<EmitNode> {
@@ -347,7 +347,7 @@ pub fn move_emit_helpers(
 
     let target_emit_node = get_or_create_emit_node(target, arena);
     let mut helpers_removed = 0;
-    for i in 0..source_emit_node.ref_(arena).helpers.as_ref().unwrap().len() {
+    for i in 0..released!(source_emit_node.ref_(arena).helpers.as_ref().unwrap().len()) {
         let helper = source_emit_node.ref_(arena).helpers.as_ref().unwrap()[i].clone();
         if predicate(&helper.ref_(arena)) {
             helpers_removed += 1;
