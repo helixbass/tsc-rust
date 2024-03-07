@@ -136,13 +136,13 @@ pub fn create_jsx_factory_expression(
 pub fn create_jsx_fragment_factory_expression(
     factory: &NodeFactory,
     jsx_fragment_factory_entity: Option<Id<Node /*EntityName*/>>,
-    react_namespace: &str,
+    react_namespace: Option<&str>,
     parent: Id<Node>, /*JsxOpeningLikeElement | JsxOpeningFragment*/
 ) -> Id<Node /*Expression*/> {
     jsx_fragment_factory_entity.map_or_else(
         || {
             factory.create_property_access_expression(
-                create_react_namespace(Some(react_namespace), parent, factory),
+                create_react_namespace(react_namespace, parent, factory),
                 "Fragment",
             )
         },
@@ -193,7 +193,7 @@ pub fn create_expression_for_jsx_fragment(
     factory: &NodeFactory,
     jsx_factory_entity: Option<Id<Node /*EntityName*/>>,
     jsx_fragment_factory_entity: Option<Id<Node /*EntityName*/>>,
-    react_namespace: &str,
+    react_namespace: Option<&str>,
     children: &[Id<Node /*Expression*/>],
     parent_element: Id<Node>, /*JsxOpeningFragment*/
     location: &impl ReadonlyTextRange,
@@ -224,7 +224,7 @@ pub fn create_expression_for_jsx_fragment(
             create_jsx_factory_expression(
                 factory,
                 jsx_factory_entity,
-                Some(react_namespace),
+                react_namespace,
                 parent_element,
             ),
             Option::<Id<NodeArray>>::None,

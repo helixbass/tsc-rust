@@ -823,11 +823,7 @@ impl TransformJsx {
                 .get_emit_resolver()
                 .ref_(self)
                 .get_jsx_fragment_factory_entity(self.maybe_current_source_file()),
-            self.compiler_options
-                .ref_(self)
-                .react_namespace
-                .as_deref()
-                .unwrap(),
+            self.compiler_options.ref_(self).react_namespace.as_deref(),
             &map_defined(Some(children), |&child: &Id<Node>, _| {
                 self.transform_jsx_child_to_expression(child)
             }),
