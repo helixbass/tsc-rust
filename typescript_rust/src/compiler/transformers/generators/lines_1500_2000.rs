@@ -77,26 +77,30 @@ impl TransformGenerators {
 
             let variable: Id<Node /*Expression*/> =
                 if is_variable_declaration_list(&initializer.ref_(self)) {
-                    let initializer_ref = initializer.ref_(self);
-                    let initializer_as_variable_declaration_list =
-                        initializer_ref.as_variable_declaration_list();
-                    for &variable in &*initializer_as_variable_declaration_list
-                        .declarations
-                        .ref_(self)
+                    for &variable in &*released!(
+                        initializer
+                            .ref_(self)
+                            .as_variable_declaration_list()
+                            .declarations
+                    )
+                    .ref_(self)
                     {
-                        self.context.ref_(self).hoist_variable_declaration(
-                            variable.ref_(self).as_variable_declaration().name(),
-                        );
+                        self.context
+                            .ref_(self)
+                            .hoist_variable_declaration(released!(variable
+                                .ref_(self)
+                                .as_variable_declaration()
+                                .name()));
                     }
 
-                    self.factory.ref_(self).clone_node(
-                        initializer_as_variable_declaration_list
-                            .declarations
-                            .ref_(self)[0]
-                            .ref_(self)
-                            .as_variable_declaration()
-                            .name(),
-                    )
+                    self.factory.ref_(self).clone_node(released!(initializer
+                        .ref_(self)
+                        .as_variable_declaration_list()
+                        .declarations
+                        .ref_(self)[0]
+                        .ref_(self)
+                        .as_variable_declaration()
+                        .name()))
                 } else {
                     visit_node(
                         initializer,
@@ -171,13 +175,13 @@ impl TransformGenerators {
                     .as_variable_declaration()
                     .name()),
                 visit_node(
-                    node.ref_(self).as_for_in_statement().expression,
+                    released!(node.ref_(self).as_for_in_statement().expression),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
                 visit_node(
-                    node.ref_(self).as_for_in_statement().statement,
+                    released!(node.ref_(self).as_for_in_statement().statement),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_statement(node, self)),
                     Some(&|nodes: &[Id<Node>]| self.factory.ref_(self).lift_to_block(nodes)),
