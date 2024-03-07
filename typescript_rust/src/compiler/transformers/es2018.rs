@@ -1237,33 +1237,31 @@ impl TransformES2018 {
     }
 
     fn visit_for_statement(&self, node: Id<Node> /*ForStatement*/) -> VisitResult /*<Statement>*/ {
-        let node_ref = node.ref_(self);
-        let node_as_for_statement = node_ref.as_for_statement();
         Some(
             self.factory
                 .ref_(self)
                 .update_for_statement(
                     node,
                     maybe_visit_node(
-                        node_as_for_statement.initializer,
+                        released!(node.ref_(self).as_for_statement().initializer),
                         Some(|node: Id<Node>| self.visitor_with_unused_expression_result(node)),
                         Some(|node| is_for_initializer(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     ),
                     maybe_visit_node(
-                        node_as_for_statement.condition,
+                        released!(node.ref_(self).as_for_statement().condition),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     ),
                     maybe_visit_node(
-                        node_as_for_statement.incrementor,
+                        released!(node.ref_(self).as_for_statement().incrementor),
                         Some(|node: Id<Node>| self.visitor_with_unused_expression_result(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     ),
                     visit_iteration_body(
-                        node_as_for_statement.statement,
+                        released!(node.ref_(self).as_for_statement().statement),
                         |node: Id<Node>| self.visitor(node),
                         &*self.context.ref_(self),
                         self,

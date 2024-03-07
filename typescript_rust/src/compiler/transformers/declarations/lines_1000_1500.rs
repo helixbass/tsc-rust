@@ -623,7 +623,10 @@ impl TransformDeclarations {
                             if is_external_module_augmentation(input, self) {
                                 self.rewrite_module_specifier(
                                     input,
-                                    input.ref_(self).as_module_declaration().maybe_name(),
+                                    released!(input
+                                        .ref_(self)
+                                        .as_module_declaration()
+                                        .maybe_name()),
                                 )?
                                 .unwrap()
                             } else {

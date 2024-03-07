@@ -87,7 +87,7 @@ pub fn try_process_tagged_template_expression(
                 arena,
             ));
             template_arguments.push(try_visit_node(
-                template_span.ref_(arena).as_template_span().expression,
+                released!(template_span.ref_(arena).as_template_span().expression),
                 Some(|node: Id<Node>| visitor(node)),
                 Some(|node| is_expression(node, arena)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

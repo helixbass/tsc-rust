@@ -144,11 +144,13 @@ impl TransformGenerators {
 
         let initializer = node.ref_(self).as_for_in_statement().initializer;
         if is_variable_declaration_list(&initializer.ref_(self)) {
-            for &variable in &*initializer
-                .ref_(self)
-                .as_variable_declaration_list()
-                .declarations
-                .ref_(self)
+            for &variable in &*released!(
+                initializer
+                    .ref_(self)
+                    .as_variable_declaration_list()
+                    .declarations
+            )
+            .ref_(self)
             {
                 self.context
                     .ref_(self)
@@ -396,12 +398,16 @@ impl TransformGenerators {
             let mut pending_clauses: Vec<Id<Node /*CaseClause*/>> = _d();
             while clauses_written < num_clauses {
                 let mut default_clauses_skipped = 0;
-                for (i, clause) in released!(case_block.ref_(self).as_case_block().clauses)
+                for (i, clause) in released!(case_block
                     .ref_(self)
-                    .iter()
-                    .enumerate()
-                    .skip(clauses_written)
-                    .take(num_clauses - clauses_written)
+                    .as_case_block()
+                    .clauses
+                    .ref_(self)
+                    .clone())
+                .iter()
+                .enumerate()
+                .skip(clauses_written)
+                .take(num_clauses - clauses_written)
                 {
                     if clause.ref_(self).kind() == SyntaxKind::CaseClause {
                         if self.contains_yield(Some(clause.ref_(self).as_case_clause().expression))
@@ -574,9 +580,9 @@ impl TransformGenerators {
                     .as_catch_clause()
                     .variable_declaration
                     .unwrap()));
-                self.transform_and_emit_embedded_statement(
-                    node_catch_clause.ref_(self).as_catch_clause().block,
-                );
+                self.transform_and_emit_embedded_statement(released!(
+                    node_catch_clause.ref_(self).as_catch_clause().block
+                ));
             }
 
             if let Some(node_finally_block) =

@@ -662,7 +662,7 @@ impl TransformJsx {
             key_attr.map_or_else(
                 || self.factory.ref_(self).create_void_zero(),
                 |key_attr| {
-                    self.transform_jsx_attribute_initializer(key_attr.ref_(self).as_jsx_attribute().initializer)
+                    self.transform_jsx_attribute_initializer(released!(key_attr.ref_(self).as_jsx_attribute().initializer))
                 }
             )
         ];
@@ -1005,7 +1005,7 @@ impl TransformJsx {
                 return self.factory.ref_(self).create_true();
             }
             visit_node(
-                node.ref_(self).as_jsx_expression().expression.unwrap(),
+                released!(node.ref_(self).as_jsx_expression().expression.unwrap()),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
