@@ -795,12 +795,13 @@ impl TransformModule {
             &self.factory.ref_(self),
             node,
             self.current_source_file(),
-        )
-        .unwrap();
-        let expr = self.get_helper_expression_for_import(node, name.clone());
+        );
+        let expr = self.get_helper_expression_for_import(node, name);
         if expr == name {
             return Ok(None);
         }
+        let name = name.unwrap();
+        let expr = expr.unwrap();
         Ok(Some(self.factory.ref_(self).create_expression_statement(
             self.factory.ref_(self).create_assignment(name, expr),
         )))

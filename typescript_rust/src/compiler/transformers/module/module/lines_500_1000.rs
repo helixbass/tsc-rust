@@ -667,18 +667,24 @@ impl TransformModule {
     pub(super) fn get_helper_expression_for_import(
         &self,
         node: Id<Node>, /*ImportDeclaration*/
-        inner_expr: Id<Node /*Expression*/>,
-    ) -> Id<Node> {
+        inner_expr: Option<Id<Node /*Expression*/>>,
+    ) -> Option<Id<Node>> {
         if get_es_module_interop(&self.compiler_options.ref_(self)) != Some(true)
             || get_emit_flags(node, self).intersects(EmitFlags::NeverApplyImportHelper)
         {
             return inner_expr;
         }
         if get_import_needs_import_star_helper(node, self) {
-            return self.emit_helpers().create_import_star_helper(inner_expr);
+            return Some(
+                self.emit_helpers()
+                    .create_import_star_helper(inner_expr.unwrap()),
+            );
         }
         if get_import_needs_import_default_helper(node, self) {
-            return self.emit_helpers().create_import_default_helper(inner_expr);
+            return Some(
+                self.emit_helpers()
+                    .create_import_default_helper(inner_expr.unwrap()),
+            );
         }
         inner_expr
     }
@@ -719,10 +725,10 @@ impl TransformModule {
                             )),
                             None,
                             None,
-                            Some(self.get_helper_expression_for_import(
+                            self.get_helper_expression_for_import(
                                 node,
-                                self.create_require_call(node)?,
-                            )),
+                                Some(self.create_require_call(node)?),
+                            ),
                         ),
                     );
                 } else {
@@ -735,10 +741,10 @@ impl TransformModule {
                             ),
                             None,
                             None,
-                            Some(self.get_helper_expression_for_import(
+                            self.get_helper_expression_for_import(
                                 node,
-                                self.create_require_call(node)?,
-                            )),
+                                Some(self.create_require_call(node)?),
+                            ),
                         ),
                     );
 
