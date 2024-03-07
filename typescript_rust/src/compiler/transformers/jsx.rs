@@ -491,10 +491,10 @@ impl TransformJsx {
     ) -> Option<Id<Node>> {
         if self.current_file_state().import_specifier.is_none() {
             self.visit_jsx_opening_fragment_create_element(
-                node.ref_(self).as_jsx_fragment().opening_fragment,
-                &node.ref_(self).as_jsx_fragment().children.ref_(self),
+                released!(node.ref_(self).as_jsx_fragment().opening_fragment),
+                &released!(node.ref_(self).as_jsx_fragment().children).ref_(self),
                 is_child,
-                &*node.ref_(self),
+                &released!(ReadonlyTextRangeConcrete::from(&*node.ref_(self))),
             )
         } else {
             self.visit_jsx_opening_fragment_jsx(
