@@ -603,13 +603,11 @@ impl TransformGenerators {
             )
             .intersects(EmitFlags::Iterator)
             {
-                Some(
-                    self.emit_helpers()
-                        .create_values_helper(expression.unwrap())
-                        .set_text_range(Some(&*node.ref_(self)), self),
-                )
+                self.emit_helpers()
+                    .create_values_helper(expression.unwrap())
+                    .set_text_range(Some(&*node.ref_(self)), self)
             } else {
-                expression
+                expression.unwrap()
             };
             self.emit_yield_star(iterator, Some(&*node.ref_(self)));
         } else {

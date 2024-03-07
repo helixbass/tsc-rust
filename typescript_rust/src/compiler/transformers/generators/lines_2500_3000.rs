@@ -60,7 +60,7 @@ impl TransformGenerators {
 
     pub(super) fn emit_yield_star(
         &self,
-        expression: Option<Id<Node /*Expression*/>>,
+        expression: Id<Node /*Expression*/>,
         location: Option<&impl ReadonlyTextRange>,
     ) {
         self.emit_worker(OpCode::YieldStar, Some(expression.into()), location);
