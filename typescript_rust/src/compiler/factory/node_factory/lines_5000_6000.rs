@@ -17,14 +17,14 @@ use crate::{
     PropertyDescriptorAttributes, ReadonlyTextRange, ScriptKind, ScriptTarget,
     ShorthandPropertyAssignment, SingleOrVec, SourceFile, SpreadAssignment, StrOrRcNode,
     SyntaxKind, SyntheticExpression, TransformFlags, Type, UnparsedPrepend, UnparsedPrologue,
-    UnparsedSource, UnparsedTextLike, VisitResult, _d, find_use_strict_prologue, get_comment_range,
-    get_emit_flags, get_name_of_declaration, get_source_map_range, get_synthetic_leading_comments,
-    get_synthetic_trailing_comments, has_syntactic_modifier, is_call_chain,
-    is_element_access_expression, is_generated_identifier, is_identifier, is_labeled_statement,
-    is_parenthesized_expression, is_property_access_expression, is_statement, is_string_literal,
-    is_super_keyword, is_super_property, reduce_left_no_initial_value, released,
+    UnparsedSource, UnparsedTextLike, VisitResult, _d, append, find_use_strict_prologue,
+    get_comment_range, get_emit_flags, get_name_of_declaration, get_source_map_range,
+    get_synthetic_leading_comments, get_synthetic_trailing_comments, has_syntactic_modifier,
+    is_call_chain, is_element_access_expression, is_generated_identifier, is_identifier,
+    is_labeled_statement, is_parenthesized_expression, is_property_access_expression, is_statement,
+    is_string_literal, is_super_keyword, is_super_property, reduce_left_no_initial_value, released,
     return_ok_default_if_none, set_emit_flags, set_text_range, skip_outer_expressions,
-    skip_parentheses, try_visit_node, EmitFlags, HasArena, InArena, MapOrDefault, Matches,
+    skip_parentheses, try_maybe_visit_node, EmitFlags, HasArena, InArena, MapOrDefault, Matches,
     NumberOrRcNode, OptionInArena, OptionTry, ReadonlyTextRangeConcrete,
     SyntheticReferenceExpression, VecExt,
 };
@@ -1493,17 +1493,20 @@ impl NodeFactory {
             if get_emit_flags(statement, self).intersects(EmitFlags::CustomPrologue)
                 && filter_or_default(statement)
             {
-                target.push(visitor.as_mut().try_map_or_else(
-                    || Ok(statement.clone()),
-                    |visitor| {
-                        try_visit_node(
-                            statement,
-                            Some(|node: Id<Node>| visitor(node)),
-                            Some(|node: Id<Node>| is_statement(node, self)),
-                            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
-                        )
-                    },
-                )?);
+                append(
+                    target,
+                    visitor.as_mut().try_map_or_else(
+                        || Ok(Some(statement)),
+                        |visitor| {
+                            try_maybe_visit_node(
+                                Some(statement),
+                                Some(|node: Id<Node>| visitor(node)),
+                                Some(|node: Id<Node>| is_statement(node, self)),
+                                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
+                            )
+                        },
+                    )?,
+                );
             } else {
                 break;
             }
