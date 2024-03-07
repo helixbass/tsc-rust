@@ -857,9 +857,7 @@ impl TransformES2017 {
                 .declarations
                 .ref_(self)
                 .iter()
-                .any(|node: &Id<Node>| {
-                    self.collides_with_parameter_name(node.ref_(self).as_named_declaration().name())
-                })
+                .any(|&node: &Id<Node>| self.collides_with_parameter_name(node))
     }
 
     fn visit_variable_declaration_list_with_colliding_names(
@@ -956,7 +954,8 @@ impl TransformES2017 {
         )?)
     }
 
-    fn collides_with_parameter_name(&self, name: Id<Node>) -> bool {
+    fn collides_with_parameter_name(&self, node: Id<Node>) -> bool {
+        let name = node.ref_(self).as_named_declaration().name();
         if is_identifier(&name.ref_(self)) {
             return self
                 .enclosing_function_parameter_names()
