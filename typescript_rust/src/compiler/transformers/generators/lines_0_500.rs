@@ -367,7 +367,8 @@ pub(super) struct TransformGenerators {
     pub(super) last_operation_was_completion: Cell<bool>,
     pub(super) clauses: RefCell<Option<Vec<Id<Node /*CaseClause*/>>>>,
     pub(super) statements: RefCell<Option<Vec<Id<Node /*Statement*/>>>>,
-    pub(super) exception_block_stack: RefCell<Option<Vec<Id<CodeBlock /*ExceptionBlock*/>>>>,
+    pub(super) exception_block_stack:
+        RefCell<Option<Vec<Option<Id<CodeBlock /*ExceptionBlock*/>>>>>,
     pub(super) current_exception_block: Cell<Option<Id<CodeBlock /*ExceptionBlock*/>>>,
     pub(super) with_block_stack: RefCell<Option<Vec<Id<CodeBlock /*WithBlock*/>>>>,
 }
@@ -729,29 +730,25 @@ impl TransformGenerators {
 
     pub(super) fn maybe_exception_block_stack_mut(
         &self,
-    ) -> RefMut<Option<Vec<Id<CodeBlock /*ExceptionBlock*/>>>> {
+    ) -> RefMut<Option<Vec<Option<Id<CodeBlock /*ExceptionBlock*/>>>>> {
         self.exception_block_stack.borrow_mut()
     }
 
     pub(super) fn exception_block_stack_mut(
         &self,
-    ) -> RefMut<Vec<Id<CodeBlock /*ExceptionBlock*/>>> {
+    ) -> RefMut<Vec<Option<Id<CodeBlock /*ExceptionBlock*/>>>> {
         ref_mut_unwrapped(&self.exception_block_stack)
     }
 
     pub(super) fn set_exception_block_stack(
         &self,
-        exception_block_stack: Option<Vec<Id<CodeBlock /*ExceptionBlock*/>>>,
+        exception_block_stack: Option<Vec<Option<Id<CodeBlock /*ExceptionBlock*/>>>>,
     ) {
         *self.exception_block_stack.borrow_mut() = exception_block_stack;
     }
 
     pub(super) fn maybe_current_exception_block(&self) -> Option<Id<CodeBlock /*ExceptionBlock*/>> {
         self.current_exception_block.get()
-    }
-
-    pub(super) fn current_exception_block(&self) -> Id<CodeBlock /*ExceptionBlock*/> {
-        self.current_exception_block.get().unwrap()
     }
 
     pub(super) fn set_current_exception_block(

@@ -367,12 +367,12 @@ impl TransformGenerators {
                             self.maybe_statements_mut().get_or_insert_default_();
                             self.maybe_exception_block_stack_mut()
                                 .get_or_insert_default_()
-                                .push(self.current_exception_block());
+                                .push(self.maybe_current_exception_block());
                             self.set_current_exception_block(Some(block.clone()));
                         }
                         BlockAction::Close => {
                             self.set_current_exception_block(
-                                self.exception_block_stack_mut().pop(),
+                                self.exception_block_stack_mut().pop().flatten(),
                             );
                         }
                     },
