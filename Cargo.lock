@@ -1041,6 +1041,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "squalid"
+version = "0.0.1-dev.0"
+source = "git+https://github.com/helixbass/squalid?rev=c079b88#c079b88fb761230f017513d225670e7c3f879e6c"
+
+[[package]]
 name = "strsim"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1169,7 +1174,9 @@ dependencies = [
 name = "typescript_services_rust"
 version = "0.1.0"
 dependencies = [
+ "bitflags",
  "gc",
+ "squalid",
  "typescript_rust",
 ]
 

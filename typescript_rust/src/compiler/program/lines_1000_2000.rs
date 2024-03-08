@@ -1323,7 +1323,7 @@ impl Program {
         unimplemented!()
     }
 
-    pub(super) fn get_diagnostics_producing_type_checker(&self) -> io::Result<Id<TypeChecker>> {
+    pub fn get_diagnostics_producing_type_checker(&self) -> io::Result<Id<TypeChecker>> {
         // self.diagnostics_producing_type_checker
         //     .get_or_insert_with(|| create_type_checker(self, true))
 
@@ -1338,6 +1338,14 @@ impl Program {
                 .set(Some(create_type_checker(self.arena_id(), true, self)?));
         }
         Ok(self.diagnostics_producing_type_checker.get().unwrap())
+    }
+
+    pub fn get_type_checker(&self) -> io::Result<Id<TypeChecker>> {
+        if self.no_diagnostics_type_checker.get().is_none() {
+            self.no_diagnostics_type_checker
+                .set(Some(create_type_checker(self.arena_id(), false, self)?));
+        }
+        Ok(self.no_diagnostics_type_checker.get().unwrap())
     }
 
     pub(super) fn get_diagnostics_helper(

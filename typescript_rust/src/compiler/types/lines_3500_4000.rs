@@ -732,6 +732,11 @@ impl SourceFile {
     pub fn maybe_end_flow_node(&self) -> Option<Id<FlowNode>> {
         self.contents.end_flow_node.get()
     }
+
+    // from services SourceFileObject
+    pub fn get_line_and_character_of_position(&self, position: usize) -> LineAndCharacter {
+        get_line_and_character_of_position(self, position)
+    }
 }
 
 impl SourceFileLike for SourceFile {

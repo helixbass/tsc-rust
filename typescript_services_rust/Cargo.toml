@@ -7,6 +7,8 @@ default-run = "tsserver-rust"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bitflags = "1.3.2"
+squalid = { git = "https://github.com/helixbass/squalid", rev = "c079b88" }
 # tsc-rust = { git = "https://github.com/helixbass/tsc-rust", rev = "fa1079d5" }
 typescript_rust = { path = "../typescript_rust" }
 # gc = { git = "https://github.com/manishearth/rust-gc", rev = "6c5f754", features = ["derive", "serde"] }

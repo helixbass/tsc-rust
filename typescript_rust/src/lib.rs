@@ -262,7 +262,7 @@ pub use compiler::{
         get_line_and_character_of_position, get_position_of_line_and_character, get_shebang,
         get_trailing_comment_ranges, is_identifier_part, is_identifier_start, is_line_break,
         is_white_space_like, is_white_space_single_line, reduce_each_leading_comment_range,
-        reduce_each_trailing_comment_range, token_to_string, ErrorCallback, Scanner,
+        reduce_each_trailing_comment_range, skip_trivia, token_to_string, ErrorCallback, Scanner,
     },
     semver::{Version, VersionRange},
     sourcemap::{
@@ -781,9 +781,8 @@ use compiler::{
         compute_line_and_character_of_position, compute_line_of_position,
         compute_position_of_line_and_character, get_line_starts, get_lines_between_positions,
         is_identifier_text, is_octal_digit, is_shebang_trivia, is_unicode_identifier_start,
-        scan_shebang_trivia, skip_trivia, string_to_token, text_to_keyword_obj,
-        token_is_identifier_or_keyword, token_is_identifier_or_keyword_or_greater_than,
-        utf16_encode_as_string,
+        scan_shebang_trivia, string_to_token, text_to_keyword_obj, token_is_identifier_or_keyword,
+        token_is_identifier_or_keyword_or_greater_than, utf16_encode_as_string,
     },
     sys::{ignored_paths, missing_file_modified_time},
     types::{
