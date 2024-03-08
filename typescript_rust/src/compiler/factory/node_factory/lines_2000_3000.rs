@@ -75,12 +75,12 @@ impl NodeFactory {
         head: Id<Node /*TemplateHead*/>,
         template_spans: impl Into<NodeArrayOrVec>, /*<TemplateLiteralTypeSpan>*/
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_template_literal_type_node = node_ref.as_template_literal_type_node();
         let template_spans = template_spans.into();
-        if node_as_template_literal_type_node.head != head
+        if node.ref_(self).as_template_literal_type_node().head != head
             || has_node_array_changed(
-                node_as_template_literal_type_node.template_spans,
+                node.ref_(self)
+                    .as_template_literal_type_node()
+                    .template_spans,
                 &template_spans,
             )
         {
