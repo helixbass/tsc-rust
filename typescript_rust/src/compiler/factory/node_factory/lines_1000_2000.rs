@@ -1390,9 +1390,7 @@ impl NodeFactory {
         node: Id<Node>, /*RestTypeNode*/
         type_: Id<Node /*TypeNode*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_rest_type_node = node_ref.as_rest_type_node();
-        if node_as_rest_type_node.type_ != type_ {
+        if node.ref_(self).as_rest_type_node().type_ != type_ {
             self.update(self.create_rest_type_node(type_), node)
         } else {
             node
