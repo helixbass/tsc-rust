@@ -13,10 +13,10 @@ use crate::{
     is_local_name, is_modifier, is_named_exports, maybe_visit_nodes, released, remove_all_comments,
     return_if_none, set_emit_flags, single_or_many_node, try_flatten_destructuring_assignment,
     try_maybe_visit_each_child, try_maybe_visit_nodes, try_visit_each_child, try_visit_node,
-    try_visit_nodes, ClassLikeDeclarationInterface, EmitFlags, FlattenLevel,
-    FunctionLikeDeclarationInterface, GetOrInsertDefault, HasInitializerInterface,
-    HasTypeInterface, InArena, InterfaceOrClassLikeDeclarationInterface, Matches, OptionInArena,
-    ReadonlyTextRangeConcrete, SignatureDeclarationInterface, SyntaxKind,
+    try_visit_nodes, EmitFlags, FlattenLevel, FunctionLikeDeclarationInterface, GetOrInsertDefault,
+    HasInitializerInterface, HasMembersInterface, HasTypeInterface, InArena,
+    InterfaceOrClassLikeDeclarationInterface, Matches, OptionInArena, ReadonlyTextRangeConcrete,
+    SignatureDeclarationInterface, SyntaxKind,
 };
 
 impl TransformModule {

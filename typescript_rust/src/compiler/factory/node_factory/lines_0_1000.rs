@@ -21,14 +21,14 @@ use crate::{
     BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseLiteralLikeNode,
     BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseSignatureDeclaration,
     BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, BoolOrRcNode,
-    ClassLikeDeclarationBase, ClassLikeDeclarationInterface, Debug_,
-    FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, HasArena, HasInitializerInterface,
-    HasTypeInterface, HasTypeParametersInterface, Identifier, InArena,
-    InterfaceOrClassLikeDeclarationInterface, LiteralLikeNodeInterface, Node, NodeArray,
-    NodeArrayOrVec, NodeConverters, NodeFactory, NodeInterface, Number, NumericLiteral,
-    OptionInArena, ParenthesizerRules, PostfixUnaryExpression, PrefixUnaryExpression,
-    PrivateIdentifier, ReadonlyTextRange, RegularExpressionLiteral, SignatureDeclarationInterface,
-    StringLiteral, StringOrNodeArray, SyntaxKind, TokenFlags, TransformFlags,
+    ClassLikeDeclarationBase, Debug_, FunctionLikeDeclarationInterface, GeneratedIdentifierFlags,
+    HasArena, HasInitializerInterface, HasMembersInterface, HasTypeInterface,
+    HasTypeParametersInterface, Identifier, InArena, InterfaceOrClassLikeDeclarationInterface,
+    LiteralLikeNodeInterface, Node, NodeArray, NodeArrayOrVec, NodeConverters, NodeFactory,
+    NodeInterface, Number, NumericLiteral, OptionInArena, ParenthesizerRules,
+    PostfixUnaryExpression, PrefixUnaryExpression, PrivateIdentifier, ReadonlyTextRange,
+    RegularExpressionLiteral, SignatureDeclarationInterface, StringLiteral, StringOrNodeArray,
+    SyntaxKind, TokenFlags, TransformFlags,
 };
 
 thread_local! {

@@ -4,8 +4,8 @@ use super::{
     try_visit_node_returns, try_visit_nodes_returns, visit_node_returns, visit_nodes_returns,
 };
 use crate::{
-    for_each, maybe_for_each, try_for_each, try_maybe_for_each, ClassLikeDeclarationInterface,
-    FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface, HasQuestionTokenInterface,
+    for_each, maybe_for_each, try_for_each, try_maybe_for_each, FunctionLikeDeclarationInterface,
+    HasArena, HasInitializerInterface, HasMembersInterface, HasQuestionTokenInterface,
     HasStatementsInterface, HasTypeArgumentsInterface, HasTypeInterface,
     HasTypeParametersInterface, InArena, InterfaceOrClassLikeDeclarationInterface,
     JSDocTagInterface, NamedDeclarationInterface, Node, NodeArray, NodeInterface, OptionInArena,

@@ -3,12 +3,11 @@ use id_arena::Id;
 use super::{try_visit_node, try_visit_nodes, visit_node, visit_nodes};
 use crate::{
     for_each, maybe_for_each, released, try_for_each, try_maybe_for_each,
-    ClassLikeDeclarationInterface, FunctionLikeDeclarationInterface, HasArena,
-    HasInitializerInterface, HasQuestionTokenInterface, HasStatementsInterface,
-    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, InArena,
-    InterfaceOrClassLikeDeclarationInterface, JSDocTagInterface, NamedDeclarationInterface, Node,
-    NodeArray, NodeInterface, OptionInArena, OptionTry, SignatureDeclarationInterface,
-    StringOrNodeArray, SyntaxKind,
+    FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface, HasMembersInterface,
+    HasQuestionTokenInterface, HasStatementsInterface, HasTypeArgumentsInterface, HasTypeInterface,
+    HasTypeParametersInterface, InArena, InterfaceOrClassLikeDeclarationInterface,
+    JSDocTagInterface, NamedDeclarationInterface, Node, NodeArray, NodeInterface, OptionInArena,
+    OptionTry, SignatureDeclarationInterface, StringOrNodeArray, SyntaxKind,
 };
 
 pub fn for_each_child(

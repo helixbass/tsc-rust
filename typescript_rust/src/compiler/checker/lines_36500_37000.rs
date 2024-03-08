@@ -14,11 +14,11 @@ use crate::{
     is_in_js_file, is_module_declaration, is_named_declaration, is_object_binding_pattern,
     is_object_literal_expression, is_parameter_declaration, is_property_access_expression,
     is_prototype_access, is_require_variable_declaration, is_variable_like, node_is_missing,
-    released, some, try_for_each, try_for_each_child_bool, ClassLikeDeclarationInterface, Debug_,
-    Diagnostics, ExternalEmitHelpers, HasArena, HasInitializerInterface, InArena, ModifierFlags,
-    ModuleInstanceState, ModuleKind, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface,
-    OptionInArena, OptionTry, ScriptTarget, SignatureKind, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, Type, TypeChecker, TypeFlags,
+    released, some, try_for_each, try_for_each_child_bool, Debug_, Diagnostics,
+    ExternalEmitHelpers, HasArena, HasInitializerInterface, HasMembersInterface, InArena,
+    ModifierFlags, ModuleInstanceState, ModuleKind, Node, NodeArray, NodeCheckFlags, NodeFlags,
+    NodeInterface, OptionInArena, OptionTry, ScriptTarget, SignatureKind, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
 };
 
 impl TypeChecker {

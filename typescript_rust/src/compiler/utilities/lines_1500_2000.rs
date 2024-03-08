@@ -10,8 +10,8 @@ use crate::{
     is_jsdoc_member_name, is_jsdoc_name_reference, is_named_declaration,
     is_object_literal_expression, is_private_identifier, is_property_assignment,
     is_shorthand_property_assignment, is_source_file, is_string_literal, is_variable_declaration,
-    maybe_is_class_like, some, try_cast, ClassLikeDeclarationInterface, Debug_,
-    FindAncestorCallbackReturn, HasArena, HasInitializerInterface, HasStatementsInterface, InArena,
+    maybe_is_class_like, some, try_cast, Debug_, FindAncestorCallbackReturn, HasArena,
+    HasInitializerInterface, HasMembersInterface, HasStatementsInterface, InArena,
     LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeInterface, OptionInArena,
     SyntaxKind, TypePredicate, TypePredicateKind,
 };

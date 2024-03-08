@@ -11,11 +11,11 @@ use crate::{
     is_module_or_enum_declaration, is_omitted_expression, is_parameter_declaration, is_statement,
     maybe_visit_nodes, released, return_if_none, single_or_many_node,
     try_flatten_destructuring_assignment, try_maybe_visit_node, try_maybe_visit_nodes,
-    try_visit_each_child, try_visit_node, try_visit_nodes, ClassLikeDeclarationInterface,
-    CoreTransformationContext, Debug_, EmitFlags, FlattenLevel, FunctionLikeDeclarationInterface,
-    GetOrInsertDefault, HasInitializerInterface, InArena, InterfaceOrClassLikeDeclarationInterface,
-    ModifierFlags, NamedDeclarationInterface, NodeArray, NodeExt, NodeFlags, OptionInArena,
-    ReadonlyTextRange, SignatureDeclarationInterface,
+    try_visit_each_child, try_visit_node, try_visit_nodes, CoreTransformationContext, Debug_,
+    EmitFlags, FlattenLevel, FunctionLikeDeclarationInterface, GetOrInsertDefault,
+    HasInitializerInterface, HasMembersInterface, InArena,
+    InterfaceOrClassLikeDeclarationInterface, ModifierFlags, NamedDeclarationInterface, NodeArray,
+    NodeExt, NodeFlags, OptionInArena, ReadonlyTextRange, SignatureDeclarationInterface,
 };
 
 impl TransformSystemModule {

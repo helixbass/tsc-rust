@@ -969,6 +969,8 @@ impl Node {
         match self {
             Node::TypeLiteralNode(node) => node,
             Node::InterfaceDeclaration(node) => node,
+            Node::ClassDeclaration(node) => node,
+            Node::ClassExpression(node) => node,
             _ => panic!("Expected has members"),
         }
     }

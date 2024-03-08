@@ -515,7 +515,12 @@ fn get_ast_struct_interface_impl(
         }
         "ClassLikeDeclarationInterface" => {
             quote! {
-                impl crate::ClassLikeDeclarationInterface for #ast_type_name {
+                impl crate::ClassLikeDeclarationInterface for #ast_type_name {}
+            }
+        }
+        "HasMembersInterface" => {
+            quote! {
+                impl crate::HasMembersInterface for #ast_type_name {
                     fn members(&self) -> ::id_arena::Id<crate::NodeArray> {
                         self.#first_field_name.members()
                     }
@@ -1134,7 +1139,12 @@ fn get_ast_enum_interface_impl(
         }
         "ClassLikeDeclarationInterface" => {
             quote! {
-                impl crate::ClassLikeDeclarationInterface for #ast_type_name {
+                impl crate::ClassLikeDeclarationInterface for #ast_type_name {}
+            }
+        }
+        "HasMembersInterface" => {
+            quote! {
+                impl crate::HasMembersInterface for #ast_type_name {
                     fn members(&self) -> ::id_arena::Id<crate::NodeArray> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.members()),*

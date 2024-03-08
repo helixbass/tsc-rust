@@ -12,12 +12,12 @@ use crate::{
     move_range_past_decorators, node_or_child_is_decorated, parameter_is_this_keyword, released,
     set_emit_flags, skip_outer_expressions, skip_trivia, some, try_maybe_visit_each_child,
     try_maybe_visit_nodes, try_visit_each_child, try_visit_lexical_environment_full,
-    try_visit_nodes, AsDoubleDeref, BoolExt, ClassLikeDeclarationInterface,
-    CoreTransformationContext, EmitFlags, HasArena, HasStatementsInterface, InArena,
-    InterfaceOrClassLikeDeclarationInterface, Matches, ModifierFlags, ModuleKind,
-    NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeExt, NodeFlags,
-    NodeInterface, OptionInArena, ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface,
-    SourceFileLike, SyntaxKind, TextRange, TransformFlags, VisitResult,
+    try_visit_nodes, AsDoubleDeref, BoolExt, CoreTransformationContext, EmitFlags, HasArena,
+    HasMembersInterface, HasStatementsInterface, InArena, InterfaceOrClassLikeDeclarationInterface,
+    Matches, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeArray, NodeArrayExt,
+    NodeArrayOrVec, NodeExt, NodeFlags, NodeInterface, OptionInArena, ReadonlyTextRange,
+    ScriptTarget, SignatureDeclarationInterface, SourceFileLike, SyntaxKind, TextRange,
+    TransformFlags, VisitResult,
 };
 
 impl TransformTypeScript {

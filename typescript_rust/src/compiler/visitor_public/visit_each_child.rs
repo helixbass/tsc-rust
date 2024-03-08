@@ -22,12 +22,12 @@ use crate::{
     is_type_element, is_type_node, is_type_node_or_type_parameter_declaration,
     is_type_parameter_declaration, is_variable_declaration, is_variable_declaration_list,
     maybe_visit_node, maybe_visit_nodes, released, visit_function_body_full,
-    visit_parameter_list_full, ClassLikeDeclarationInterface, FunctionLikeDeclarationInterface,
-    HasArena, HasInitializerInterface, HasMembersInterface, HasQuestionTokenInterface,
-    HasStatementsInterface, HasTypeArgumentsInterface, HasTypeInterface,
-    HasTypeParametersInterface, InArena, InterfaceOrClassLikeDeclarationInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
-    SignatureDeclarationInterface, SyntaxKind, TransformationContext, VisitResult,
+    visit_parameter_list_full, FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface,
+    HasMembersInterface, HasQuestionTokenInterface, HasStatementsInterface,
+    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, InArena,
+    InterfaceOrClassLikeDeclarationInterface, NamedDeclarationInterface, Node, NodeArray,
+    NodeFlags, NodeInterface, SignatureDeclarationInterface, SyntaxKind, TransformationContext,
+    VisitResult,
 };
 
 #[inline(always)]

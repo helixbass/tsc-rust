@@ -1475,8 +1475,8 @@ pub trait ClassLikeDeclarationInterface:
     + HasTypeParametersInterface
     + GenericNamedDeclarationInterface
     + InterfaceOrClassLikeDeclarationInterface
+    + HasMembersInterface
 {
-    fn members(&self) -> Id<NodeArray>;
 }
 
 #[derive(Debug)]
@@ -1501,15 +1501,17 @@ impl ClassLikeDeclarationBase {
     }
 }
 
-impl ClassLikeDeclarationInterface for ClassLikeDeclarationBase {
+impl ClassLikeDeclarationInterface for ClassLikeDeclarationBase {}
+
+impl HasMembersInterface for ClassLikeDeclarationBase {
     fn members(&self) -> Id<NodeArray> {
-        self.members.clone()
+        self.members
     }
 }
 
 #[derive(Debug)]
 #[ast_type(
-    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, InterfaceOrClassLikeDeclarationInterface, ClassLikeDeclarationInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, InterfaceOrClassLikeDeclarationInterface, ClassLikeDeclarationInterface, HasMembersInterface"
 )]
 pub struct ClassDeclaration {
     _class_like_declaration: ClassLikeDeclarationBase,
@@ -1525,7 +1527,7 @@ impl ClassDeclaration {
 
 #[derive(Debug)]
 #[ast_type(
-    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, InterfaceOrClassLikeDeclarationInterface, ClassLikeDeclarationInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, InterfaceOrClassLikeDeclarationInterface, ClassLikeDeclarationInterface, HasMembersInterface"
 )]
 pub struct ClassExpression {
     _class_like_declaration: ClassLikeDeclarationBase,
