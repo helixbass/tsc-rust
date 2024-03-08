@@ -859,7 +859,7 @@ impl TypeChecker {
         rest_index: usize,
     ) -> io::Result<Vec<Id<Symbol>>> {
         let element_types = self.get_type_arguments(rest_type)?;
-        let rest_type_target = rest_type.ref_(self).as_type_reference().target;
+        let rest_type_target = rest_type.ref_(self).as_type_reference_interface().target();
         let rest_type_target_ref = rest_type_target.ref_(self);
         let associated_names = rest_type_target_ref
             .as_tuple_type()
