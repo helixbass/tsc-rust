@@ -465,15 +465,15 @@ impl TypeChecker {
 
         if is_in_js_file(Some(&name.ref_(self)))
             && name.ref_(self).parent().ref_(self).kind() == SyntaxKind::PropertyAccessExpression
-            && name.ref_(self).parent()
+            && Some(name.ref_(self).parent())
                 == name
                     .ref_(self)
                     .parent()
                     .ref_(self)
                     .parent()
                     .ref_(self)
-                    .as_binary_expression()
-                    .left
+                    .maybe_as_binary_expression()
+                    .map(|name_parent_parent| name_parent_parent.left)
         {
             if !is_private_identifier(&name.ref_(self)) && !is_jsdoc_member_name(&name.ref_(self)) {
                 let special_property_assignment_symbol =

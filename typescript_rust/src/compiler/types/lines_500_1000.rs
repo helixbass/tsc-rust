@@ -1093,6 +1093,13 @@ impl Node {
         enum_unwrapped!(self, [Node, JSDoc])
     }
 
+    pub fn maybe_as_binary_expression(&self) -> Option<&BinaryExpression> {
+        match self {
+            Node::BinaryExpression(value) => Some(value),
+            _ => None,
+        }
+    }
+
     pub fn as_binary_expression(&self) -> &BinaryExpression {
         enum_unwrapped!(self, [Node, BinaryExpression])
     }
