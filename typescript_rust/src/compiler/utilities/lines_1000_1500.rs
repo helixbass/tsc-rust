@@ -685,7 +685,7 @@ pub fn is_part_of_type_node(mut node: Id<Node>, arena: &impl HasArena) -> bool {
                 | SyntaxKind::GetAccessor
                 | SyntaxKind::SetAccessor => {
                     return matches!(
-                        parent.ref_(arena).as_function_like_declaration().maybe_type(),
+                        parent.ref_(arena).as_has_type().maybe_type(),
                         Some(type_) if node == type_
                     );
                 }
