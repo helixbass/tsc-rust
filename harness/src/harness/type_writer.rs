@@ -370,7 +370,12 @@ impl TypeWriterWalker {
             "Symbol({}",
             self.checker
                 .ref_(self)
-                .symbol_to_string(symbol, node.ref_(self).maybe_parent(), None, None)
+                .symbol_to_string(
+                    symbol,
+                    released!(node.ref_(self).maybe_parent()),
+                    None,
+                    None
+                )
                 .unwrap(),
         );
         if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_ref() {

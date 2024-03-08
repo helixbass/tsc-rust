@@ -10,7 +10,7 @@ use crate::{
     is_namespace_reexport_declaration, is_umd_export_symbol, length, node_is_present,
     push_if_unique_eq, released, some, try_for_each_entry, try_maybe_for_each, BaseInterfaceType,
     BaseIntrinsicType, BaseObjectType, BaseType, CharacterCodes, FunctionLikeDeclarationInterface,
-    HasArena, InArena, IndexInfo, InternalSymbolName, Node, NodeInterface, ObjectFlags,
+    HasArena, InArena, IndexInfo, InternalSymbolName, Matches, Node, NodeInterface, ObjectFlags,
     OptionInArena, OptionTry, ResolvableTypeInterface, ResolvedTypeInterface, Signature,
     SignatureFlags, Symbol, SymbolAccessibility, SymbolAccessibilityResult, SymbolFlags, SymbolId,
     SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
@@ -525,8 +525,11 @@ impl TypeChecker {
         callback(self.globals_id(), None, Some(true), None)
     }
 
-    pub(super) fn get_qualified_left_meaning(&self, right_meaning: SymbolFlags) -> SymbolFlags {
-        if right_meaning == SymbolFlags::Value {
+    pub(super) fn get_qualified_left_meaning(
+        &self,
+        right_meaning: Option<SymbolFlags>,
+    ) -> SymbolFlags {
+        if right_meaning == Some(SymbolFlags::Value) {
             SymbolFlags::Value
         } else {
             SymbolFlags::Namespace
@@ -537,7 +540,7 @@ impl TypeChecker {
         &self,
         symbol: Option<Id<Symbol>>,
         enclosing_declaration: Option<Id<Node>>,
-        meaning: SymbolFlags,
+        meaning: Option<SymbolFlags>,
         use_only_external_aliasing: bool,
         visited_symbol_tables_map: Option<&mut HashMap<SymbolId, Id<Vec<Id<SymbolTable>>>>>,
     ) -> io::Result<Option<Vec<Id<Symbol>>>> {
@@ -565,7 +568,10 @@ impl TypeChecker {
             } else {
                 "undefined".to_owned()
             },
-            meaning.bits()
+            match meaning {
+                Some(meaning) => meaning.bits().to_string(),
+                None => "undefined".to_owned(),
+            }
         );
         {
             let mut links = links.ref_mut(self);
@@ -608,7 +614,7 @@ impl TypeChecker {
     pub(super) fn get_accessible_symbol_chain_from_symbol_table(
         &self,
         visited_symbol_tables: Id<Vec<Id<SymbolTable>>>,
-        meaning: SymbolFlags,
+        meaning: Option<SymbolFlags>,
         symbol: Id<Symbol>,
         enclosing_declaration: Option<Id<Node>>,
         use_only_external_aliasing: bool,
@@ -642,7 +648,7 @@ impl TypeChecker {
         use_only_external_aliasing: bool,
         visited_symbol_tables_map: &mut HashMap<SymbolId, Id<Vec<Id<SymbolTable>>>>,
         symbol_from_symbol_table: Id<Symbol>,
-        meaning: SymbolFlags,
+        meaning: Option<SymbolFlags>,
     ) -> io::Result<bool> {
         Ok(
             !self.needs_qualification(symbol_from_symbol_table, enclosing_declaration, meaning)?
@@ -650,7 +656,7 @@ impl TypeChecker {
                     .get_accessible_symbol_chain(
                         symbol_from_symbol_table.ref_(self).maybe_parent(),
                         enclosing_declaration,
-                        self.get_qualified_left_meaning(meaning),
+                        Some(self.get_qualified_left_meaning(meaning)),
                         use_only_external_aliasing,
                         Some(visited_symbol_tables_map),
                     )?
@@ -661,7 +667,7 @@ impl TypeChecker {
     pub(super) fn is_accessible(
         &self,
         symbol: Id<Symbol>,
-        meaning: SymbolFlags,
+        meaning: Option<SymbolFlags>,
         enclosing_declaration: Option<Id<Node>>,
         use_only_external_aliasing: bool,
         visited_symbol_tables_map: &mut HashMap<SymbolId, Id<Vec<Id<SymbolTable>>>>,
@@ -701,7 +707,7 @@ impl TypeChecker {
     pub(super) fn try_symbol_table(
         &self,
         symbol: Id<Symbol>,
-        meaning: SymbolFlags,
+        meaning: Option<SymbolFlags>,
         enclosing_declaration: Option<Id<Node>>,
         use_only_external_aliasing: bool,
         visited_symbol_tables_map: &mut HashMap<SymbolId, Id<Vec<Id<SymbolTable>>>>,
@@ -835,7 +841,7 @@ impl TypeChecker {
     pub(super) fn get_candidate_list_for_symbol(
         &self,
         symbol: Id<Symbol>,
-        meaning: SymbolFlags,
+        meaning: Option<SymbolFlags>,
         enclosing_declaration: Option<Id<Node>>,
         use_only_external_aliasing: bool,
         visited_symbol_tables_map: &mut HashMap<SymbolId, Id<Vec<Id<SymbolTable>>>>,
@@ -876,7 +882,7 @@ impl TypeChecker {
                 use_only_external_aliasing,
                 visited_symbol_tables_map,
                 symbol_from_symbol_table,
-                self.get_qualified_left_meaning(meaning),
+                Some(self.get_qualified_left_meaning(meaning)),
             )? {
                 let mut ret = vec![symbol_from_symbol_table];
                 ret.append(&mut accessible_symbols_from_exports);
@@ -890,7 +896,7 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
         enclosing_declaration: Option<Id<Node>>,
-        meaning: SymbolFlags,
+        meaning: Option<SymbolFlags>,
     ) -> io::Result<bool> {
         let mut qualify = false;
         self.try_for_each_symbol_table_in_scope(
@@ -925,11 +931,12 @@ impl TypeChecker {
                 } else {
                     symbol_from_symbol_table
                 };
-                if symbol_from_symbol_table
-                    .ref_(self)
-                    .flags()
-                    .intersects(meaning)
-                {
+                if meaning.matches(|meaning| {
+                    symbol_from_symbol_table
+                        .ref_(self)
+                        .flags()
+                        .intersects(meaning)
+                }) {
                     qualify = true;
                     return Ok(Some(()));
                 }
@@ -1029,7 +1036,7 @@ impl TypeChecker {
             let accessible_symbol_chain = self.get_accessible_symbol_chain(
                 Some(symbol),
                 enclosing_declaration,
-                meaning,
+                Some(meaning),
                 false,
                 None,
             )?;
@@ -1073,7 +1080,7 @@ impl TypeChecker {
                 enclosing_declaration,
                 initial_symbol,
                 if initial_symbol == symbol {
-                    self.get_qualified_left_meaning(meaning)
+                    self.get_qualified_left_meaning(Some(meaning))
                 } else {
                     meaning
                 },

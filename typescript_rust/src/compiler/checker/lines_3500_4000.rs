@@ -801,12 +801,12 @@ impl TypeChecker {
                     if container
                         .ref_(self)
                         .flags()
-                        .intersects(self.get_qualified_left_meaning(meaning))
+                        .intersects(self.get_qualified_left_meaning(Some(meaning)))
                         && self
                             .get_accessible_symbol_chain(
                                 Some(container),
                                 Some(enclosing_declaration),
-                                SymbolFlags::Namespace,
+                                Some(SymbolFlags::Namespace),
                                 false,
                                 None,
                             )?
@@ -826,7 +826,7 @@ impl TypeChecker {
                 let first_variable_match = if !(container
                     .ref_(self)
                     .flags()
-                    .intersects(self.get_qualified_left_meaning(meaning)))
+                    .intersects(self.get_qualified_left_meaning(Some(meaning))))
                     && container.ref_(self).flags().intersects(SymbolFlags::Type)
                     && self
                         .get_declared_type_of_symbol(container)?
@@ -843,7 +843,7 @@ impl TypeChecker {
                                 |&s: &Id<Symbol>, _| -> io::Result<_> {
                                     if s.ref_(self)
                                         .flags()
-                                        .intersects(self.get_qualified_left_meaning(meaning))
+                                        .intersects(self.get_qualified_left_meaning(Some(meaning)))
                                         && self.get_type_of_symbol(s)?
                                             == self.get_declared_type_of_symbol(container)?
                                     {

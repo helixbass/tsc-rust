@@ -903,9 +903,7 @@ impl NodeBuilder {
             self.type_checker.ref_(self).get_accessible_symbol_chain(
                 Some(symbol),
                 context.ref_(self).maybe_enclosing_declaration(),
-                // TODO: ...again here not sure where/how to "stop bubbling down" the actual
-                // Option<SymbolFlags> type
-                meaning.unwrap(),
+                meaning,
                 context
                     .ref_(self)
                     .flags()
@@ -919,12 +917,12 @@ impl NodeBuilder {
                 accessible_symbol_chain[0],
                 context.ref_(self).maybe_enclosing_declaration(),
                 if accessible_symbol_chain.len() == 1 {
-                    // TODO: ...and here
-                    meaning.unwrap()
+                    meaning
                 } else {
-                    self.type_checker.ref_(self).get_qualified_left_meaning(
-                        // TODO: ...and here
-                        meaning.unwrap(),
+                    Some(
+                        self.type_checker
+                            .ref_(self)
+                            .get_qualified_left_meaning(meaning),
                     )
                 },
             )?,
@@ -969,10 +967,11 @@ impl NodeBuilder {
                         context,
                         yield_module_symbol,
                         parent,
-                        Some(self.type_checker.ref_(self).get_qualified_left_meaning(
-                            // TODO: ...or here
-                            meaning.unwrap(),
-                        )),
+                        Some(
+                            self.type_checker
+                                .ref_(self)
+                                .get_qualified_left_meaning(meaning),
+                        ),
                         false,
                     )?;
                     if let Some(mut parent_chain) = parent_chain {
