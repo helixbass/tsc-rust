@@ -1,10 +1,9 @@
 use std::{
     cell::{Cell, RefCell},
     collections::HashMap,
-    io,
+    env, io,
     iter::FromIterator,
     path::{Path as StdPath, PathBuf},
-    env,
 };
 
 use regex::Regex;
@@ -224,7 +223,10 @@ impl vfs::FileSystemResolverHost for NodeIO {
     }
 
     fn get_workspace_root(&self) -> String {
-        format!("{}/prj/tsc-rust/typescript_rust/typescript_src/", env::var("HOME").unwrap())
+        format!(
+            "{}/prj/tsc-rust/typescript_rust/typescript_src/",
+            env::var("HOME").unwrap()
+        )
     }
 }
 
@@ -253,12 +255,13 @@ pub fn set_light_mode(flag: bool) {
 pub mod Compiler {
     use std::{borrow::Cow, cell::RefCell, cmp, collections::HashMap, convert::TryInto, io};
 
+    use itertools::Itertools;
     use regex::Regex;
     use typescript_rust::{
         NonEmpty, _d, combine_paths, compare_diagnostics, compare_paths, compute_line_starts,
         count_where, create_get_canonical_file_name, create_source_file, debug_cell,
-        diagnostic_category_name, file_extension_is, flatten_diagnostic_message_text, for_each,
-        format_diagnostics, format_diagnostics_with_color_and_context, format_location,
+        diagnostic_category_name, ends_with, file_extension_is, flatten_diagnostic_message_text,
+        for_each, format_diagnostics, format_diagnostics_with_color_and_context, format_location,
         get_allow_js_compiler_option, get_base_file_name, get_declaration_emit_extension_for_path,
         get_emit_script_target, get_error_count_for_summary, get_error_summary_text,
         get_normalized_absolute_path, id_arena::Id, map, normalize_slashes, option_declarations,
@@ -268,14 +271,15 @@ pub mod Compiler {
         CommandLineOptionType, Comparison, CompilerOptions, CompilerOptionsBuilder,
         CompilerOptionsValue, Diagnostic, DiagnosticInterface,
         DiagnosticRelatedInformationInterface, Extension, FormatDiagnosticsHost,
-        GetOrInsertDefault, HasArena, InArena, NewLineKind, ScriptKind, ScriptReferenceHost,
-        StringOrDiagnosticMessage, TextSpan,
+        GetOrInsertDefault, HasArena, InArena, NewLineKind, Program, ScriptKind,
+        ScriptReferenceHost, StringOrDiagnosticMessage, TextSpan,
     };
 
     use super::{get_io_id, is_built_file, is_default_library_file, Baseline, TestCaseParser};
     use crate::{
         compiler, documents, fakes, get_io, impl_has_arena_harness, vfs, vpath, AllArenasHarness,
-        HasArenaHarness, InArenaHarness, Utils, IO,
+        Baseline::BaselineOptions, HasArenaHarness, InArenaHarness, TypeWriterResult,
+        TypeWriterWalker, Utils, IO,
     };
 
     #[derive(Default)]
@@ -1430,6 +1434,193 @@ pub mod Compiler {
         Ok(())
     }
 
+    pub fn do_type_and_symbol_baseline(
+        baseline_path: &str,
+        program: Id<Program>,
+        all_files: &[TestFile],
+        opts: Option<&BaselineOptions>,
+        multifile: Option<bool>,
+        skip_type_baselines: Option<bool>,
+        skip_symbol_baselines: Option<bool>,
+        has_error_baseline: Option<bool>,
+        arena: &impl HasArenaHarness,
+    ) {
+        let mut full_walker =
+            TypeWriterWalker::new(program, true, has_error_baseline == Some(true), arena);
+
+        let mut iterate_base_line = |is_symbol_baseline: bool,
+                                     skip_baseline: Option<bool>|
+         -> Vec<(String, String)> {
+            if skip_baseline == Some(true) {
+                return _d();
+            }
+            let mut dupe_case: HashMap<String, usize> = _d();
+
+            let mut ret: Vec<(String, String)> = _d();
+            for file in all_files {
+                let unit_name = &file.unit_name;
+                let mut type_lines = format!("=== {unit_name} ===\r\n");
+                let code_lines = regex!(r#"\r?\n"#)
+                    .split(&file.content)
+                    .flat_map(|e| regex!(r#"[\r\u{2028}\u{2029}]"#).split(e))
+                    .collect_vec();
+                let gen = if is_symbol_baseline {
+                    full_walker
+                        .get_symbols(unit_name)
+                        .into_iter()
+                        .map(TypeWriterResult::Symbol)
+                        .collect_vec()
+                } else {
+                    full_walker
+                        .get_types(unit_name)
+                        .into_iter()
+                        .map(TypeWriterResult::Type)
+                        .collect_vec()
+                };
+                let mut last_index_written: Option<usize> = _d();
+                for result in gen {
+                    // if (isSymbolBaseline && !result.symbol) {
+                    //     return;
+                    // }
+                    match last_index_written {
+                        None => {
+                            type_lines.push_str(&format!(
+                                "{}\r\n",
+                                code_lines[0..result.line() + 1].join("\r\n")
+                            ));
+                        }
+                        Some(last_index_written) => {
+                            if result.line() != last_index_written {
+                                if !(last_index_written + 1 < code_lines.len()
+                                    && (regex!(r#"^\s*[{|}]\s*$"#)
+                                        .is_match(&code_lines[last_index_written + 1])
+                                        || code_lines[last_index_written + 1].trim().is_empty()))
+                                {
+                                    type_lines.push_str("\r\n");
+                                }
+                                type_lines.push_str(&format!(
+                                    "{}\r\n",
+                                    code_lines[last_index_written + 1..result.line() + 1]
+                                        .join("\r\n")
+                                ));
+                            }
+                        }
+                    }
+                    last_index_written = Some(result.line());
+                    let type_or_symbol_string = if is_symbol_baseline {
+                        result.as_symbol().symbol.clone()
+                    } else {
+                        result.as_type().type_.clone()
+                    };
+                    let formatted_line = format!(
+                        "{} : {}",
+                        regex!(r#"\r?\n"#).replace_all(result.source_text(), ""),
+                        type_or_symbol_string
+                    );
+                    type_lines.push_str(&format!(">{formatted_line}\r\n"));
+                }
+
+                match last_index_written {
+                    None => {
+                        for code_line in code_lines {
+                            type_lines.push_str(&format!(
+                                "{code_line}\r\nNo type information for this code.",
+                            ));
+                        }
+                    }
+                    Some(last_index_written) => {
+                        if last_index_written + 1 < code_lines.len() {
+                            if !(last_index_written + 1 < code_lines.len()
+                                && (regex!(r#"^\s*[{|}]\s*$"#)
+                                    .is_match(&code_lines[last_index_written + 1])
+                                    || code_lines[last_index_written + 1].trim().is_empty()))
+                            {
+                                type_lines.push_str("\r\n");
+                            }
+                            type_lines.push_str(&code_lines[last_index_written + 1..].join("\r\n"));
+                        }
+                        type_lines.push_str("\r\n");
+                    }
+                }
+                ret.push((
+                    check_duplicated_file_name(unit_name, &mut dupe_case),
+                    Utils::remove_test_path_prefixes(&type_lines, None).into_owned(),
+                ));
+            }
+            ret
+        };
+
+        let mut generate_base_line =
+            |is_symbol_baseline: bool, skip_baseline: Option<bool>| -> Option<String> {
+                iterate_base_line(is_symbol_baseline, skip_baseline)
+                    .into_iter()
+                    .map(|(_, content)| content)
+                    .join("")
+                    .non_empty()
+            };
+
+        let mut check_base_lines = |is_symbol_base_line: bool| {
+            let full_extension = if is_symbol_base_line {
+                ".symbols"
+            } else {
+                ".types"
+            };
+            let output_file_name = if ends_with(baseline_path, Extension::Ts.to_str())
+                || ends_with(baseline_path, Extension::Tsx.to_str())
+            {
+                regex!(r#"\.tsx?"#).replace(baseline_path, "").into_owned()
+            } else {
+                baseline_path.to_owned()
+            };
+
+            if multifile != Some(true) {
+                let full_base_line = generate_base_line(
+                    is_symbol_base_line,
+                    if is_symbol_base_line {
+                        skip_symbol_baselines
+                    } else {
+                        skip_type_baselines
+                    },
+                );
+                Baseline::run_baseline(
+                    &format!("{output_file_name}{full_extension}"),
+                    full_base_line.as_deref(),
+                    opts.cloned(),
+                    arena,
+                );
+            } else {
+                unimplemented!()
+            }
+        };
+
+        // let typesError: Error | undefined, symbolsError: Error | undefined;
+        // try {
+        check_base_lines(false);
+        // }
+        // catch (e) {
+        //     typesError = e;
+        // }
+
+        // try {
+        check_base_lines(true);
+        // }
+        // catch (e) {
+        //     symbolsError = e;
+        // }
+
+        // if (typesError && symbolsError) {
+        //     throw new Error(typesError.stack + IO.newLine() + symbolsError.stack);
+        // }
+
+        // if (typesError) {
+        //     throw typesError;
+        // }
+
+        // if (symbolsError) {
+        //     throw symbolsError;
+        // }
+    }
+
     pub fn do_js_emit_baseline(
         baseline_path: &str,
         header: &str,
@@ -2142,7 +2333,7 @@ pub mod Baseline {
 
     const no_content: &'static str = "<no content>";
 
-    #[derive(Debug)]
+    #[derive(Clone, Debug)]
     pub struct BaselineOptions {
         pub Subfolder: Option<String>,
         pub Baselinefolder: Option<String>,

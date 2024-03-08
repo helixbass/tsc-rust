@@ -21,7 +21,9 @@ pub use harness::{
         EnumerateFilesOptions, RunnerBase, RunnerBaseSub, StringOrFileBasedTest, TestRunnerKind,
     },
     source_map_recorder::SourceMapRecorder,
-    type_writer::{TypeWriterSymbolResult, TypeWriterTypeResult, TypeWriterWalker},
+    type_writer::{
+        TypeWriterResult, TypeWriterSymbolResult, TypeWriterTypeResult, TypeWriterWalker,
+    },
     vfs_util::vfs,
     virtual_file_system_with_watch::TestFSWithWatch,
     vpath_util::vpath,

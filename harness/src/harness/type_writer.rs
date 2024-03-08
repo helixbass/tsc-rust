@@ -36,6 +36,43 @@ pub enum TypeWriterResult {
     Type(TypeWriterTypeResult),
 }
 
+impl TypeWriterResult {
+    pub fn line(&self) -> usize {
+        match self {
+            Self::Symbol(value) => value.line,
+            Self::Type(value) => value.line,
+        }
+    }
+
+    pub fn syntax_kind(&self) -> SyntaxKind {
+        match self {
+            Self::Symbol(value) => value.syntax_kind,
+            Self::Type(value) => value.syntax_kind,
+        }
+    }
+
+    pub fn source_text(&self) -> &str {
+        match self {
+            Self::Symbol(value) => &value.source_text,
+            Self::Type(value) => &value.source_text,
+        }
+    }
+
+    pub fn as_symbol(&self) -> &TypeWriterSymbolResult {
+        match self {
+            Self::Symbol(value) => value,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn as_type(&self) -> &TypeWriterTypeResult {
+        match self {
+            Self::Type(value) => value,
+            _ => unreachable!(),
+        }
+    }
+}
+
 struct ForEachAstNode {
     arena: *const AllArenas,
     work: Vec<Id<Node>>,
