@@ -245,8 +245,14 @@ impl TypeChecker {
         type_variable: Id<Type>, /*TypeVariable*/
         mapper: Id<TypeMapper>,
     ) -> io::Result<Id<Type>> {
-        let tuple_type_target = tuple_type.ref_(self).as_type_reference().target.ref_(self);
-        let element_flags = &tuple_type_target.as_tuple_type().element_flags;
+        let ref element_flags = tuple_type
+            .ref_(self)
+            .as_type_reference()
+            .target
+            .ref_(self)
+            .as_tuple_type()
+            .element_flags
+            .clone();
         let element_types = try_map(&self.get_type_arguments(tuple_type)?, |&t: &Id<Type>, i| {
             let singleton = if element_flags[i].intersects(ElementFlags::Variadic) {
                 t.clone()
