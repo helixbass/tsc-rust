@@ -33,7 +33,7 @@ impl NodeBuilder {
     ) -> io::Result<Id<Node>> {
         let check_type_node = self
             .type_to_type_node_helper(
-                Some(type_.ref_(self).as_conditional_type().check_type),
+                released!(Some(type_.ref_(self).as_conditional_type().check_type)),
                 context,
             )?
             .unwrap();
@@ -1035,9 +1035,9 @@ impl NodeBuilder {
             } else {
                 type_name = get_factory(self).update_qualified_name(
                     type_name,
-                    type_name.ref_(self).as_qualified_name().left,
+                    released!(type_name.ref_(self).as_qualified_name().left),
                     get_factory(self).update_identifier(
-                        type_name.ref_(self).as_qualified_name().right,
+                        released!(type_name.ref_(self).as_qualified_name().right),
                         type_arguments.cloned(),
                     ),
                 );

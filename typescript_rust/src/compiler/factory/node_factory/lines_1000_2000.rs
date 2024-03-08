@@ -1031,10 +1031,8 @@ impl NodeFactory {
         type_: Id<Node /*TypeNode*/>,
         literal: Id<Node /*TemplateMiddle | TemplateTail*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_template_literal_type_span = node_ref.as_template_literal_type_span();
-        if node_as_template_literal_type_span.type_ != type_
-            || node_as_template_literal_type_span.literal != literal
+        if node.ref_(self).as_template_literal_type_span().type_ != type_
+            || node.ref_(self).as_template_literal_type_span().literal != literal
         {
             self.update(self.create_template_literal_type_span(type_, literal), node)
         } else {

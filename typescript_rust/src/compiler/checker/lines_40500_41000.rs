@@ -22,7 +22,7 @@ use crate::{
     is_literal_type_node, is_meta_property, is_private_identifier, is_property_declaration,
     is_qualified_name, is_require_call,
     is_right_side_of_qualified_name_or_property_access_or_jsdoc_member_name, is_static,
-    node_is_missing, node_is_present, AssignmentDeclarationKind, Debug_, Diagnostic,
+    node_is_missing, node_is_present, released, AssignmentDeclarationKind, Debug_, Diagnostic,
     FindAncestorCallbackReturn, FunctionLikeDeclarationInterface, InArena, InternalSymbolName,
     NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionInArena, OptionTry, Symbol,
     SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, TypeChecker, TypeInterface,
@@ -834,7 +834,7 @@ impl TypeChecker {
             }
         }
 
-        Ok(match node.ref_(self).kind() {
+        Ok(match released!(node.ref_(self).kind()) {
             SyntaxKind::Identifier
             | SyntaxKind::PrivateIdentifier
             | SyntaxKind::PropertyAccessExpression

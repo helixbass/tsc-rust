@@ -1535,7 +1535,7 @@ impl NodeBuilder {
         {
             let object_type_node = self
                 .type_to_type_node_helper(
-                    Some(type_.ref_(self).as_indexed_access_type().object_type),
+                    released!(Some(type_.ref_(self).as_indexed_access_type().object_type)),
                     context,
                 )?
                 .unwrap();
