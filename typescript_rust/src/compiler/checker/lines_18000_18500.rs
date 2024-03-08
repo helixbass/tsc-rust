@@ -878,8 +878,8 @@ impl CheckTypeRelatedTo {
         {
             if source
                 .ref_(arena)
-                .as_type_reference()
-                .target
+                .as_type_reference_interface()
+                .target()
                 .ref_(arena)
                 .as_tuple_type()
                 .readonly
