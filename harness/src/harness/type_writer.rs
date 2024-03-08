@@ -231,7 +231,7 @@ impl TypeWriterWalker {
         if p.ref_(self).as_has_tag_name().tag_name() != node {
             return false;
         }
-        is_intrinsic_jsx_name(node.ref_(self).get_text())
+        is_intrinsic_jsx_name(&node.ref_(self).get_text(None, self))
     }
 
     fn write_type_or_symbol(
