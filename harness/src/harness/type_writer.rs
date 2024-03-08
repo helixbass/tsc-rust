@@ -162,7 +162,7 @@ impl TypeWriterWalker {
     pub fn get_types(&mut self, file_name: &str) -> Vec<TypeWriterTypeResult> {
         let source_file = self.program.ref_(self).get_source_file(file_name).unwrap();
         self.current_source_file = Some(source_file);
-        self.visit_node(source_file, true)
+        self.visit_node(source_file, false)
             .into_iter()
             .map(|value| match value {
                 TypeWriterResult::Type(value) => value,
