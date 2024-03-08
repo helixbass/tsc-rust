@@ -463,11 +463,12 @@ impl TransformGenerators {
             for (i, &clause_label) in clause_labels.iter().enumerate().take(num_clauses) {
                 self.mark_label(clause_label);
                 self.transform_and_emit_statements(
-                    &case_block.ref_(self).as_case_block().clauses.ref_(self)[i]
+                    &released!(case_block.ref_(self).as_case_block().clauses.ref_(self)[i]
                         .ref_(self)
                         .as_has_statements()
                         .statements()
-                        .ref_(self),
+                        .ref_(self)
+                        .clone()),
                     None,
                 );
             }
