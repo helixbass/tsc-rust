@@ -74,8 +74,12 @@ pub fn try_process_tagged_template_expression(
             current_source_file,
             arena,
         ));
-        for &template_span in
-            &*released!(template.ref_(arena).as_template_expression().template_spans).ref_(arena)
+        for &template_span in &*released!(template
+            .ref_(arena)
+            .as_template_expression()
+            .template_spans
+            .ref_(arena)
+            .clone())
         {
             cooked_strings.push(create_template_cooked(
                 released!(template_span.ref_(arena).as_template_span().literal),
