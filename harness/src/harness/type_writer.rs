@@ -9,7 +9,7 @@ use typescript_rust::{
     is_global_scope_augmentation, is_identifier, is_import_clause, is_import_equals_declaration,
     is_import_specifier, is_intrinsic_jsx_name, is_jsx_closing_element, is_jsx_opening_element,
     is_jsx_self_closing_element, is_meta_property, is_module_declaration, is_part_of_type_node,
-    is_property_access_or_qualified_name, is_type_alias_declaration, skip_trivia,
+    is_property_access_or_qualified_name, is_type_alias_declaration, released, skip_trivia,
     NamedDeclarationInterface, NodeArray, NodeInterface, ReadonlyTextRange, ScriptReferenceHost,
     SourceFileLike, SymbolInterface, TypeFlags, TypeFormatFlags, TypeInterface,
 };
@@ -313,7 +313,7 @@ impl TypeWriterWalker {
             }
 
             let type_ = is_expression_with_type_arguments_in_class_extends_clause(
-                node.ref_(self).parent(),
+                released!(node.ref_(self).parent()),
                 self,
             )
             .then(|| {
@@ -346,7 +346,7 @@ impl TypeWriterWalker {
                     .ref_(self)
                     .type_to_string(
                         type_,
-                        Some(node.ref_(self).parent()),
+                        released!(Some(node.ref_(self).parent())),
                         Some(
                             TypeFormatFlags::NoTruncation
                                 | TypeFormatFlags::AllowUniqueESSymbolType,
