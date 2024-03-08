@@ -494,6 +494,20 @@ impl NamedTupleMember {
     }
 }
 
+impl NamedDeclarationInterface for NamedTupleMember {
+    fn maybe_name(&self) -> Option<Id<Node>> {
+        Some(self.name)
+    }
+
+    fn name(&self) -> Id<Node> {
+        self.name
+    }
+
+    fn set_name(&mut self, name: Id<Node>) {
+        self.name = name;
+    }
+}
+
 impl HasTypeInterface for NamedTupleMember {
     fn maybe_type(&self) -> Option<Id<Node>> {
         Some(self.type_.clone())

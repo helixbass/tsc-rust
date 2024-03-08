@@ -482,6 +482,7 @@ impl Node {
             Node::SpreadAssignment(node) => Some(node),
             Node::SemicolonClassElement(node) => Some(node),
             Node::NamespaceExport(node) => Some(node),
+            Node::NamedTupleMember(node) => Some(node),
             _ => None,
         }
     }
