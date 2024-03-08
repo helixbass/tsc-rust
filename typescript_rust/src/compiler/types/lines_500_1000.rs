@@ -989,13 +989,18 @@ impl Node {
         }
     }
 
-    pub fn as_has_left_and_right(&self) -> &dyn HasLeftAndRightInterface {
+    pub fn maybe_as_has_left_and_right(&self) -> Option<&dyn HasLeftAndRightInterface> {
         match self {
-            Node::BinaryExpression(node) => node,
-            Node::QualifiedName(node) => node,
-            Node::JSDocMemberName(node) => node,
-            _ => panic!("Expected has left and right"),
+            Node::BinaryExpression(node) => Some(node),
+            Node::QualifiedName(node) => Some(node),
+            Node::JSDocMemberName(node) => Some(node),
+            _ => None,
         }
+    }
+
+    pub fn as_has_left_and_right(&self) -> &dyn HasLeftAndRightInterface {
+        self.maybe_as_has_left_and_right()
+            .expect("Expected has left and right")
     }
 
     pub fn as_has_module_specifier(&self) -> &dyn HasModuleSpecifierInterface {

@@ -472,8 +472,8 @@ impl TypeChecker {
                     .ref_(self)
                     .parent()
                     .ref_(self)
-                    .maybe_as_binary_expression()
-                    .map(|name_parent_parent| name_parent_parent.left)
+                    .maybe_as_has_left_and_right()
+                    .map(|name_parent_parent| name_parent_parent.left())
         {
             if !is_private_identifier(&name.ref_(self)) && !is_jsdoc_member_name(&name.ref_(self)) {
                 let special_property_assignment_symbol =
