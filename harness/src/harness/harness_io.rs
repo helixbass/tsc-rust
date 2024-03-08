@@ -1437,7 +1437,7 @@ pub mod Compiler {
     pub fn do_type_and_symbol_baseline(
         baseline_path: &str,
         program: Id<Program>,
-        all_files: &[TestFile],
+        all_files: &[Id<TestFile>],
         opts: Option<&BaselineOptions>,
         multifile: Option<bool>,
         skip_type_baselines: Option<bool>,
@@ -1458,6 +1458,7 @@ pub mod Compiler {
 
             let mut ret: Vec<(String, String)> = _d();
             for file in all_files {
+                let file = file.ref_(arena);
                 let unit_name = &file.unit_name;
                 let mut type_lines = format!("=== {unit_name} ===\r\n");
                 let code_lines = regex!(r#"\r?\n"#)

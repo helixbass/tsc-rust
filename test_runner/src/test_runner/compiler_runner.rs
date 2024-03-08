@@ -4,8 +4,8 @@ use harness::{
     compiler, describe, get_file_based_test_configuration_description,
     get_file_based_test_configurations, get_io, impl_has_arena_harness, it, vpath,
     AllArenasHarness, Baseline, Compiler, EnumerateFilesOptions, FileBasedTest,
-    FileBasedTestConfiguration, HasArenaHarness, RunnerBase, RunnerBaseSub, StringOrFileBasedTest,
-    TestCaseParser, TestRunnerKind, Utils, IO,
+    FileBasedTestConfiguration, HasArenaHarness, InArenaHarness, RunnerBase, RunnerBaseSub,
+    StringOrFileBasedTest, TestCaseParser, TestRunnerKind, Utils, IO,
 };
 use itertools::Itertools;
 use jsonxf::Formatter;
@@ -13,7 +13,7 @@ use regex::Regex;
 use typescript_rust::{
     combine_paths, file_extension_is, get_directory_path, get_normalized_absolute_path,
     id_arena::Id, is_rooted_disk_path, regex, some, to_path, CompilerOptions, Extension, InArena,
-    OptionInArena,
+    Matches, OptionInArena, ScriptReferenceHost,
 };
 
 use super::runner::{should_run_category, TestCategory};
@@ -294,6 +294,52 @@ impl CompilerBaselineRunner {
                     }
                 }
             });
+        }
+        if should_run_category(TestCategory::VerifyTypesAndSymbols) {
+            it(
+                &format!("Correct type/symbol baselines for {}", file_name),
+                {
+                    let configuration = configuration.cloned();
+                    let test = test.cloned();
+                    let file_name = file_name.to_owned();
+                    let emit = self.emit;
+                    move || {
+                        let ref arena = AllArenasHarness::default();
+                        if emit {
+                            let mut payload: Option<TestCaseParser::TestCaseContent> = None;
+                            if let Some(test) = test.as_ref().filter(|test| {
+                                matches!(
+                                    test.content.as_ref(),
+                                    Some(test_content) if !test_content.is_empty()
+                                )
+                            }) {
+                                let root_dir = if !test.file.contains("conformance") {
+                                    // "tests/cases/compiler/".to_owned()
+                                    "../typescript_rust/typescript_src/tests/cases/compiler/"
+                                        .to_owned()
+                                } else {
+                                    format!("{}/", get_directory_path(&test.file))
+                                }
+                                .replace("../typescript_rust/typescript_src/", "");
+                                payload = Some(
+                                    TestCaseParser::make_units_from_test(
+                                        test.content.as_ref().unwrap(),
+                                        &test.file,
+                                        Some(&root_dir),
+                                        None,
+                                        arena,
+                                    )
+                                    .unwrap(),
+                                );
+                            }
+                            let compiler_test =
+                                CompilerTest::new(file_name, payload, configuration, arena)
+                                    .unwrap();
+                            compiler_test.verify_types_and_symbols();
+                        }
+                    }
+                },
+            );
         }
         // after({
         //     let compiler_test = compiler_test.clone();
@@ -707,6 +753,45 @@ impl CompilerTest {
         }
 
         Ok(())
+    }
+
+    pub fn verify_types_and_symbols(&self) {
+        if self.file_name.contains("APISample") {
+            return;
+        }
+
+        let no_types_and_symbols = self
+            .harness_settings
+            .get("noTypesAndSymbols")
+            .matches(|value| value.to_lowercase() == "true");
+        if no_types_and_symbols {
+            return;
+        }
+
+        Compiler::do_type_and_symbol_baseline(
+            &self.configured_name,
+            self.result.program.unwrap(),
+            &self
+                .to_be_compiled
+                .iter()
+                .chain(self.other_files.iter())
+                .copied()
+                .filter(|file| {
+                    self.result
+                        .program
+                        .unwrap()
+                        .ref_(self)
+                        .get_source_file(&file.ref_(self).unit_name)
+                        .is_some()
+                })
+                .collect_vec(),
+            None,
+            None,
+            None,
+            None,
+            Some(!self.result.diagnostics.is_empty()),
+            self,
+        );
     }
 
     pub fn make_unit_name(name: &str, root: &str, arena: &impl HasArenaHarness) -> String {
