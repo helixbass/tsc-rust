@@ -1074,7 +1074,7 @@ impl TypeChecker {
             }
 
             let containers =
-                self.get_containers_of_symbol(symbol, enclosing_declaration, meaning)?;
+                self.get_containers_of_symbol(symbol, enclosing_declaration, Some(meaning))?;
             let parent_result = self.is_any_symbol_accessible(
                 containers.as_deref(),
                 enclosing_declaration,

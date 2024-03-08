@@ -16,8 +16,8 @@ use crate::{
     node_is_synthesized, push_if_unique_eq, released, return_ok_default_if_none,
     return_ok_none_if_none, try_for_each_entry, try_map_defined, unescape_leading_underscores,
     Diagnostics, HasArena, HasInitializerInterface, HasTypeInterface, InArena, InternalSymbolName,
-    ModuleKind, Node, NodeInterface, ObjectFlags, OptionTry, ResolvedModuleFull, SignatureKind,
-    Symbol, SymbolFlags, SymbolInterface, SymbolTable,
+    Matches, ModuleKind, Node, NodeInterface, ObjectFlags, OptionTry, ResolvedModuleFull,
+    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
 };
 
 impl TypeChecker {
@@ -775,7 +775,7 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
         enclosing_declaration: Option<Id<Node>>,
-        meaning: SymbolFlags,
+        meaning: Option<SymbolFlags>,
     ) -> io::Result<Option<Vec<Id<Symbol>>>> {
         let container = self.get_parent_of_symbol(symbol)?;
         if let Some(container) = container {
@@ -801,7 +801,7 @@ impl TypeChecker {
                     if container
                         .ref_(self)
                         .flags()
-                        .intersects(self.get_qualified_left_meaning(Some(meaning)))
+                        .intersects(self.get_qualified_left_meaning(meaning))
                         && self
                             .get_accessible_symbol_chain(
                                 Some(container),
@@ -826,14 +826,14 @@ impl TypeChecker {
                 let first_variable_match = if !(container
                     .ref_(self)
                     .flags()
-                    .intersects(self.get_qualified_left_meaning(Some(meaning))))
+                    .intersects(self.get_qualified_left_meaning(meaning)))
                     && container.ref_(self).flags().intersects(SymbolFlags::Type)
                     && self
                         .get_declared_type_of_symbol(container)?
                         .ref_(self)
                         .flags()
                         .intersects(TypeFlags::Object)
-                    && meaning == SymbolFlags::Value
+                    && meaning == Some(SymbolFlags::Value)
                 {
                     self.try_for_each_symbol_table_in_scope(
                         enclosing_declaration,
@@ -843,7 +843,7 @@ impl TypeChecker {
                                 |&s: &Id<Symbol>, _| -> io::Result<_> {
                                     if s.ref_(self)
                                         .flags()
-                                        .intersects(self.get_qualified_left_meaning(Some(meaning)))
+                                        .intersects(self.get_qualified_left_meaning(meaning))
                                         && self.get_type_of_symbol(s)?
                                             == self.get_declared_type_of_symbol(container)?
                                     {
@@ -945,7 +945,7 @@ impl TypeChecker {
     pub(super) fn get_variable_declaration_of_object_literal(
         &self,
         symbol: Id<Symbol>,
-        meaning: SymbolFlags,
+        meaning: Option<SymbolFlags>,
     ) -> io::Result<Option<Id<Symbol>>> {
         let first_decl: Option<Id<Node>> =
             if length(symbol.ref_(self).maybe_declarations().as_deref()) > 0 {
@@ -953,7 +953,7 @@ impl TypeChecker {
             } else {
                 None
             };
-        if meaning.intersects(SymbolFlags::Value) {
+        if meaning.matches(|meaning| meaning.intersects(SymbolFlags::Value)) {
             if let Some(first_decl) = first_decl {
                 if let Some(first_decl_parent) = first_decl.ref_(self).maybe_parent() {
                     if is_variable_declaration(&first_decl_parent.ref_(self)) {

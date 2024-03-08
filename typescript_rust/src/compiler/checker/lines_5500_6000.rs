@@ -932,8 +932,7 @@ impl NodeBuilder {
                     .as_ref()
                     .map_or(symbol, |accessible_symbol_chain| accessible_symbol_chain[0]),
                 context.ref_(self).maybe_enclosing_declaration(),
-                // TODO: ...or here
-                meaning.unwrap(),
+                meaning,
             )?;
             if length(parents.as_deref()) > 0 {
                 let parents = parents.as_ref().unwrap();
