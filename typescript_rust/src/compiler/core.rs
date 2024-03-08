@@ -1579,7 +1579,7 @@ pub fn array_of<TItem, TCallback: FnMut(usize) -> TItem>(
 ) -> Vec<TItem> {
     let mut result = Vec::with_capacity(count);
     for i in 0..count {
-        result[i] = f(i);
+        result.push(f(i));
     }
     result
 }
