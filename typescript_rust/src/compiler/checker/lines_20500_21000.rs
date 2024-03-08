@@ -700,13 +700,15 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         self.get_element_type_of_slice_of_tuple_type(
             type_,
-            type_
-                .ref_(self)
-                .as_type_reference_interface()
-                .target()
-                .ref_(self)
-                .as_tuple_type()
-                .fixed_length,
+            released!(
+                type_
+                    .ref_(self)
+                    .as_type_reference_interface()
+                    .target()
+                    .ref_(self)
+                    .as_tuple_type()
+                    .fixed_length
+            ),
             None,
             None,
         )
