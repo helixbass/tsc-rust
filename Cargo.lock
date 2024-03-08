@@ -476,6 +476,7 @@ dependencies = [
  "serde",
  "serde_json",
  "speculoos",
+ "squalid",
  "threadpool",
  "typescript_rust",
  "typescript_services_rust",
