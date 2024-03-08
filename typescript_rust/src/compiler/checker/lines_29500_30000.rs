@@ -204,7 +204,10 @@ impl TypeChecker {
                 if let Some(spread_type) =
                     spread_type.filter(|&spread_type| self.is_tuple_type(spread_type))
                 {
-                    let spread_type_target = spread_type.ref_(self).as_type_reference().target;
+                    let spread_type_target = spread_type
+                        .ref_(self)
+                        .as_type_reference_interface()
+                        .target();
                     for_each(
                         &self.get_type_arguments(spread_type)?,
                         |&t: &Id<Type>, i| -> Option<()> {
