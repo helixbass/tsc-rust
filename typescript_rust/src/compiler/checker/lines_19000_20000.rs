@@ -2118,9 +2118,7 @@ impl CheckTypeRelatedTo {
                     key_type,
                 )?
             {
-                let prop_type = self_
-                    .ref_(arena)
-                    .type_checker
+                let prop_type = released!(self_.ref_(arena).type_checker)
                     .ref_(arena)
                     .get_non_missing_type_of_symbol(prop)?;
                 let type_ = if self_

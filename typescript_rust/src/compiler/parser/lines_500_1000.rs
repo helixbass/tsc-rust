@@ -297,7 +297,7 @@ pub fn parse_jsdoc_type_expression_for_tests(
 #[allow(non_snake_case)]
 pub struct ParserType {
     arena: *const AllArenas,
-    pub(super) scanner: RefCell<Scanner>,
+    pub(super) scanner: debug_cell::RefCell<Scanner>,
     pub(super) disallow_in_and_decorator_context: NodeFlags,
     pub(super) NodeConstructor: Cell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
     pub(super) IdentifierConstructor:
@@ -337,7 +337,7 @@ impl ParserType {
     pub(super) fn new(arena: &impl HasArena) -> Id<Self> {
         let ret = arena.alloc_parser(ParserType {
             arena: arena.arena(),
-            scanner: RefCell::new(create_scanner(
+            scanner: debug_cell::RefCell::new(create_scanner(
                 ScriptTarget::Latest,
                 true,
                 None,
@@ -396,11 +396,11 @@ impl ParserType {
         self.factory.get().unwrap()
     }
 
-    pub(super) fn scanner(&self) -> Ref<Scanner> {
+    pub(super) fn scanner(&self) -> debug_cell::Ref<Scanner> {
         self.scanner.borrow()
     }
 
-    pub(super) fn scanner_mut(&self) -> RefMut<Scanner> {
+    pub(super) fn scanner_mut(&self) -> debug_cell::RefMut<Scanner> {
         self.scanner.borrow_mut()
     }
 
