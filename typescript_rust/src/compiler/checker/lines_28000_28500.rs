@@ -361,15 +361,13 @@ impl TypeChecker {
         let mut property_on_type: Option<Id<Symbol>> = None;
         let properties = self.get_properties_of_type(left_type)?;
         // if (properties) {
-        let right_ref = right.ref_(self);
-        let right_as_private_identifier = right_ref.as_private_identifier();
         for_each(properties, |symbol: Id<Symbol>, _| {
             let decl = symbol.ref_(self).maybe_value_declaration();
             if matches!(
                 decl,
                 Some(decl) if is_named_declaration(&decl.ref_(self)) &&
                     is_private_identifier(&decl.ref_(self).as_named_declaration().name().ref_(self)) &&
-                    decl.ref_(self).as_named_declaration().name().ref_(self).as_identifier().escaped_text == right_as_private_identifier.escaped_text
+                    decl.ref_(self).as_named_declaration().name().ref_(self).as_private_identifier().escaped_text == right.ref_(self).as_private_identifier().escaped_text
             ) {
                 property_on_type = Some(symbol.clone());
                 return Some(());
