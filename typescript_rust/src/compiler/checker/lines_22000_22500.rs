@@ -1034,7 +1034,7 @@ impl TypeChecker {
                     None
                 };
                 if let Some(inference_contra_candidates) =
-                    inference.ref_(self).maybe_contra_candidates().as_ref()
+                    released!(inference.ref_(self).maybe_contra_candidates().clone()).as_ref()
                 {
                     inferred_type = Some(
                         if let Some(inferred_covariant_type) = inferred_covariant_type.try_filter(
@@ -1065,14 +1065,15 @@ impl TypeChecker {
                 {
                     inferred_type = Some(self.silent_never_type());
                 } else {
-                    let default_type =
-                        self.get_default_from_type_parameter_(inference.ref_(self).type_parameter)?;
+                    let default_type = self.get_default_from_type_parameter_(released!(
+                        inference.ref_(self).type_parameter
+                    ))?;
                     if let Some(default_type) = default_type {
                         inferred_type = Some(self.instantiate_type(
                             default_type,
                             Some(self.merge_type_mappers(
                                 Some(self.create_backreference_mapper(context, index)),
-                                context.ref_(self).non_fixing_mapper().clone(),
+                                released!(context.ref_(self).non_fixing_mapper()),
                             )),
                         )?);
                     }
