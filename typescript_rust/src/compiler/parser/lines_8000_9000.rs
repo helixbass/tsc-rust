@@ -556,7 +556,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             } else if token == SyntaxKind::GreaterThanToken && in_email {
                 comments.push(self.parser.scanner().get_token_text());
                 let token_pos = self.parser.scanner().get_token_pos();
-                self.parser.scanner_mut().set_text_pos(token_pos + 1);
+                self.parser.scanner().set_text_pos(token_pos + 1);
                 break;
             }
             comments.push(self.parser.scanner().get_token_text());

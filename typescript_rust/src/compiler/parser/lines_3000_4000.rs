@@ -88,7 +88,7 @@ impl ParserType {
                 }
             }
 
-            self.scanner_mut().set_in_jsdoc_type(false);
+            self.scanner().set_in_jsdoc_type(false);
             return self.finish_node(module_tag, pos, None).alloc(self.arena());
         }
 

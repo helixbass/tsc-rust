@@ -364,7 +364,7 @@ impl ParserType {
     }
 
     pub(super) fn consume_node(&self, node: Id<Node>) -> Id<Node> {
-        self.scanner_mut()
+        self.scanner()
             .set_text_pos(node.ref_(self).end().try_into().unwrap());
         self.next_token();
         node

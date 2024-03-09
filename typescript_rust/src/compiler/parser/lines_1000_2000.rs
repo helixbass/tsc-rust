@@ -22,7 +22,7 @@ use crate::{
 impl ParserType {
     pub(super) fn clear_state(&self) {
         {
-            let scanner = self.scanner_mut();
+            let scanner = self.scanner();
             scanner.clear_comment_directives();
             scanner.set_text(Some(vec![]), Some("".to_owned()), None, None);
             // scanner.set_on_error(None);
@@ -208,7 +208,7 @@ impl ParserType {
                 || {
                     let saved_context_flags = self.context_flags();
                     self.set_context_flags(self.context_flags() | NodeFlags::AwaitContext);
-                    self.scanner_mut()
+                    self.scanner()
                         .set_text_pos(next_statement.ref_(self).pos().try_into().unwrap());
                     self.next_token();
 

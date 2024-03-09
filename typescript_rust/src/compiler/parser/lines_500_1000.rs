@@ -396,10 +396,12 @@ impl ParserType {
         self.factory.get().unwrap()
     }
 
+    #[track_caller]
     pub(super) fn scanner(&self) -> debug_cell::Ref<Scanner> {
         self.scanner.borrow()
     }
 
+    #[track_caller]
     pub(super) fn scanner_mut(&self) -> debug_cell::RefMut<Scanner> {
         self.scanner.borrow_mut()
     }

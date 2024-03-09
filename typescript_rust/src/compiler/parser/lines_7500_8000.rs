@@ -147,7 +147,7 @@ impl ParserType {
             None,
             ScriptKind::JS,
         );
-        self.scanner_mut().set_text(
+        self.scanner().set_text(
             Some(content.chars().collect()),
             Some(content),
             start,

@@ -267,9 +267,7 @@ impl CheckTypeRelatedTo {
             .type_checker
             .ref_(arena)
             .get_properties_of_type(source)?;
-        let source_properties_filtered = self_
-            .ref_(arena)
-            .type_checker
+        let source_properties_filtered = released!(self_.ref_(arena).type_checker)
             .ref_(arena)
             .find_discriminant_properties(&source_properties, target)?;
         if source_properties_filtered.is_none() {
