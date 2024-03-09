@@ -26,9 +26,9 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if links.ref_(self).resolved_type.is_none() {
-            let object_type = self.get_type_from_type_node_(
-                node.ref_(self).as_indexed_access_type_node().object_type,
-            )?;
+            let object_type = self.get_type_from_type_node_(released!(
+                node.ref_(self).as_indexed_access_type_node().object_type
+            ))?;
             let index_type = self.get_type_from_type_node_(
                 node.ref_(self).as_indexed_access_type_node().index_type,
             )?;

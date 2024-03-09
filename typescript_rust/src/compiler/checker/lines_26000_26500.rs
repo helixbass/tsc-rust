@@ -560,13 +560,14 @@ impl TypeChecker {
             }
             self.get_type_of_property_of_contextual_type(
                 attributes_type,
-                &attribute
+                &released!(attribute
                     .ref_(self)
                     .as_jsx_attribute()
                     .name
                     .ref_(self)
                     .as_identifier()
-                    .escaped_text,
+                    .escaped_text
+                    .clone()),
             )?
         } else {
             self.get_contextual_type_(attribute.ref_(self).parent(), None)?
