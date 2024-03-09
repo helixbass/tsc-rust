@@ -372,8 +372,8 @@ impl TypeChecker {
                 if let Some(access_node) = access_node {
                     if self.every_type(object_type, |t| {
                         !t.ref_(self)
-                            .as_type_reference()
-                            .target
+                            .as_type_reference_interface()
+                            .target()
                             .ref_(self)
                             .as_tuple_type()
                             .has_rest_element
