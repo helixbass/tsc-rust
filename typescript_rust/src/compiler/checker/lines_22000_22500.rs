@@ -833,7 +833,7 @@ impl InferTypes {
                             None,
                             None,
                         )?,
-                        target_info.ref_(self).type_,
+                        released!(target_info.ref_(self).type_),
                         priority,
                     )?;
                 }
