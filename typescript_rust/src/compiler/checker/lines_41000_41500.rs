@@ -14,7 +14,7 @@ use crate::{
     is_object_literal_expression, is_part_of_type_node, is_property_access_expression,
     is_property_assignment, is_right_side_of_qualified_name_or_property_access,
     is_shorthand_ambient_module_symbol, is_source_file, is_statement_with_locals, is_static,
-    node_is_missing, single_element_array, try_filter, try_find_ancestor, try_flat_map,
+    node_is_missing, released, single_element_array, try_filter, try_find_ancestor, try_flat_map,
     try_for_each_entry_bool,
     try_get_class_implementing_or_extending_expression_with_type_arguments, try_map_defined,
     try_some, type_has_call_or_construct_signatures, walk_up_binding_elements_and_patterns,
@@ -182,7 +182,7 @@ impl TypeChecker {
                 return Ok(if let Some(base_type) = base_type {
                     self.get_type_with_this_argument(
                         base_type,
-                        class_type.ref_(self).as_interface_type().maybe_this_type(),
+                        released!(class_type.ref_(self).as_interface_type().maybe_this_type()),
                         None,
                     )?
                 } else {
