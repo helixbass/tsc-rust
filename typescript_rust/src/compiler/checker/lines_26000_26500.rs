@@ -889,7 +889,7 @@ impl TypeChecker {
         if type_.ref_(self).flags().intersects(TypeFlags::Intersection) {
             return self.get_intersection_type(
                 &try_map(
-                    type_.ref_(self).as_intersection_type().types().to_owned(),
+                    released!(type_.ref_(self).as_intersection_type().types().to_owned()),
                     |t: Id<Type>, _| self.instantiate_instantiable_types(t, mapper.clone()),
                 )?,
                 Option::<Id<Symbol>>::None,
