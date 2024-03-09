@@ -376,7 +376,7 @@ impl TypeChecker {
             check_mode,
         )?;
         self.infer_types(
-            &context.ref_(self).inferences(),
+            &released!(context.ref_(self).inferences().clone()),
             check_attr_type,
             param_type,
             None,
