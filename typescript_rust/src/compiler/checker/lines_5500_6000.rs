@@ -285,9 +285,7 @@ impl NodeBuilder {
             }
         }
         if !passed_if_condition {
-            type_parameters = signature
-                .ref_(self)
-                .maybe_type_parameters()
+            type_parameters = released!(signature.ref_(self).maybe_type_parameters().clone())
                 .as_ref()
                 .try_map(|signature_type_parameters| {
                     signature_type_parameters
