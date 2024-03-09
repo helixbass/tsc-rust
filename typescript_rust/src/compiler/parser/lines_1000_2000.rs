@@ -163,9 +163,7 @@ impl ParserType {
         self.set_parse_diagnostics(Some(vec![]));
 
         let mut pos: Option<usize> = Some(0);
-        let source_file_ref = source_file.ref_(self);
-        let source_file_as_source_file = source_file_ref.as_source_file();
-        let source_file_statements = source_file_as_source_file.statements();
+        let source_file_statements = source_file.ref_(self).as_source_file().statements();
         let mut start = self.find_next_statement_with_await(&source_file_statements.ref_(self), 0);
         while let Some(start_present) = start {
             let prev_statement = source_file_statements.ref_(self)[pos.unwrap()];
