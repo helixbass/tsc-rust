@@ -1085,7 +1085,7 @@ impl NodeBuilder {
         if is_jsdoc_non_nullable_type(&node.ref_(self)) {
             return Ok(Some(
                 try_visit_node(
-                    node.ref_(self).as_base_jsdoc_unary_type().type_.unwrap(),
+                    released!(node.ref_(self).as_base_jsdoc_unary_type().type_.unwrap()),
                     Some(|node: Id<Node>| {
                         self.visit_existing_node_tree_symbols(
                             context,
@@ -1105,7 +1105,7 @@ impl NodeBuilder {
             return Ok(Some(
                 get_factory(self)
                     .create_array_type_node(try_visit_node(
-                        node.ref_(self).as_base_jsdoc_unary_type().type_.unwrap(),
+                        released!(node.ref_(self).as_base_jsdoc_unary_type().type_.unwrap()),
                         Some(|node: Id<Node>| {
                             self.visit_existing_node_tree_symbols(
                                 context,
@@ -1279,22 +1279,20 @@ impl NodeBuilder {
             ));
         }
         if is_jsdoc_function_type(&node.ref_(self)) {
-            let node_ref = node.ref_(self);
-            let node_as_jsdoc_function_type = node_ref.as_jsdoc_function_type();
             if is_jsdoc_construct_signature(node, self) {
                 let mut new_type_node: Option<Id<Node>> = None;
                 return Ok(Some(
                     get_factory(self).create_constructor_type_node(
-                        node_as_jsdoc_function_type.maybe_modifiers(),
+                        released!(node.ref_(self).as_jsdoc_function_type().maybe_modifiers()),
                         try_maybe_visit_nodes(
-                            node_as_jsdoc_function_type.maybe_type_parameters(),
+                            released!(node.ref_(self).as_jsdoc_function_type().maybe_type_parameters()),
                             Some(|node: Id<Node>| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, node)),
                             Option::<fn(Id<Node>) -> bool>::None,
                             None, None,
                             self,
                         )?,
                         try_map_defined(
-                            Some(&*node_as_jsdoc_function_type.parameters().ref_(self)),
+                            Some(&*released!(node.ref_(self).as_jsdoc_function_type().parameters()).ref_(self)),
                             |&p: &Id<Node>, i| -> io::Result<Option<Id<Node>>> {
                                 let p_ref = p.ref_(self);
                                 let p_as_parameter_declaration = p_ref.as_parameter_declaration();
@@ -1326,7 +1324,7 @@ impl NodeBuilder {
                         )?,
                         Some(
                             try_maybe_visit_node(
-                                new_type_node.or_else(|| node_as_jsdoc_function_type.maybe_type()),
+                                released!(new_type_node.or_else(|| node.ref_(self).as_jsdoc_function_type().maybe_type())),
                                 Some(|node: Id<Node>| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, node)),
                                 Option::<fn(Id<Node>) -> bool>::None,
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -1343,7 +1341,10 @@ impl NodeBuilder {
                     get_factory(self)
                         .create_function_type_node(
                             try_maybe_visit_nodes(
-                                node_as_jsdoc_function_type.maybe_type_parameters(),
+                                released!(node
+                                    .ref_(self)
+                                    .as_jsdoc_function_type()
+                                    .maybe_type_parameters()),
                                 Some(|node: Id<Node>| {
                                     self.visit_existing_node_tree_symbols(
                                         context,
@@ -1359,7 +1360,8 @@ impl NodeBuilder {
                                 self,
                             )?,
                             try_map(
-                                &*node_as_jsdoc_function_type.parameters().ref_(self),
+                                &*released!(node.ref_(self).as_jsdoc_function_type().parameters())
+                                    .ref_(self),
                                 |&p: &Id<Node>, i| -> io::Result<Id<Node>> {
                                     let p_ref = p.ref_(self);
                                     let p_as_parameter_declaration =
@@ -1371,7 +1373,10 @@ impl NodeBuilder {
                                         self.get_name_for_jsdoc_function_parameter(p, i),
                                         p_as_parameter_declaration.question_token,
                                         try_maybe_visit_node(
-                                            node_as_jsdoc_function_type.maybe_type(),
+                                            released!(node
+                                                .ref_(self)
+                                                .as_jsdoc_function_type()
+                                                .maybe_type()),
                                             Some(|node: Id<Node>| {
                                                 self.visit_existing_node_tree_symbols(
                                                     context,
@@ -1390,7 +1395,10 @@ impl NodeBuilder {
                             )?,
                             Some(
                                 try_maybe_visit_node(
-                                    node_as_jsdoc_function_type.maybe_type(),
+                                    released!(node
+                                        .ref_(self)
+                                        .as_jsdoc_function_type()
+                                        .maybe_type()),
                                     Some(|node: Id<Node>| {
                                         self.visit_existing_node_tree_symbols(
                                             context,

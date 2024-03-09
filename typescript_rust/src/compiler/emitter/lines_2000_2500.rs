@@ -71,7 +71,10 @@ impl Printer {
                 None,
             )?;
         } else {
-            self.emit_type_annotation(node.ref_(self).as_parameter_declaration().maybe_type())?;
+            self.emit_type_annotation(released!(node
+                .ref_(self)
+                .as_parameter_declaration()
+                .maybe_type()))?;
         }
         self.emit_initializer(
             released!(node
@@ -296,14 +299,17 @@ impl Printer {
         self.push_name_generation_scope(Some(node));
         self.emit_decorators(node, node.ref_(self).maybe_decorators())?;
         self.emit_modifiers(node, node.ref_(self).maybe_modifiers())?;
-        let node_ref = node.ref_(self);
-        let node_as_call_signature_declaration = node_ref.as_call_signature_declaration();
         self.emit_type_parameters(
             node,
-            node_as_call_signature_declaration.maybe_type_parameters(),
+            node.ref_(self)
+                .as_call_signature_declaration()
+                .maybe_type_parameters(),
         )?;
-        self.emit_parameters(node, node_as_call_signature_declaration.parameters())?;
-        self.emit_type_annotation(node_as_call_signature_declaration.maybe_type())?;
+        self.emit_parameters(
+            node,
+            node.ref_(self).as_call_signature_declaration().parameters(),
+        )?;
+        self.emit_type_annotation(node.ref_(self).as_call_signature_declaration().maybe_type())?;
         self.write_trailing_semicolon();
         self.pop_name_generation_scope(Some(node));
 

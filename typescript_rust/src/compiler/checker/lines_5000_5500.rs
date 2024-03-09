@@ -891,13 +891,14 @@ impl NodeBuilder {
             {
                 Some(self.create_anonymous_type_node(context, type_)?)
             } else {
-                let type_target_ref = type_target.ref_(self);
-                let outer_type_parameters = type_target_ref
+                let outer_type_parameters = type_target
+                    .ref_(self)
                     .as_interface_type()
-                    .maybe_outer_type_parameters();
+                    .maybe_outer_type_parameters()
+                    .map(ToOwned::to_owned);
                 let mut i = 0;
                 let mut result_type: Option<Id<Node /*TypeReferenceNode | ImportTypeNode*/>> = None;
-                if let Some(outer_type_parameters) = outer_type_parameters {
+                if let Some(outer_type_parameters) = outer_type_parameters.as_ref() {
                     let length = outer_type_parameters.len();
                     while i < length {
                         let start = i;

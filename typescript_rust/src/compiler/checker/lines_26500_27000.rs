@@ -571,7 +571,7 @@ impl TypeChecker {
         }
 
         let array_or_iterable_type = self.check_expression(
-            node.ref_(self).as_spread_element().expression,
+            released!(node.ref_(self).as_spread_element().expression),
             check_mode,
             None,
         )?;

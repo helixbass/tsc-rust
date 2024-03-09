@@ -196,12 +196,12 @@ impl TypeChecker {
         self.propagate_optional_type_marker(
             self.check_property_access_expression_or_qualified_name(
                 node,
-                node.ref_(self).as_property_access_expression().expression,
+                released!(node.ref_(self).as_property_access_expression().expression),
                 self.check_non_null_type(
                     non_optional_type,
-                    node.ref_(self).as_property_access_expression().expression,
+                    released!(node.ref_(self).as_property_access_expression().expression),
                 )?,
-                node.ref_(self).as_property_access_expression().name,
+                released!(node.ref_(self).as_property_access_expression().name),
                 check_mode,
             )?,
             node,

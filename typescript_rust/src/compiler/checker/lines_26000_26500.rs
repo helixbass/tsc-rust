@@ -552,9 +552,11 @@ impl TypeChecker {
         attribute: Id<Node>, /*JsxAttribute | JsxSpreadAttribute*/
     ) -> io::Result<Option<Id<Type>>> {
         Ok(if is_jsx_attribute(&attribute.ref_(self)) {
-            let attributes_type = return_ok_default_if_none!(
-                self.get_apparent_type_of_contextual_type(attribute.ref_(self).parent(), None)?
-            );
+            let attributes_type = return_ok_default_if_none!(self
+                .get_apparent_type_of_contextual_type(
+                    released!(attribute.ref_(self).parent()),
+                    None
+                )?);
             if self.is_type_any(Some(attributes_type)) {
                 return Ok(None);
             }
