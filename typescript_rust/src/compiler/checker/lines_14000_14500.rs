@@ -595,7 +595,7 @@ impl TypeChecker {
                             ) {
                                 let t = self.get_type_of_property_of_type_(
                                     target,
-                                    key_property.ref_(self).escaped_name(),
+                                    &released!(key_property.ref_(self).escaped_name().to_owned()),
                                 )?;
                                 if matches!(
                                     t,
