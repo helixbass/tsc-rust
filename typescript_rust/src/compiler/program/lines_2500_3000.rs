@@ -10,14 +10,14 @@ use crate::{
     change_extension, combine_paths, file_extension_is, flatten, for_each, for_each_bool,
     for_each_child_returns, get_common_source_directory_of_config, get_emit_script_target,
     get_normalized_absolute_path_without_root, get_output_declaration_file_name, has_extension,
-    has_js_file_extension, has_jsdoc_nodes, impl_has_arena, is_declaration_file_name,
+    has_js_file_extension, has_jsdoc_nodes, impl_has_arena, is_declaration_file_name, lib_map,
     maybe_for_each, maybe_map, node_modules_path_part, out_file, package_id_to_string, released,
     resolve_module_name, set_resolved_type_reference_directive, some, string_contains,
     to_file_name_lower_case, try_for_each, try_maybe_for_each, AllArenas, AsDoubleDeref,
     CompilerHost, CompilerOptionsBuilder, DiagnosticMessage, Diagnostics, Extension,
     FileIncludeKind, FileIncludeReason, FileReference, HasArena, InArena, ModuleResolutionKind,
     Node, NodeArray, NodeId, NodeIdOverride, NodeInterface, NodeSymbolOverride, NonEmpty,
-    OptionInArena, PackageId, Path, Program, RedirectInfo, ReferencedFile,
+    OptionInArena, OptionTry, PackageId, Path, Program, RedirectInfo, ReferencedFile,
     ResolvedProjectReference, ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFile,
     SourceFileLike, SourceOfProjectReferenceRedirect, Symbol,
 };
@@ -56,9 +56,15 @@ impl Program {
 
     pub(super) fn get_lib_file_from_reference(
         &self,
-        _ref_: &FileReference,
-    ) -> Option<Id<Node /*SourceFile*/>> {
-        unimplemented!()
+        ref_: &FileReference,
+    ) -> io::Result<Option<Id<Node /*SourceFile*/>>> {
+        let lib_name = to_file_name_lower_case(&ref_.file_name);
+        let lib_file_name = lib_map.with(|lib_map_| lib_map_.get(&&*lib_name).copied());
+        lib_file_name
+            .non_empty()
+            .try_and_then(|lib_file_name| -> io::Result<_> {
+                Ok(self.get_source_file_(&self.path_for_lib_file(lib_file_name)?))
+            })
     }
 
     pub(super) fn get_source_file_from_reference(

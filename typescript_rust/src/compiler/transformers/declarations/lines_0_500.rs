@@ -23,7 +23,7 @@ use crate::{
     is_external_or_common_js_module, is_import_declaration, is_import_equals_declaration,
     is_json_source_file, is_source_file_js, is_source_file_not_json, is_string_literal,
     is_string_literal_like, is_unparsed_source, last, map, map_defined, maybe_concatenate,
-    maybe_filter, maybe_for_each, maybe_for_each_bool, module_specifiers, normalize_slashes,
+    maybe_filter, maybe_for_each_bool, module_specifiers, normalize_slashes,
     path_contains_node_modules, path_is_relative, per_arena, push_if_unique_eq, ref_mut_unwrapped,
     ref_unwrapped, released, set_text_range_node_array, skip_trivia, starts_with, string_contains,
     to_file_name_lower_case, to_path, transform_nodes, try_map, try_map_defined,
@@ -623,7 +623,7 @@ impl TransformDeclarations {
                             self.collect_libs(
                                 source_file,
                                 &mut self.libs_mut()
-                            );
+                            )?;
                             if is_external_or_common_js_module(&source_file.ref_(self)) || is_json_source_file(&source_file.ref_(self)) {
                                 self.set_result_has_external_module_indicator(false);
                                 self.set_needs_declare(false);
@@ -745,7 +745,7 @@ impl TransformDeclarations {
                                 self.collect_libs(
                                     source_file,
                                     &mut self.libs_mut(),
-                                );
+                                )?;
                                 return Ok(Some(source_file));
                             }
                             Ok(Some(prepend.clone()))
@@ -801,7 +801,7 @@ impl TransformDeclarations {
         self.set_libs(Some(Default::default()));
         {
             let mut libs = self.libs_mut();
-            self.collect_libs(self.current_source_file(), &mut libs);
+            self.collect_libs(self.current_source_file(), &mut libs)?;
         }
         let mut references: Vec<FileReference> = vec![];
         let output_file_path = get_directory_path(&normalize_slashes(
@@ -1078,11 +1078,11 @@ impl TransformDeclarations {
         &self,
         source_file: Id<Node>, /*SourceFile | UnparsedSource*/
         ret: &mut HashMap<String, bool>,
-    ) {
+    ) -> io::Result<()> {
         // TODO: expose some trait for unifying this?
         match source_file.ref_(self).kind() {
             SyntaxKind::SourceFile => {
-                maybe_for_each(
+                try_maybe_for_each(
                     source_file
                         .ref_(self)
                         .as_source_file()
@@ -1092,34 +1092,35 @@ impl TransformDeclarations {
                             (**source_file_lib_reference_directives).borrow()
                         })
                         .as_deref(),
-                    |ref_: &FileReference, _| -> Option<()> {
-                        let lib = self.host.ref_(self).get_lib_file_from_reference(ref_);
+                    |ref_: &FileReference, _| -> io::Result<Option<()>> {
+                        let lib = self.host.ref_(self).get_lib_file_from_reference(ref_)?;
                         if lib.is_some() {
                             ret.insert(to_file_name_lower_case(&ref_.file_name), true);
                         }
-                        None
+                        Ok(None)
                     },
-                );
+                )?;
             }
             SyntaxKind::UnparsedSource => {
-                maybe_for_each(
+                try_maybe_for_each(
                     Some(
                         &source_file
                             .ref_(self)
                             .as_unparsed_source()
                             .lib_reference_directives,
                     ),
-                    |ref_: &FileReference, _| -> Option<()> {
-                        let lib = self.host.ref_(self).get_lib_file_from_reference(ref_);
+                    |ref_: &FileReference, _| -> io::Result<Option<()>> {
+                        let lib = self.host.ref_(self).get_lib_file_from_reference(ref_)?;
                         if lib.is_some() {
                             ret.insert(to_file_name_lower_case(&ref_.file_name), true);
                         }
-                        None
+                        Ok(None)
                     },
-                );
+                )?;
             }
             _ => unreachable!(),
         }
+        Ok(())
         // return ret;
     }
 

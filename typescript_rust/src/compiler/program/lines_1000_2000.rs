@@ -1576,7 +1576,10 @@ impl EmitHost for ProgramEmitHost {
         self.program.ref_(self).get_source_files().clone()
     }
 
-    fn get_lib_file_from_reference(&self, ref_: &FileReference) -> Option<Id<Node /*SourceFile*/>> {
+    fn get_lib_file_from_reference(
+        &self,
+        ref_: &FileReference,
+    ) -> io::Result<Option<Id<Node /*SourceFile*/>>> {
         self.program.ref_(self).get_lib_file_from_reference(ref_)
     }
 

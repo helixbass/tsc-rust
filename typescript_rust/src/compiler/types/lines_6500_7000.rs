@@ -1099,7 +1099,10 @@ pub trait EmitHost:
     fn use_case_sensitive_file_names(&self) -> bool;
     // fn get_current_directory(&self) -> String;
 
-    fn get_lib_file_from_reference(&self, ref_: &FileReference) -> Option<Id<Node /*SourceFile*/>>;
+    fn get_lib_file_from_reference(
+        &self,
+        ref_: &FileReference,
+    ) -> io::Result<Option<Id<Node /*SourceFile*/>>>;
 
     // fn get_canonical_file_name(&self, file_name: &str) -> String;
     fn get_new_line(&self) -> String;
