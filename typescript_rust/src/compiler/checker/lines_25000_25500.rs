@@ -847,8 +847,8 @@ impl TypeChecker {
                 .expression
                 == node;
 
-        let immediate_container = get_super_container(node, true, self).unwrap();
-        let mut container = Some(immediate_container.clone());
+        let immediate_container = get_super_container(node, true, self);
+        let mut container = immediate_container;
         let mut need_to_capture_lexical_this = false;
 
         if !is_call_expression {
@@ -917,7 +917,9 @@ impl TypeChecker {
             return Ok(self.error_type());
         }
 
-        if !is_call_expression && immediate_container.ref_(self).kind() == SyntaxKind::Constructor {
+        if !is_call_expression
+            && immediate_container.unwrap().ref_(self).kind() == SyntaxKind::Constructor
+        {
             self.check_this_before_super(
                 node,
                 container.unwrap(),
