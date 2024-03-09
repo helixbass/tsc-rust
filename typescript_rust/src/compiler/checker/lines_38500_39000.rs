@@ -175,7 +175,42 @@ impl TypeChecker {
                 .as_ref()
                 .matches(|_| base_prop.is_none() && member_has_override_modifier)
             {
-                unimplemented!()
+                if let Some(error_node) = error_node {
+                    let suggestion = self.get_suggested_symbol_for_nonexistent_class_member(
+                        member_name,
+                        base_type,
+                    )?;
+                    match suggestion {
+                        Some(suggestion) => {
+                            self.error(
+                                Some(error_node),
+                                if is_js {
+                                    &Diagnostics::This_member_cannot_have_a_JSDoc_comment_with_an_override_tag_because_it_is_not_declared_in_the_base_class_0_Did_you_mean_1
+                                } else {
+                                    &Diagnostics::This_member_cannot_have_an_override_modifier_because_it_is_not_declared_in_the_base_class_0_Did_you_mean_1
+                                },
+                                Some(vec![
+                                    base_class_name.clone(),
+                                    self.symbol_to_string_(suggestion, None, None, None, None)?,
+                                ])
+                            );
+                        }
+                        None => {
+                            self.error(
+                                Some(error_node),
+                                if is_js {
+                                    &Diagnostics::This_member_cannot_have_a_JSDoc_comment_with_an_override_tag_because_it_is_not_declared_in_the_base_class_0
+                                } else {
+                                    &Diagnostics::This_member_cannot_have_an_override_modifier_because_it_is_not_declared_in_the_base_class_0
+                                },
+                                Some(vec![
+                                    base_class_name.clone(),
+                                ])
+                            );
+                        }
+                    };
+                }
+                return Ok(MemberOverrideStatus::HasInvalidOverride);
             } else if let (Some(_prop), Some(base_prop_declarations)) = (
                 prop.as_ref(),
                 base_prop
