@@ -1053,6 +1053,12 @@ impl HasStatementInterface for LabeledStatement {
     }
 }
 
+impl HasLabelInterface for LabeledStatement {
+    fn maybe_label(&self) -> Option<Id<Node>> {
+        Some(self.label)
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct ThrowStatement {

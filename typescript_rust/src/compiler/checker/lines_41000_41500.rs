@@ -220,7 +220,7 @@ impl TypeChecker {
 
         if is_binding_pattern(Some(&node.ref_(self))) {
             return Ok(self
-                .get_type_for_variable_like_declaration(node.ref_(self).parent(), true)?
+                .get_type_for_variable_like_declaration(released!(node.ref_(self).parent()), true)?
                 .unwrap_or_else(|| self.error_type()));
         }
 

@@ -864,6 +864,7 @@ impl Node {
         match self {
             Node::BreakStatement(node) => node,
             Node::ContinueStatement(node) => node,
+            Node::LabeledStatement(node) => node,
             _ => panic!("Expected has label"),
         }
     }

@@ -1368,9 +1368,7 @@ impl NodeFactory {
         node: Id<Node>, /*OptionalTypeNode*/
         type_: Id<Node /*TypeNode*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_optional_type_node = node_ref.as_optional_type_node();
-        if node_as_optional_type_node.type_ != type_ {
+        if node.ref_(self).as_optional_type_node().type_ != type_ {
             self.update(self.create_optional_type_node(type_), node)
         } else {
             node

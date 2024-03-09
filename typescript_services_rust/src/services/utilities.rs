@@ -98,7 +98,7 @@ pub fn is_label_of_labeled_statement(node: Id<Node>, arena: &impl HasArena) -> b
     is_identifier(&node.ref_(arena))
         && node.ref_(arena).parent().thrush(|node_parent| {
             is_labeled_statement(&node_parent.ref_(arena))
-                && node_parent.ref_(arena).as_has_label().maybe_label() == Some(node)
+                && node_parent.ref_(arena).as_labeled_statement().maybe_label() == Some(node)
         })
 }
 
