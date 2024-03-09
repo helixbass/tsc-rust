@@ -319,7 +319,7 @@ impl TypeChecker {
             .as_tuple_type()
             .element_flags
             .clone();
-        let element_types = try_map(&self.get_type_arguments(tuple_type), |_, i| {
+        let element_types = try_map(&self.get_type_arguments(tuple_type)?, |_, i| {
             self.instantiate_mapped_type_template(
                 mapped_type,
                 self.get_string_literal_type(&i.to_string()),
