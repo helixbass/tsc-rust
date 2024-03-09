@@ -326,8 +326,7 @@ impl ParserType {
             Some(true),
         );
         if !self.parse_expected(SyntaxKind::CloseBraceToken, None, None) {
-            let parse_diagnostics = self.parse_diagnostics();
-            let last_error = last_or_undefined(&*parse_diagnostics);
+            let last_error = last_or_undefined(&*self.parse_diagnostics()).copied();
             if let Some(last_error) = last_error {
                 if last_error.ref_(self).code() == Diagnostics::_0_expected.code {
                     add_related_info(
@@ -497,8 +496,7 @@ impl ParserType {
                 self.parse_statement()
             });
             if !self.parse_expected(SyntaxKind::CloseBraceToken, None, None) {
-                let parse_diagnostics = self.parse_diagnostics();
-                let last_error = last_or_undefined(&*parse_diagnostics);
+                let last_error = last_or_undefined(&*self.parse_diagnostics()).copied();
                 if let Some(last_error) = last_error {
                     if last_error.ref_(self).code() == Diagnostics::_0_expected.code {
                         add_related_info(

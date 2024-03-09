@@ -531,7 +531,11 @@ impl ParserType {
         self.language_variant.set(language_variant);
     }
 
-    pub(super) fn parse_diagnostics(&self) -> RefMut<Vec<Id<Diagnostic>>> {
+    pub(super) fn parse_diagnostics(&self) -> Ref<Vec<Id<Diagnostic>>> {
+        ref_unwrapped(&self.parse_diagnostics)
+    }
+
+    pub(super) fn parse_diagnostics_mut(&self) -> RefMut<Vec<Id<Diagnostic>>> {
         ref_mut_unwrapped(&self.parse_diagnostics)
     }
 

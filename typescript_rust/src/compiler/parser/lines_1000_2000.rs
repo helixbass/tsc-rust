@@ -77,7 +77,7 @@ impl ParserType {
 
         process_comment_pragmas(source_file_as_source_file, &self.source_text_as_chars());
         let report_pragma_diagnostic = |pos: isize, end: isize, diagnostic: &DiagnosticMessage| {
-            self.parse_diagnostics().push(self.alloc_diagnostic(
+            self.parse_diagnostics_mut().push(self.alloc_diagnostic(
                 create_detached_diagnostic(&self.file_name(), pos, end, diagnostic, None).into(),
             ));
         };
@@ -158,10 +158,9 @@ impl ParserType {
         ));
 
         let mut statements: Vec<Id<Node>> = vec![];
-        let mut parse_diagnostics_ref = self.parse_diagnostics();
-        let saved_parse_diagnostics = parse_diagnostics_ref.clone();
+        let saved_parse_diagnostics = self.parse_diagnostics().clone();
 
-        *parse_diagnostics_ref = vec![];
+        self.set_parse_diagnostics(Some(vec![]));
 
         let mut pos: Option<usize> = Some(0);
         let source_file_ref = source_file.ref_(self);
@@ -198,7 +197,7 @@ impl ParserType {
             });
             if let Some(diagnostic_start) = diagnostic_start {
                 add_range(
-                    &mut *parse_diagnostics_ref,
+                    &mut *self.parse_diagnostics_mut(),
                     Some(&saved_parse_diagnostics),
                     Some(diagnostic_start.try_into().unwrap()),
                     diagnostic_end.map(|diagnostic_end| diagnostic_end.try_into().unwrap()),
@@ -266,7 +265,7 @@ impl ParserType {
             );
             if let Some(diagnostic_start) = diagnostic_start {
                 add_range(
-                    &mut *parse_diagnostics_ref,
+                    &mut *self.parse_diagnostics_mut(),
                     Some(&saved_parse_diagnostics),
                     Some(diagnostic_start.try_into().unwrap()),
                     None,
@@ -531,11 +530,10 @@ impl ParserType {
         args: Option<Vec<String>>,
     ) {
         {
-            let mut parse_diagnostics = self.parse_diagnostics();
-            let last_error = last_or_undefined(&*parse_diagnostics);
+            let last_error = last_or_undefined(&*self.parse_diagnostics()).copied();
             if last_error.map_or(true, |last_error| last_error.ref_(self).start() != start) {
                 let file_name = self.file_name().to_string();
-                parse_diagnostics.push(self.alloc_diagnostic(
+                self.parse_diagnostics_mut().push(self.alloc_diagnostic(
                     create_detached_diagnostic(&file_name, start, length, message, args).into(),
                 ));
             }
@@ -689,9 +687,9 @@ impl ParserType {
         self.current_token()
     }
 
-    pub(super) fn speculation_helper<TReturn, TCallback: FnOnce() -> Option<TReturn>>(
+    pub(super) fn speculation_helper<TReturn>(
         &self,
-        callback: TCallback,
+        callback: impl FnOnce() -> Option<TReturn>,
         speculation_kind: SpeculationKind,
     ) -> Option<TReturn> {
         let save_token = self.current_token();
@@ -712,7 +710,7 @@ impl ParserType {
         if result.is_none() || speculation_kind != SpeculationKind::TryParse {
             self.set_current_token(save_token);
             if speculation_kind != SpeculationKind::Reparse {
-                self.parse_diagnostics()
+                self.parse_diagnostics_mut()
                     .truncate(save_parse_diagnostics_length);
             }
             self.set_parse_error_before_next_finished_node(

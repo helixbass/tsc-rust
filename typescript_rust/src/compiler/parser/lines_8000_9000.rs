@@ -782,8 +782,8 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                 if child.ref_(self).kind() == SyntaxKind::JSDocTypeTag {
                     if child_type_tag.is_some() {
                         self.parser.parse_error_at_current_token(&Diagnostics::A_JSDoc_typedef_comment_may_not_contain_multiple_type_tags, None);
-                        let parse_diagnostics = self.parser.parse_diagnostics();
-                        let last_error = last_or_undefined(&parse_diagnostics);
+                        let last_error =
+                            last_or_undefined(&self.parser.parse_diagnostics()).copied();
                         if let Some(last_error) = last_error {
                             add_related_info(
                                 &last_error.ref_(self),

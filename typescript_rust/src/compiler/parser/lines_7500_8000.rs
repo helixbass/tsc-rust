@@ -327,7 +327,7 @@ impl ParserType {
                 .append(&mut self.parse_diagnostics().clone());
         }
         self.set_current_token(save_token);
-        self.parse_diagnostics()
+        self.parse_diagnostics_mut()
             .truncate(save_parse_diagnostics_length);
         self.set_parse_error_before_next_finished_node(save_parse_error_before_next_finished_node);
         comment
