@@ -24,22 +24,23 @@ use crate::{
     get_common_source_directory_of_config, get_directory_path, get_emit_module_kind,
     get_emit_module_resolution_kind, get_output_declaration_file_name, get_package_scope_for_path,
     get_supported_extensions, get_supported_extensions_with_json_if_resolve_json_module,
-    is_import_call, is_import_equals_declaration, is_logging, map_defined, maybe_for_each,
-    options_have_changes, out_file, ref_mut_unwrapped, ref_unwrapped, resolve_module_name,
-    resolve_type_reference_directive, skip_trivia, source_file_affecting_compiler_options,
-    stable_sort, to_file_name_lower_case, try_maybe_for_each, walk_up_parenthesized_expressions,
-    AllArenas, AutomaticTypeDirectiveFile, CompilerHost, CompilerOptions, CreateProgramOptions,
-    Debug_, Diagnostic, DiagnosticCollection, Extension, FileIncludeKind, FileIncludeReason,
-    FilePreprocessingDiagnostics, FilePreprocessingDiagnosticsKind, GetOrInsertDefault,
-    GetProgramBuildInfo, HasArena, InArena, LibFile, ModuleKind, ModuleResolutionCache,
-    ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleResolutionKind,
-    ModuleSpecifierResolutionHost, MultiMap, Node, NodeInterface, NonEmpty, OptionInArena,
-    OptionTry, PackageId, PackageJsonInfoCache, ParseConfigFileHost, ParsedCommandLine, Path,
-    Program, ProjectReference, ProjectReferenceFile, ReadonlyTextRange, RedirectTargetsMap,
-    ReferencedFile, ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective,
-    RootFile, ScriptReferenceHost, SourceFile, SourceFileLike, SourceFileMayBeEmittedHost,
-    SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache, TextRange, TypeCheckerHost,
-    TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache, VecExt,
+    impl_has_arena, is_import_call, is_import_equals_declaration, is_logging, map_defined,
+    maybe_for_each, options_have_changes, out_file, ref_mut_unwrapped, ref_unwrapped, released,
+    resolve_module_name, resolve_type_reference_directive, skip_trivia,
+    source_file_affecting_compiler_options, stable_sort, to_file_name_lower_case, try_for_each,
+    try_maybe_for_each, walk_up_parenthesized_expressions, AllArenas, AutomaticTypeDirectiveFile,
+    CompilerHost, CompilerOptions, CreateProgramOptions, Debug_, Diagnostic, DiagnosticCollection,
+    Extension, FileIncludeKind, FileIncludeReason, FilePreprocessingDiagnostics,
+    FilePreprocessingDiagnosticsKind, GetOrInsertDefault, GetProgramBuildInfo, HasArena, InArena,
+    LibFile, ModuleKind, ModuleResolutionCache, ModuleResolutionHost,
+    ModuleResolutionHostOverrider, ModuleResolutionKind, ModuleSpecifierResolutionHost, MultiMap,
+    Node, NodeInterface, NonEmpty, OptionInArena, OptionTry, PackageId, PackageJsonInfoCache,
+    ParseConfigFileHost, ParsedCommandLine, Path, Program, ProjectReference, ProjectReferenceFile,
+    ReadonlyTextRange, RedirectTargetsMap, ReferencedFile, ResolvedModuleFull,
+    ResolvedProjectReference, ResolvedTypeReferenceDirective, RootFile, ScriptReferenceHost,
+    SourceFile, SourceFileLike, SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect,
+    StructureIsReused, SymlinkCache, TextRange, TypeCheckerHost, TypeCheckerHostDebuggable,
+    TypeReferenceDirectiveResolutionCache, VecExt,
 };
 
 pub trait LoadWithLocalCacheLoader<TValue> {
@@ -1923,31 +1924,24 @@ impl GetResolvedProjectReferences for ProgramGetResolvedProjectReferences {
 
 impl_has_arena!(ProgramGetResolvedProjectReferences);
 
-mod _FilesByNameValueDeriveTraceScope {
-    use super::*;
+#[derive(Clone, Debug)]
+pub enum FilesByNameValue {
+    SourceFile(Id<Node /*SourceFile*/>),
+    False,
+    Undefined,
+}
 
-    #[derive(Clone)]
-    pub enum FilesByNameValue {
-        SourceFile(Id<Node /*SourceFile*/>),
-        False,
-        Undefined,
-    }
-
-    impl FilesByNameValue {
-        pub fn as_source_file(&self) -> Id<Node /*SourceFile*/> {
-            *enum_unwrapped!(self, [FilesByNameValue, SourceFile])
-        }
-    }
-
-    impl From<Id<Node /*SourceFile*/>> for FilesByNameValue {
-        fn from(value: Id<Node /*SourceFile*/>) -> Self {
-            Self::SourceFile(value)
-        }
+impl FilesByNameValue {
+    pub fn as_source_file(&self) -> Id<Node /*SourceFile*/> {
+        *enum_unwrapped!(self, [FilesByNameValue, SourceFile])
     }
 }
-pub use _FilesByNameValueDeriveTraceScope::FilesByNameValue;
 
-use crate::{impl_has_arena, released, try_for_each};
+impl From<Id<Node /*SourceFile*/>> for FilesByNameValue {
+    fn from(value: Id<Node /*SourceFile*/>) -> Self {
+        Self::SourceFile(value)
+    }
+}
 
 pub trait ActualResolveModuleNamesWorker {
     fn call(

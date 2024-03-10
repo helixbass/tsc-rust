@@ -4354,7 +4354,7 @@ pub(crate) fn get_types_package_name(package_name: &str) -> String {
 pub(crate) fn mangle_scoped_package_name(package_name: &str) -> String {
     if starts_with(package_name, "@") {
         let replace_slash =
-            package_name.replace(directory_separator_str, mangled_scoped_package_separator);
+            package_name.replacen(directory_separator_str, mangled_scoped_package_separator, 1);
         if replace_slash != package_name {
             return replace_slash[1..].to_owned();
         }
