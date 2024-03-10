@@ -245,8 +245,8 @@ bitflags! {
 }
 
 lazy_static! {
-    pub(super) static ref typeof_eq_facts: HashMap<&'static str, TypeFacts> =
-        HashMap::from_iter(IntoIterator::into_iter([
+    pub(super) static ref typeof_eq_facts: IndexMap<&'static str, TypeFacts> =
+        IndexMap::from_iter(IntoIterator::into_iter([
             ("string", TypeFacts::TypeofEQString),
             ("number", TypeFacts::TypeofEQNumber),
             ("bigint", TypeFacts::TypeofEQBigInt),
