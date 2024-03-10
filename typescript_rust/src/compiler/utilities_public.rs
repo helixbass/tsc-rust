@@ -32,7 +32,7 @@ use crate::{
     HasTypeParametersInterface, InArena, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
     NodeFlags, NodeInterface, OptionInArena, OuterExpressionKinds, Push, ReadonlyTextRange,
     ScriptTarget, SortedArray, StringOrNodeArray, Symbol, SymbolInterface, SyntaxKind, System,
-    TextChangeRange, TextSpan,
+    TextChangeRange, TextSpan, _d,
 };
 
 pub fn is_external_module_name_relative(module_name: &str) -> bool {
@@ -856,16 +856,11 @@ fn get_jsdoc_parameter_tags_worker(
     no_cache: Option<bool>,
     arena: &impl HasArena,
 ) -> Vec<Id<Node /*JSDocParameterTag*/>> {
-    let param_ref = param.ref_(arena);
-    let param_as_parameter_declaration = param_ref.as_parameter_declaration();
-    /*if param.name {*/
-    if is_identifier(&param_as_parameter_declaration.name().ref_(arena)) {
-        let name = param_as_parameter_declaration
-            .name()
-            .ref_(arena)
-            .as_identifier()
-            .escaped_text
-            .clone();
+    let Some(param_name) = param.ref_(arena).as_named_declaration().maybe_name() else {
+        return _d();
+    };
+    if is_identifier(&param_name.ref_(arena)) {
+        let name = param_name.ref_(arena).as_identifier().escaped_text.clone();
         return get_jsdoc_tags_worker(param.ref_(arena).parent(), no_cache, arena)
             .ref_(arena)
             .iter()
@@ -914,13 +909,12 @@ fn get_jsdoc_parameter_tags_worker(
             return vec![param_tags_i];
         }
     }
-    /*}*/
     vec![]
 }
 
 pub fn get_jsdoc_parameter_tags(
-    param: Id<Node>,
-    /*ParameterDeclaration*/ arena: &impl HasArena,
+    param: Id<Node>, /*ParameterDeclaration*/
+    arena: &impl HasArena,
 ) -> Vec<Id<Node /*JSDocParameterTag*/>> {
     get_jsdoc_parameter_tags_worker(param, Some(false), arena)
 }
