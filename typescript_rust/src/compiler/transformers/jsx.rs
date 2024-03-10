@@ -583,8 +583,8 @@ impl TransformJsx {
             .iter()
             .find(|p| {
                 p.ref_(self)
-                    .as_named_declaration()
-                    .maybe_name()
+                    .maybe_as_named_declaration()
+                    .and_then(|p| p.maybe_name())
                     .matches(|p_name| {
                         is_identifier(&p_name.ref_(self))
                             && p_name.ref_(self).as_identifier().escaped_text == "key"
