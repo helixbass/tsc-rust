@@ -19,7 +19,7 @@ use crate::{
     node_is_synthesized, range_equals, released, same_map, set_emit_flags, set_text_range, some,
     symbol_name, unescape_leading_underscores, visit_each_child, CheckFlags, Debug_, ElementFlags,
     EmitFlags, GetOrInsertDefault, HasArena, HasTypeArgumentsInterface, InArena,
-    InterfaceTypeInterface, KeywordTypeNode, ModifierFlags, Node, NodeArray, NodeBuilder,
+    InterfaceTypeInterface, KeywordTypeNode, Matches, ModifierFlags, Node, NodeArray, NodeBuilder,
     NodeBuilderFlags, NodeInterface, NodeLinksSerializedType, ObjectFlags,
     ObjectFlagsTypeInterface, Signature, SignatureFlags, SignatureKind, Symbol, SymbolFlags,
     SymbolInterface, SyntaxKind, Type, TypeFlags, TypeId, TypeInterface,
@@ -765,8 +765,14 @@ impl NodeBuilder {
                 let type_arguments = same_map(&type_arguments, |&t: &Id<Type>, i| {
                     self.type_checker.ref_(self).remove_missing_type(
                         t,
-                        type_target.ref_(self).as_tuple_type().element_flags[i]
-                            .intersects(ElementFlags::Optional),
+                        type_target
+                            .ref_(self)
+                            .as_tuple_type()
+                            .element_flags
+                            .get(i)
+                            .matches(|element_flags_i| {
+                                element_flags_i.intersects(ElementFlags::Optional)
+                            }),
                     )
                 });
                 if !type_arguments.is_empty() {
