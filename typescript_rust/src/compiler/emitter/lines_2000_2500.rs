@@ -307,7 +307,7 @@ impl Printer {
         )?;
         self.emit_parameters(
             node,
-            node.ref_(self).as_call_signature_declaration().parameters(),
+            released!(node.ref_(self).as_call_signature_declaration().parameters()),
         )?;
         self.emit_type_annotation(node.ref_(self).as_call_signature_declaration().maybe_type())?;
         self.write_trailing_semicolon();

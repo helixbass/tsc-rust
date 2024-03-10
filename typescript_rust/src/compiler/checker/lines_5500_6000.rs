@@ -789,13 +789,11 @@ impl NodeBuilder {
             self,
         )?;
         if is_binding_element(&visited.ref_(self)) {
-            let visited_ref = visited.ref_(self);
-            let visited_as_binding_element = visited_ref.as_binding_element();
             visited = get_factory(self).update_binding_element(
                 visited,
-                visited_as_binding_element.dot_dot_dot_token,
-                visited_as_binding_element.property_name,
-                visited_as_binding_element.name(),
+                released!(visited.ref_(self).as_binding_element().dot_dot_dot_token),
+                released!(visited.ref_(self).as_binding_element().property_name),
+                released!(visited.ref_(self).as_binding_element().name()),
                 None,
             );
         }
