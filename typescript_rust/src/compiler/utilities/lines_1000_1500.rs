@@ -607,36 +607,41 @@ pub fn is_part_of_type_node(mut node: Id<Node>, arena: &impl HasArena) -> bool {
             );
         }
 
-        SyntaxKind::Identifier => {
-            if node.ref_(arena).parent().ref_(arena).kind() == SyntaxKind::QualifiedName
-                && node
-                    .ref_(arena)
-                    .parent()
-                    .ref_(arena)
-                    .as_qualified_name()
-                    .right
-                    == node
-            {
-                node = node.ref_(arena).parent();
-            } else if node.ref_(arena).parent().ref_(arena).kind()
-                == SyntaxKind::PropertyAccessExpression
-                && node
-                    .ref_(arena)
-                    .parent()
-                    .ref_(arena)
-                    .as_property_access_expression()
-                    .name
-                    == node
-            {
-                node = node.ref_(arena).parent();
+        SyntaxKind::Identifier
+        | SyntaxKind::QualifiedName
+        | SyntaxKind::PropertyAccessExpression
+        | SyntaxKind::ThisKeyword => {
+            if node.ref_(arena).kind() == SyntaxKind::Identifier {
+                if node.ref_(arena).parent().ref_(arena).kind() == SyntaxKind::QualifiedName
+                    && node
+                        .ref_(arena)
+                        .parent()
+                        .ref_(arena)
+                        .as_qualified_name()
+                        .right
+                        == node
+                {
+                    node = node.ref_(arena).parent();
+                } else if node.ref_(arena).parent().ref_(arena).kind()
+                    == SyntaxKind::PropertyAccessExpression
+                    && node
+                        .ref_(arena)
+                        .parent()
+                        .ref_(arena)
+                        .as_property_access_expression()
+                        .name
+                        == node
+                {
+                    node = node.ref_(arena).parent();
+                }
+                Debug_.assert(
+                    matches!(
+                        node.ref_(arena).kind(),
+                        SyntaxKind::Identifier | SyntaxKind::QualifiedName | SyntaxKind::PropertyAccessExpression
+                    ),
+                    Some("'node' was expected to be a qualified name, identifier or property access in 'isPartOfTypeNode'.")
+                );
             }
-            Debug_.assert(
-                matches!(
-                    node.ref_(arena).kind(),
-                    SyntaxKind::Identifier | SyntaxKind::QualifiedName | SyntaxKind::PropertyAccessExpression
-                ),
-                Some("'node' was expected to be a qualified name, identifier or property access in 'isPartOfTypeNode'.")
-            );
             let parent = node.ref_(arena).parent();
             if parent.ref_(arena).kind() == SyntaxKind::TypeQuery {
                 return false;
