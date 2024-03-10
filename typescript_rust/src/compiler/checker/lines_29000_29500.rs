@@ -642,7 +642,7 @@ impl TypeChecker {
         context: Option<Id<InferenceContext>>,
         check_mode: CheckMode,
     ) -> io::Result<Id<Type>> {
-        if index >= arg_count - 1 {
+        if arg_count == 0 || index >= arg_count - 1 {
             let arg = args[arg_count - 1];
             if self.is_spread_argument(Some(arg)) {
                 return self.get_mutable_array_or_tuple_type(
