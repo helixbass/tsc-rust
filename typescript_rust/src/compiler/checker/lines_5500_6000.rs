@@ -15,8 +15,8 @@ use crate::{
     path_is_relative, released, set_comment_range, set_emit_flags, set_synthetic_leading_comments,
     some, symbol_name, try_maybe_first_defined, try_maybe_map, try_visit_each_child,
     unescape_leading_underscores, CheckFlags, CompilerOptions, Debug_, EmitFlags,
-    GetOrInsertDefault, HasArena, HasInitializerInterface, InArena, IndexInfo, InternalSymbolName,
-    ModifierFlags, ModuleResolutionKind, NamedDeclarationInterface, Node, NodeArray, NodeBuilder,
+    GetOrInsertDefault, HasArena, InArena, IndexInfo, InternalSymbolName, ModifierFlags,
+    ModuleResolutionKind, NamedDeclarationInterface, Node, NodeArray, NodeBuilder,
     NodeBuilderFlags, NodeInterface, OptionTry, Signature, SignatureFlags, StrOrNodeArray,
     StrOrRcNode, StringOrNodeArray, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
     SynthesizedComment, TransientSymbolInterface, Type, TypeInterface, TypePredicateKind,
@@ -796,7 +796,7 @@ impl NodeBuilder {
                 visited_as_binding_element.dot_dot_dot_token,
                 visited_as_binding_element.property_name,
                 visited_as_binding_element.name(),
-                visited_as_binding_element.maybe_initializer(),
+                None,
             );
         }
         if !node_is_synthesized(&*visited.ref_(self)) {

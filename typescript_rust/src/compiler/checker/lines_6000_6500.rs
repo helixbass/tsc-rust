@@ -1360,8 +1360,12 @@ impl NodeBuilder {
                                 self,
                             )?,
                             try_map(
-                                &*released!(node.ref_(self).as_jsdoc_function_type().parameters())
-                                    .ref_(self),
+                                &*released!(node
+                                    .ref_(self)
+                                    .as_jsdoc_function_type()
+                                    .parameters()
+                                    .ref_(self)
+                                    .clone()),
                                 |&p: &Id<Node>, i| -> io::Result<Id<Node>> {
                                     let p_ref = p.ref_(self);
                                     let p_as_parameter_declaration =
