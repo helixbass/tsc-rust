@@ -1144,6 +1144,13 @@ impl Node {
         enum_unwrapped!(self, [Node, NumericLiteral])
     }
 
+    pub fn maybe_as_parameter_declaration(&self) -> Option<&ParameterDeclaration> {
+        match self {
+            Node::ParameterDeclaration(value) => Some(value),
+            _ => None,
+        }
+    }
+
     pub fn as_parameter_declaration(&self) -> &ParameterDeclaration {
         enum_unwrapped!(self, [Node, ParameterDeclaration])
     }

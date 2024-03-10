@@ -162,10 +162,16 @@ impl TypeChecker {
 
                 let is_optional_parameter = self.is_optional_jsdoc_property_like_tag(param)
                     || {
-                        let param_ref = param.ref_(self);
-                        let param_as_parameter_declaration = param_ref.as_parameter_declaration();
-                        param_as_parameter_declaration.maybe_initializer().is_some()
-                            || param_as_parameter_declaration.question_token.is_some()
+                        param
+                            .ref_(self)
+                            .maybe_as_parameter_declaration()
+                            .and_then(|param| param.maybe_initializer())
+                            .is_some()
+                            || param
+                                .ref_(self)
+                                .maybe_as_parameter_declaration()
+                                .and_then(|param| param.question_token)
+                                .is_some()
                             || is_rest_parameter(param, self)
                             || matches!(
                                 iife,
