@@ -876,7 +876,7 @@ impl TypeChecker {
     ) -> bool {
         is_in_js_file(Some(&node.ref_(self))) && (
             matches!(
-                node.ref_(self).as_parameter_declaration().maybe_type(),
+                node.ref_(self).maybe_as_parameter_declaration().and_then(|node| node.maybe_type()),
                 Some(type_) if type_.ref_(self).kind() == SyntaxKind::JSDocOptionalType
             ) || get_jsdoc_parameter_tags(node, self).into_iter().any(|tag: Id<Node>| {
                 let tag_ref = tag.ref_(self);
