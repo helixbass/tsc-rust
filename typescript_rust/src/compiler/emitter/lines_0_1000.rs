@@ -1941,6 +1941,7 @@ impl Printer {
             None
         };
         let record_internal_section = printer_options.record_internal_section;
+        let comments_disabled = printer_options.remove_comments == Some(true);
         Self {
             arena: arena.arena(),
             _arena_id: Default::default(),
@@ -1983,7 +1984,7 @@ impl Printer {
             current_line_map: Default::default(),
             detached_comments_info: Default::default(),
             has_written_comment: Default::default(),
-            comments_disabled: Default::default(),
+            comments_disabled: Cell::new(comments_disabled),
             last_substitution: Default::default(),
             current_parenthesizer_rule: Default::default(),
             // const { enter: enterComment, exit: exitComment } = performance.createTimerIf(extendedDiagnostics, "commentTime", "beforeComment", "afterComment");
