@@ -282,7 +282,7 @@ impl TypeChecker {
                         Some(symbol_declarations) => matches!(
                             context.ref_(self).maybe_enclosing_declaration(),
                             Some(context_enclosing_declaration) if
-                                find_ancestor(symbol_declarations.get(0).copied(), |declaration| self.is_default_binding_context(declaration), self) ==
+                                find_ancestor(symbol_declarations.get(0).copied(), |declaration| self.is_default_binding_context(declaration), self) !=
                                 find_ancestor(Some(context_enclosing_declaration), |declaration| self.is_default_binding_context(declaration), self)
                         ),
                     })
