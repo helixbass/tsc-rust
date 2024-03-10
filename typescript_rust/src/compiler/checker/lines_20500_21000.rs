@@ -910,6 +910,11 @@ impl TypeChecker {
             || type_
                 .ref_(self)
                 .flags()
+                .intersects(TypeFlags::NumberLiteral)
+                && type_.ref_(self).as_number_literal_type().value == Number::new(0.0)
+            || type_
+                .ref_(self)
+                .flags()
                 .intersects(TypeFlags::BigIntLiteral)
                 && self.is_zero_big_int(type_)
         {
