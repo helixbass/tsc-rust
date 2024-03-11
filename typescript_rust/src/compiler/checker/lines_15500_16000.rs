@@ -982,25 +982,24 @@ impl TypeChecker {
             .cloned()
             .unwrap_or_else(|| self.empty_object_type()));
         }
-        let first_type = try_find(
-            type_.ref_(self).as_union_type().types(),
-            |&type_: &Id<Type>, _| -> io::Result<_> {
-                Ok(!self.is_empty_object_type_or_spreads_into_empty_object(type_)?)
-            },
-        )?
-        .cloned();
-        if first_type.is_none() {
-            return Ok(type_);
-        }
-        let first_type = first_type.unwrap();
-        let second_type = try_find(
+        let Some(first_type) = try_find(
             type_.ref_(self).as_union_type().types(),
             |&t: &Id<Type>, _| -> io::Result<_> {
-                Ok(t != first_type
-                    && !self.is_empty_object_type_or_spreads_into_empty_object(type_)?)
+                Ok(!self.is_empty_object_type_or_spreads_into_empty_object(t)?)
             },
         )?
-        .cloned();
+        .cloned() else {
+            return Ok(type_);
+        };
+        let second_type =
+            try_find(
+                type_.ref_(self).as_union_type().types(),
+                |&t: &Id<Type>, _| -> io::Result<_> {
+                    Ok(t != first_type
+                        && !self.is_empty_object_type_or_spreads_into_empty_object(t)?)
+                },
+            )?
+            .cloned();
         if second_type.is_some() {
             return Ok(type_);
         }
