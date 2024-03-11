@@ -1210,11 +1210,11 @@ impl CheckTypeRelatedTo {
             && released!(self_.ref_(arena).type_checker)
                 .ref_(arena)
                 .is_weak_type(target)?
-            && (!released!(self_.ref_(arena).type_checker)
+            && (released!(self_.ref_(arena).type_checker)
                 .ref_(arena)
                 .get_properties_of_type(source)?
                 .len()
-                == 0
+                > 0
                 || self_
                     .ref_(arena)
                     .type_checker
