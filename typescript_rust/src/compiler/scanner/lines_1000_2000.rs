@@ -7,8 +7,8 @@ use super::{
     utf16_encode_as_string, ErrorCallback, Scanner,
 };
 use crate::{
-    parse_pseudo_big_int, CharacterCodes, DiagnosticMessage, Diagnostics, ScriptTarget, SyntaxKind,
-    TokenFlags,
+    from_char_code, parse_pseudo_big_int, CharacterCodes, DiagnosticMessage, Diagnostics,
+    ScriptTarget, SyntaxKind, TokenFlags,
 };
 
 impl Scanner {
@@ -569,7 +569,7 @@ impl Scanner {
         let escaped_value = self.scan_exact_number_of_hex_digits(on_error, num_digits, false);
 
         match escaped_value {
-            Ok(escaped_value) => escaped_value.to_string(),
+            Ok(escaped_value) => from_char_code(&[escaped_value]),
             Err(_) => {
                 self.error(
                     on_error,

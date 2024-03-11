@@ -14,6 +14,7 @@ pub mod io;
 pub mod iterator;
 pub mod number;
 pub mod option;
+pub mod string;
 pub mod sys;
 pub mod uri;
 pub mod vec;

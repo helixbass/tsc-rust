@@ -854,6 +854,7 @@ pub use rust_helpers::{
         BoolExt, GetOrInsertDefault, MapOrDefault, Matches, NonEmpty, OptionTry, UnwrapOrEmpty,
     },
     push_or_replace,
+    string::from_char_code,
     sys::{
         fs_exists_sync, fs_mkdir_sync, fs_readdir_sync, fs_readdir_sync_with_file_types,
         fs_stat_sync, fs_unlink_sync, is_windows, millis_since_epoch_to_system_time, path_join,
