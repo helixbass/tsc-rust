@@ -41,6 +41,10 @@ impl Number {
         let mut buffer = ryu_js::Buffer::new();
         buffer.format(self.0).to_owned()
     }
+
+    pub fn is_finite(&self) -> bool {
+        self.0.is_finite()
+    }
 }
 
 impl hash::Hash for Number {
@@ -167,10 +171,6 @@ impl ops::Rem for Number {
     fn rem(self, rhs: Self) -> Self::Output {
         Self::new(self.value() % rhs.value())
     }
-}
-
-pub fn is_finite(_value: &Number) -> bool {
-    unimplemented!()
 }
 
 pub fn is_nan(_value: &Number) -> bool {

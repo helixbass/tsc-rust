@@ -10,7 +10,7 @@ use super::{
     ParenthesizeMemberOfElementTypeCurrentParenthesizerRule,
 };
 use crate::{
-    for_each, get_constant_value, get_emit_flags, get_factory, is_access_expression, is_finite,
+    for_each, get_constant_value, get_emit_flags, get_factory, is_access_expression,
     is_json_source_file, is_numeric_literal, released, set_text_range_pos_end,
     skip_partially_emitted_expressions, string_contains, token_to_string, EmitFlags, EmitHint,
     FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface, HasQuestionTokenInterface,
@@ -1160,7 +1160,7 @@ impl Printer {
             let constant_value = get_constant_value(expression, self);
             return matches!(
                 constant_value,
-                Some(StringOrNumber::Number(constant_value)) if is_finite(&constant_value) &&
+                Some(StringOrNumber::Number(constant_value)) if constant_value.is_finite() &&
                     constant_value.value().floor() == constant_value.value()
             );
         }

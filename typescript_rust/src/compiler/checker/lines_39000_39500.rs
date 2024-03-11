@@ -11,7 +11,7 @@ use crate::{
     get_name_of_declaration, get_text_of_identifier_or_literal, get_text_of_property_name,
     has_abstract_modifier, is_ambient_module, is_binding_pattern, is_computed_non_literal_name,
     is_entity_name_expression, is_enum_const, is_enum_declaration, is_external_module_augmentation,
-    is_external_module_name_relative, is_finite, is_global_scope_augmentation, is_identifier,
+    is_external_module_name_relative, is_global_scope_augmentation, is_identifier,
     is_infinity_or_nan_string, is_literal_expression, is_nan, is_optional_chain,
     is_private_identifier, is_static, is_string_literal_like, length, maybe_for_each,
     maybe_get_source_file_of_node, node_is_missing, node_is_present, released, set_parent,
@@ -433,7 +433,7 @@ impl TypeChecker {
         if let Some(value) = value.as_ref() {
             if is_const_enum {
                 if let StringOrNumber::Number(value) = value {
-                    if !is_finite(value) {
+                    if !value.is_finite() {
                         self.error(
                             Some(initializer),
                             if is_nan(value) {

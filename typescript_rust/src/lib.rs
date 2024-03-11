@@ -849,7 +849,7 @@ pub use rust_helpers::{
         maybe_concat, maybe_concat_exact_size, IteratorExt, Owned, PeekMoreExt, PeekableExt,
     },
     last_index_of, last_index_of_returns_isize,
-    number::{is_finite, is_nan, Number},
+    number::{is_nan, Number},
     option::{
         BoolExt, GetOrInsertDefault, MapOrDefault, Matches, NonEmpty, OptionTry, UnwrapOrEmpty,
     },
