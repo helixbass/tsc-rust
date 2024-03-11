@@ -1658,6 +1658,10 @@ impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {
     fn is_track_referenced_ambient_module_supported(&self) -> bool {
         false
     }
+
+    fn is_track_external_module_symbol_of_import_type_node_supported(&self) -> bool {
+        false
+    }
 }
 
 struct DefaultNodeBuilderContextSymbolTrackerTrackSymbol;
@@ -1977,6 +1981,12 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
         self.tracker
             .ref_(self)
             .track_external_module_symbol_of_import_type_node(symbol)
+    }
+
+    fn is_track_external_module_symbol_of_import_type_node_supported(&self) -> bool {
+        self.tracker
+            .ref_(self)
+            .is_track_external_module_symbol_of_import_type_node_supported()
     }
 }
 

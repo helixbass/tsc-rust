@@ -18,14 +18,15 @@ use crate::{
     is_jsdoc_type_literal, is_jsdoc_unknown_type, is_jsdoc_variadic_type,
     is_literal_import_type_node, is_module_exports_access_expression, is_module_identifier,
     is_qualified_name, is_single_or_double_quote, is_string_literal, is_tuple_type_node,
-    is_type_reference_node, length, maybe_get_source_file_of_node, node_is_synthesized, released,
-    set_emit_flags, set_original_node, set_text_range, some, starts_with, try_for_each_entry_bool,
-    try_map, try_map_defined, try_maybe_map, try_maybe_visit_node, try_maybe_visit_nodes,
-    try_visit_each_child, try_visit_node, unescape_leading_underscores, AsDoubleDeref,
-    CharacterCodes, Debug_, EmitFlags, GetOrInsertDefault, HasArena, HasTypeArgumentsInterface,
-    HasTypeInterface, HasTypeParametersInterface, InArena, InternalSymbolName, LiteralType,
-    Matches, NamedDeclarationInterface, Node, NodeArray, NodeBuilder, NodeBuilderFlags,
-    NodeInterface, Number, ObjectFlags, OptionInArena, OptionTry, ReadonlyTextRange, Signature,
+    is_type_node, is_type_reference_node, length, maybe_get_source_file_of_node,
+    node_is_synthesized, released, set_emit_flags, set_original_node, set_text_range, some,
+    starts_with, try_for_each_entry_bool, try_map, try_map_defined, try_maybe_map,
+    try_maybe_visit_node, try_maybe_visit_nodes, try_visit_each_child, try_visit_node,
+    unescape_leading_underscores, AsDoubleDeref, CharacterCodes, Debug_, EmitFlags,
+    GetOrInsertDefault, HasArena, HasTypeArgumentsInterface, HasTypeInterface,
+    HasTypeParametersInterface, InArena, InternalSymbolName, LiteralType, Matches,
+    NamedDeclarationInterface, Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface,
+    Number, ObjectFlags, OptionInArena, OptionTry, ReadonlyTextRange, Signature,
     SignatureDeclarationInterface, Symbol, SymbolAccessibility, SymbolFlags,
 };
 
@@ -977,7 +978,7 @@ impl NodeBuilder {
         context: Id<NodeBuilderContext>,
         existing: Id<Node>, /*TypeNode*/
         include_private_symbol: Option<&impl Fn(Id<Symbol>)>,
-        _bundled: Option<bool>,
+        bundled: Option<bool>,
     ) -> io::Result<Option<Id<Node>>> {
         if let Some(cancellation_token) = self.type_checker.ref_(self).maybe_cancellation_token() {
             cancellation_token
@@ -994,6 +995,7 @@ impl NodeBuilder {
                     &mut had_error,
                     include_private_symbol,
                     file,
+                    bundled,
                     node,
                 )
             }),
@@ -1018,6 +1020,7 @@ impl NodeBuilder {
         had_error: &mut bool,
         include_private_symbol: Option<&impl Fn(Id<Symbol>)>,
         file: Option<Id<Node>>,
+        bundled: Option<bool>,
         node: Id<Node>,
     ) -> io::Result<VisitResult> {
         if is_jsdoc_all_type(&node.ref_(self))
@@ -1048,6 +1051,7 @@ impl NodeBuilder {
                                     had_error,
                                     include_private_symbol,
                                     file,
+                                    bundled,
                                     node,
                                 )
                             }),
@@ -1071,6 +1075,7 @@ impl NodeBuilder {
                                     had_error,
                                     include_private_symbol,
                                     file,
+                                    bundled,
                                     node,
                                 )
                             }),
@@ -1092,6 +1097,7 @@ impl NodeBuilder {
                             had_error,
                             include_private_symbol,
                             file,
+                            bundled,
                             node,
                         )
                     }),
@@ -1112,6 +1118,7 @@ impl NodeBuilder {
                                 had_error,
                                 include_private_symbol,
                                 file,
+                                bundled,
                                 node,
                             )
                         }),
@@ -1172,7 +1179,7 @@ impl NodeBuilder {
                                     released!(t.ref_(self).as_jsdoc_property_like_tag().type_expression).try_and_then(|t_type_expression| {
                                         try_maybe_visit_node(
                                             released!(Some(t_type_expression.ref_(self).as_jsdoc_type_expression().type_)),
-                                            Some(|node: Id<Node>| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, node)),
+                                            Some(|node: Id<Node>| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, bundled, node)),
                                             Option::<fn(Id<Node>) -> bool>::None,
                                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                         )
@@ -1245,6 +1252,7 @@ impl NodeBuilder {
                                         had_error,
                                         include_private_symbol,
                                         file,
+                                        bundled,
                                         node,
                                     )
                                 }),
@@ -1268,6 +1276,7 @@ impl NodeBuilder {
                                     had_error,
                                     include_private_symbol,
                                     file,
+                                    bundled,
                                     node,
                                 )
                             }),
@@ -1286,7 +1295,7 @@ impl NodeBuilder {
                         released!(node.ref_(self).as_jsdoc_function_type().maybe_modifiers()),
                         try_maybe_visit_nodes(
                             released!(node.ref_(self).as_jsdoc_function_type().maybe_type_parameters()),
-                            Some(|node: Id<Node>| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, node)),
+                            Some(|node: Id<Node>| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, bundled, node)),
                             Option::<fn(Id<Node>) -> bool>::None,
                             None, None,
                             self,
@@ -1312,7 +1321,7 @@ impl NodeBuilder {
                                             p_as_parameter_declaration.question_token.clone(),
                                             try_maybe_visit_node(
                                                 p_as_parameter_declaration.maybe_type(),
-                                                Some(|node: Id<Node>| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, node)),
+                                                Some(|node: Id<Node>| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, bundled, node)),
                                                 Option::<fn(Id<Node>) -> bool>::None,
                                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                             )?,
@@ -1325,7 +1334,7 @@ impl NodeBuilder {
                         Some(
                             try_maybe_visit_node(
                                 released!(new_type_node.or_else(|| node.ref_(self).as_jsdoc_function_type().maybe_type())),
-                                Some(|node: Id<Node>| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, node)),
+                                Some(|node: Id<Node>| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, bundled, node)),
                                 Option::<fn(Id<Node>) -> bool>::None,
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             )?.unwrap_or_else(|| {
@@ -1351,6 +1360,7 @@ impl NodeBuilder {
                                         had_error,
                                         include_private_symbol,
                                         file,
+                                        bundled,
                                         node,
                                     )
                                 }),
@@ -1387,6 +1397,7 @@ impl NodeBuilder {
                                                     had_error,
                                                     include_private_symbol,
                                                     file,
+                                                    bundled,
                                                     node,
                                                 )
                                             }),
@@ -1409,6 +1420,7 @@ impl NodeBuilder {
                                             had_error,
                                             include_private_symbol,
                                             file,
+                                            bundled,
                                             node,
                                         )
                                     }),
@@ -1487,8 +1499,51 @@ impl NodeBuilder {
                     .into(),
                 ));
             }
-            /*return*/
-            unimplemented!();
+            return Ok(Some(
+                get_factory(self)
+                    .update_import_type_node(
+                        node,
+                        get_factory(self).update_literal_type_node(
+                            released!(node.ref_(self).as_import_type_node().argument),
+                            self.rewrite_module_specifier(
+                                bundled,
+                                context,
+                                node,
+                                released!(
+                                    node.ref_(self)
+                                        .as_import_type_node()
+                                        .argument
+                                        .ref_(self)
+                                        .as_literal_type_node()
+                                        .literal
+                                ),
+                            )?,
+                        ),
+                        released!(node.ref_(self).as_import_type_node().qualifier),
+                        try_maybe_visit_nodes(
+                            released!(node.ref_(self).as_import_type_node().maybe_type_arguments()),
+                            Some(|node: Id<Node>| {
+                                self.visit_existing_node_tree_symbols(
+                                    context,
+                                    had_error,
+                                    include_private_symbol,
+                                    file,
+                                    bundled,
+                                    node,
+                                )
+                            }),
+                            Some(|node: Id<Node>| is_type_node(&node.ref_(self))),
+                            None,
+                            None,
+                            self,
+                        )?,
+                        Some(released!(node
+                            .ref_(self)
+                            .as_import_type_node()
+                            .is_type_of())),
+                    )
+                    .into(),
+            ));
         }
 
         if is_entity_name(&node.ref_(self)) || is_entity_name_expression(node, self) {
@@ -1529,6 +1584,7 @@ impl NodeBuilder {
                         had_error,
                         include_private_symbol,
                         file,
+                        bundled,
                         node,
                     )
                 },

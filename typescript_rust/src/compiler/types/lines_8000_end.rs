@@ -965,6 +965,7 @@ pub trait SymbolTracker {
     }
     fn is_track_referenced_ambient_module_supported(&self) -> bool;
     fn track_external_module_symbol_of_import_type_node(&self, _symbol: Id<Symbol>) {}
+    fn is_track_external_module_symbol_of_import_type_node_supported(&self) -> bool;
     fn report_nonlocal_augmentation(
         &self,
         _containing_file: Id<Node>, /*SourceFile*/

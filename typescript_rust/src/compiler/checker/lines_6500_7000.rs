@@ -12,23 +12,25 @@ use super::{
     MakeSerializePropertySymbolCreateProperty, NodeBuilderContext,
 };
 use crate::{
-    cast, continue_if_none, create_empty_exports, create_symbol_table, every, filter,
-    find_ancestor, find_index, flat_map, for_each_entry, get_effective_modifier_flags, get_factory,
-    get_name_of_declaration, get_symbol_id, group, has_scope_marker, has_syntactic_modifier,
-    id_text, impl_has_arena, indices_of, is_binary_expression, is_class_declaration,
-    is_class_expression, is_enum_declaration, is_export_assignment, is_export_declaration,
-    is_external_module_augmentation, is_external_module_indicator, is_external_or_common_js_module,
-    is_function_declaration, is_global_scope_augmentation, is_identifier, is_interface_declaration,
-    is_module_block, is_module_declaration, is_named_exports, is_property_access_expression,
-    is_source_file, is_string_a_non_contextual_keyword, is_string_literal, is_variable_declaration,
+    cast, continue_if_none, create_empty_exports, create_get_canonical_file_name,
+    create_symbol_table, every, filter, find_ancestor, find_index, flat_map, for_each_entry,
+    get_effective_modifier_flags, get_factory, get_name_of_declaration,
+    get_resolved_external_module_name, get_symbol_id, group, has_scope_marker,
+    has_syntactic_modifier, id_text, impl_has_arena, indices_of, is_binary_expression,
+    is_class_declaration, is_class_expression, is_enum_declaration, is_export_assignment,
+    is_export_declaration, is_external_module_augmentation, is_external_module_indicator,
+    is_external_or_common_js_module, is_function_declaration, is_global_scope_augmentation,
+    is_identifier, is_interface_declaration, is_module_block, is_module_declaration,
+    is_named_exports, is_property_access_expression, is_source_file,
+    is_string_a_non_contextual_keyword, is_string_literal, is_variable_declaration,
     is_variable_declaration_list, is_variable_statement, length, map, map_defined,
     needs_scope_marker, node_has_name, ordered_remove_item_at, released, set_text_range_id_node,
     unescape_leading_underscores, AllArenas, HasArena,
     IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory, InArena, InternalSymbolName,
     LiteralLikeNodeInterface, ModifierFlags, Node, NodeArray, NodeArrayOrVec, NodeBuilder,
-    NodeBuilderFlags, NodeFlags, NodeInterface, OptionInArena, StrOrRcNode, Symbol,
-    SymbolAccessibility, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
-    SymbolTrackerTrackSymbol, SyntaxKind, TypeChecker, TypeInterface,
+    NodeBuilderFlags, NodeFlags, NodeInterface, OptionInArena, ResolveModuleNameResolutionHost,
+    StrOrRcNode, Symbol, SymbolAccessibility, SymbolFlags, SymbolId, SymbolInterface, SymbolTable,
+    SymbolTracker, SymbolTrackerTrackSymbol, SyntaxKind, TypeChecker, TypeInterface,
 };
 
 impl NodeBuilder {
@@ -37,6 +39,69 @@ impl NodeBuilder {
         _p: Id<Node>, /*ParameterDeclaration*/
     ) -> Option<Id<Node>> {
         unimplemented!()
+    }
+
+    pub(super) fn rewrite_module_specifier(
+        &self,
+        bundled: Option<bool>,
+        context: Id<NodeBuilderContext>,
+        parent: Id<Node>, /*ImportTypeNode*/
+        lit: Id<Node>,    /*StringLiteral*/
+    ) -> io::Result<Id<Node>> {
+        if bundled == Some(true) {
+            if let Some(context_tracker_module_resolver_host) = /*context.tracker &&*/
+                context
+                    .ref_(self)
+                    .tracker()
+                    .ref_(self)
+                    .module_resolver_host()
+            {
+                if let Some(target_file) = self
+                    .type_checker
+                    .ref_(self)
+                    .get_external_module_file_from_declaration(parent)?
+                {
+                    let get_canonical_file_name = create_get_canonical_file_name(
+                        self.type_checker
+                            .ref_(self)
+                            .host
+                            .ref_(self)
+                            .use_case_sensitive_file_names(),
+                    );
+                    let resolver_host = RewriteModuleSpecifierResolverHost::new(
+                        get_canonical_file_name,
+                        context_tracker_module_resolver_host,
+                        self,
+                    );
+                    let new_name = get_resolved_external_module_name(
+                        &resolver_host,
+                        &target_file.ref_(self),
+                        None,
+                    );
+                    return Ok(get_factory(self).create_string_literal(new_name, None, None));
+                }
+            }
+        } else {
+            if context
+                .ref_(self)
+                .tracker()
+                .ref_(self)
+                .is_track_external_module_symbol_of_import_type_node_supported()
+            {
+                if let Some(module_sym) = self
+                    .type_checker
+                    .ref_(self)
+                    .resolve_external_module_name_worker(lit, lit, None, None)?
+                {
+                    context
+                        .ref_(self)
+                        .tracker()
+                        .ref_(self)
+                        .track_external_module_symbol_of_import_type_node(module_sym);
+                }
+            }
+        }
+        Ok(lit)
     }
 
     pub(super) fn get_name_for_jsdoc_function_parameter(
@@ -65,6 +130,47 @@ impl NodeBuilder {
         .call()
     }
 }
+
+struct RewriteModuleSpecifierResolverHost {
+    arena: *const AllArenas,
+    get_canonical_file_name: fn(&str) -> String,
+    context_tracker_module_resolver_host:
+        IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
+}
+
+impl RewriteModuleSpecifierResolverHost {
+    fn new(
+        get_canonical_file_name: fn(&str) -> String,
+        context_tracker_module_resolver_host: IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
+        arena: &impl HasArena,
+    ) -> Self {
+        Self {
+            arena: arena.arena(),
+            get_canonical_file_name,
+            context_tracker_module_resolver_host,
+        }
+    }
+}
+
+impl ResolveModuleNameResolutionHost for RewriteModuleSpecifierResolverHost {
+    fn get_canonical_file_name(&self, p: &str) -> String {
+        (self.get_canonical_file_name)(p)
+    }
+
+    fn get_current_directory(&self) -> String {
+        self.context_tracker_module_resolver_host
+            .ref_(self)
+            .get_current_directory()
+    }
+
+    fn get_common_source_directory(&self) -> String {
+        self.context_tracker_module_resolver_host
+            .ref_(self)
+            .get_common_source_directory()
+    }
+}
+
+impl_has_arena!(RewriteModuleSpecifierResolverHost);
 
 pub struct SymbolTableToDeclarationStatements {
     arena: *const AllArenas,
@@ -1354,6 +1460,12 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
         self.oldcontext_tracker
             .ref_(self)
             .track_external_module_symbol_of_import_type_node(symbol)
+    }
+
+    fn is_track_external_module_symbol_of_import_type_node_supported(&self) -> bool {
+        self.oldcontext_tracker
+            .ref_(self)
+            .is_track_external_module_symbol_of_import_type_node_supported()
     }
 
     fn report_nonlocal_augmentation(

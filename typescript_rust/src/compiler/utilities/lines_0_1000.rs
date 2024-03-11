@@ -350,6 +350,12 @@ impl SymbolTracker for SingleLineStringWriter {
             .ref_(self)
             .is_track_referenced_ambient_module_supported()
     }
+
+    fn is_track_external_module_symbol_of_import_type_node_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .ref_(self)
+            .is_track_external_module_symbol_of_import_type_node_supported()
+    }
 }
 
 impl_has_arena!(SingleLineStringWriter);
@@ -408,6 +414,10 @@ impl SymbolTracker for SingleLineStringWriterSymbolTracker {
     }
 
     fn is_track_referenced_ambient_module_supported(&self) -> bool {
+        false
+    }
+
+    fn is_track_external_module_symbol_of_import_type_node_supported(&self) -> bool {
         false
     }
 }

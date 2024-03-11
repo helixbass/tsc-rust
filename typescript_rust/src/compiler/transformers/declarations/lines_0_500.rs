@@ -1553,6 +1553,10 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
         }
     }
 
+    fn is_track_external_module_symbol_of_import_type_node_supported(&self) -> bool {
+        true
+    }
+
     fn report_nonlocal_augmentation(
         &self,
         containing_file: Id<Node>, /*SourceFile*/
