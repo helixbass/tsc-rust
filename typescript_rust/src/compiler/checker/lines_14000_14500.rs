@@ -322,11 +322,14 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*TupleTypeReference*/
         index: usize,
-        end_skip_count: Option<usize>,
+        end_skip_count: Option<isize>,
     ) -> io::Result<Id<Type>> {
         let end_skip_count = end_skip_count.unwrap_or(0);
         let target = type_.ref_(self).as_type_reference().target();
-        let end_index = self.get_type_reference_arity(type_) - end_skip_count;
+        let end_index = usize::try_from(
+            isize::try_from(self.get_type_reference_arity(type_)).unwrap() - end_skip_count,
+        )
+        .unwrap();
         Ok(if index > target.ref_(self).as_tuple_type().fixed_length {
             self.get_rest_array_type_of_tuple_type(type_)?
                 .try_unwrap_or_else(|| self.create_tuple_type(&[], None, None, None))?

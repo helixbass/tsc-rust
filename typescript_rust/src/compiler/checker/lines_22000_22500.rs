@@ -560,11 +560,14 @@ impl InferTypes {
                                         source,
                                         start_length,
                                         Some(
-                                            end_length + source_arity
-                                                - target_info
-                                                    .ref_(self)
-                                                    .maybe_implied_arity()
-                                                    .unwrap(),
+                                            isize::try_from(end_length + source_arity).unwrap()
+                                                - isize::try_from(
+                                                    target_info
+                                                        .ref_(self)
+                                                        .maybe_implied_arity()
+                                                        .unwrap(),
+                                                )
+                                                .unwrap(),
                                         ),
                                     )?,
                                     element_types[start_length],
@@ -574,7 +577,7 @@ impl InferTypes {
                                         source,
                                         start_length
                                             + target_info.ref_(self).maybe_implied_arity().unwrap(),
-                                        Some(end_length),
+                                        Some(isize::try_from(end_length).unwrap()),
                                     )?,
                                     element_types[start_length + 1],
                                 )?;
@@ -591,7 +594,7 @@ impl InferTypes {
                                 self.type_checker.ref_(self).slice_tuple_type(
                                     source,
                                     start_length,
-                                    Some(end_length),
+                                    Some(isize::try_from(end_length).unwrap()),
                                 )?
                             } else {
                                 self.type_checker.ref_(self).create_array_type(
