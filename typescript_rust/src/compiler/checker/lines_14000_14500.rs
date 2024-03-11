@@ -1,4 +1,5 @@
 use std::{
+    cmp,
     convert::{TryFrom, TryInto},
     io,
 };
@@ -334,27 +335,22 @@ impl TypeChecker {
             self.get_rest_array_type_of_tuple_type(type_)?
                 .try_unwrap_or_else(|| self.create_tuple_type(&[], None, None, None))?
         } else {
+            let type_arguments = self.get_type_arguments(type_)?;
+            let element_flags = target.ref_(self).as_tuple_type().element_flags.clone();
             self.create_tuple_type(
-                &self.get_type_arguments(type_)?[index..end_index],
-                Some(
-                    &{
-                        let element_flags = target.ref_(self).as_tuple_type().element_flags.clone();
-                        element_flags
-                    }[index..end_index],
-                ),
+                &type_arguments[index..cmp::min(end_index, type_arguments.len())],
+                Some(&element_flags[index..cmp::min(end_index, element_flags.len())]),
                 Some(false),
-                {
-                    let labeled_element_declarations = target
-                        .ref_(self)
-                        .as_tuple_type()
-                        .labeled_element_declarations
-                        .clone();
-                    labeled_element_declarations
-                }
-                .as_ref()
-                .map(|labeled_element_declarations| {
-                    labeled_element_declarations[index..end_index].to_owned()
-                })
+                released!(target
+                    .ref_(self)
+                    .as_tuple_type()
+                    .labeled_element_declarations
+                    .as_ref()
+                    .map(|labeled_element_declarations| {
+                        labeled_element_declarations
+                            [index..cmp::min(end_index, labeled_element_declarations.len())]
+                            .to_owned()
+                    }))
                 .as_deref(),
             )?
         })

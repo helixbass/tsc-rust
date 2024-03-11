@@ -572,7 +572,7 @@ impl TypeChecker {
                     .clone()),
             )?
         } else {
-            self.get_contextual_type_(attribute.ref_(self).parent(), None)?
+            self.get_contextual_type_(released!(attribute.ref_(self).parent()), None)?
         })
     }
 
