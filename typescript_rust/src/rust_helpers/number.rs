@@ -26,6 +26,21 @@ impl Number {
         // TODO: should check that we're an "integer"?
         self.value() as i64
     }
+
+    // per https://github.com/boa-dev/boa/blob/main/core/engine/src/builtins/number/mod.rs
+    pub fn as_string(&self) -> String {
+        let radix = 10;
+
+        if radix == 10 {
+            return self.to_js_string();
+        }
+        unimplemented!()
+    }
+
+    pub fn to_js_string(&self) -> String {
+        let mut buffer = ryu_js::Buffer::new();
+        buffer.format(self.0).to_owned()
+    }
 }
 
 impl hash::Hash for Number {
@@ -54,7 +69,7 @@ impl From<&str> for Number {
 
 impl fmt::Display for Number {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
+        self.as_string().fmt(f)
     }
 }
 

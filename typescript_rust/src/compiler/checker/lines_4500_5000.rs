@@ -1109,12 +1109,12 @@ impl NodeBuilder {
             .flags()
             .intersects(TypeFlags::NumberLiteral)
         {
-            let value = type_.ref_(self).as_number_literal_type().value.value();
+            let value = type_.ref_(self).as_number_literal_type().value;
             context
                 .ref_(self)
                 .increment_approximate_length_by(value.to_string().len());
             return Ok(Some(get_factory(self).create_literal_type_node(
-                if value < 0.0 {
+                if value.value() < 0.0 {
                     get_factory(self).create_prefix_unary_expression(
                         SyntaxKind::MinusToken,
                         get_factory(self).create_numeric_literal((-value).to_string(), None),
