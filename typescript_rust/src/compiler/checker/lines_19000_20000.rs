@@ -1380,9 +1380,7 @@ impl CheckTypeRelatedTo {
                 .type_checker
                 .ref_(arena)
                 .is_tuple_type(source);
-        let unmatched_property = self_
-            .ref_(arena)
-            .type_checker
+        let unmatched_property = released!(self_.ref_(arena).type_checker)
             .ref_(arena)
             .get_unmatched_property(source, target, require_optional_properties, false)?;
         if let Some(unmatched_property) = unmatched_property {
