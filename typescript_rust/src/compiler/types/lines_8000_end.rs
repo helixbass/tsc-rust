@@ -864,6 +864,7 @@ pub trait ModuleSpecifierResolutionHost {
     fn directory_exists(&self, _path: &str) -> Option<bool> {
         None
     }
+    fn is_directory_exists_supported(&self) -> bool;
     fn read_file(&self, _path: &str) -> Option<io::Result<Option<String>>> {
         None
     }
@@ -871,6 +872,7 @@ pub trait ModuleSpecifierResolutionHost {
     fn realpath(&self, _path: &str) -> Option<String> {
         None
     }
+    fn is_realpath_supported(&self) -> bool;
     fn get_symlink_cache(&self) -> Option<Id<SymlinkCache>> {
         None
     }

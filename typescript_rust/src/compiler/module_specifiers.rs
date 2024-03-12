@@ -194,7 +194,7 @@ impl<THost: ModuleSpecifierResolutionHost + ?Sized> ModuleResolutionHost
     }
 
     fn is_directory_exists_supported(&self) -> bool {
-        unreachable!()
+        self.host.is_directory_exists_supported()
     }
 
     fn directory_exists_non_overridden(&self, _directory_name: &str) -> Option<bool> {
@@ -217,7 +217,7 @@ impl<THost: ModuleSpecifierResolutionHost + ?Sized> ModuleResolutionHost
     }
 
     fn is_realpath_supported(&self) -> bool {
-        unreachable!()
+        self.host.is_realpath_supported()
     }
 
     fn set_overriding_realpath(

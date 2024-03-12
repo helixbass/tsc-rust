@@ -2188,6 +2188,10 @@ impl ModuleSpecifierResolutionHost for Program {
             .and_then(|directory_exists_rc| directory_exists_rc.ref_(self).directory_exists(path))
     }
 
+    fn is_directory_exists_supported(&self) -> bool {
+        self.maybe_directory_exists_rc().is_some()
+    }
+
     fn read_file(&self, path: &str) -> Option<io::Result<Option<String>>> {
         Some(self.host().ref_(self).read_file(path))
     }
@@ -2213,6 +2217,10 @@ impl ModuleSpecifierResolutionHost for Program {
     }
 
     fn is_get_nearest_ancestor_directory_with_package_json_supported(&self) -> bool {
+        false
+    }
+
+    fn is_realpath_supported(&self) -> bool {
         false
     }
 }

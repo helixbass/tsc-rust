@@ -1754,6 +1754,14 @@ impl ModuleSpecifierResolutionHost for DefaultNodeBuilderContextSymbolTrackerMod
     fn is_get_nearest_ancestor_directory_with_package_json_supported(&self) -> bool {
         false
     }
+
+    fn is_directory_exists_supported(&self) -> bool {
+        false
+    }
+
+    fn is_realpath_supported(&self) -> bool {
+        false
+    }
 }
 
 impl_has_arena!(DefaultNodeBuilderContextSymbolTrackerModuleResolverHost);
