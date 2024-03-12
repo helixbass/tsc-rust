@@ -18,7 +18,7 @@ use crate::{
     is_external_module_augmentation, is_external_module_name_relative, is_module_block,
     is_module_declaration, is_non_global_ambient_module, is_rooted_disk_path, is_source_file,
     maybe_for_each, node_modules_path_part, normalize_path, path_contains_node_modules,
-    path_is_bare_specifier, path_is_relative, remove_file_extension, remove_suffix,
+    path_is_bare_specifier, path_is_relative, released, remove_file_extension, remove_suffix,
     remove_trailing_directory_separator, resolve_path, return_ok_default_if_none, some,
     starts_with, starts_with_directory, to_path, try_get_extension_from_path, try_map_defined,
     CharacterCodes, Comparison, CompilerOptions, CompilerOptionsBuilder, Debug_, Extension,
@@ -93,7 +93,11 @@ fn get_ending(
             if uses_js_extensions_on_imports(importing_source_file, arena)
                 || is_format_requiring_extensions(
                     compiler_options.clone(),
-                    &importing_source_file.ref_(arena).as_source_file().path(),
+                    &released!(importing_source_file
+                        .ref_(arena)
+                        .as_source_file()
+                        .path()
+                        .clone()),
                     host,
                     arena,
                 )
@@ -409,14 +413,13 @@ pub fn get_module_specifiers_with_cache_info(
     let module_source_file = module_source_file.unwrap();
 
     computed_without_cache = true;
-    let importing_source_file_ref = importing_source_file.ref_(arena);
-    let importing_source_file_as_source_file = importing_source_file_ref.as_source_file();
-    let module_source_file_ref = module_source_file.ref_(arena);
-    let module_source_file_as_source_file = module_source_file_ref.as_source_file();
     let module_paths = module_paths.unwrap_or_else(|| {
         get_all_module_paths_worker(
-            &importing_source_file_as_source_file.path(),
-            &module_source_file_as_source_file.original_file_name(),
+            &importing_source_file.ref_(arena).as_source_file().path(),
+            &module_source_file
+                .ref_(arena)
+                .as_source_file()
+                .original_file_name(),
             host,
             arena,
         )
@@ -431,8 +434,8 @@ pub fn get_module_specifiers_with_cache_info(
     )?;
     if let Some(cache) = cache {
         cache.set(
-            &importing_source_file_as_source_file.path(),
-            &module_source_file_as_source_file.path(),
+            &importing_source_file.ref_(arena).as_source_file().path(),
+            &module_source_file.ref_(arena).as_source_file().path(),
             user_preferences,
             &module_paths,
             &result,
@@ -452,9 +455,10 @@ fn compute_module_specifiers(
     user_preferences: &UserPreferences,
     arena: &impl HasArena,
 ) -> io::Result<Vec<String>> {
-    let importing_source_file_ref = importing_source_file.ref_(arena);
-    let importing_source_file_as_source_file = importing_source_file_ref.as_source_file();
-    let info = get_info(&importing_source_file_as_source_file.path(), host);
+    let info = get_info(
+        &importing_source_file.ref_(arena).as_source_file().path(),
+        host,
+    );
     let preferences = get_preferences(
         host,
         user_preferences,
@@ -472,12 +476,12 @@ fn compute_module_specifiers(
             |reason: &Id<FileIncludeReason>, _| {
                 if reason.ref_(arena).kind() != FileIncludeKind::Import
                     || reason.ref_(arena).as_referenced_file().file
-                        != *importing_source_file_as_source_file.path()
+                        != *importing_source_file.ref_(arena).as_source_file().path()
                 {
                     return None;
                 }
                 let specifier = get_module_name_string_literal_at(
-                    importing_source_file_as_source_file,
+                    importing_source_file.ref_(arena).as_source_file(),
                     reason.ref_(arena).as_referenced_file().index,
                     arena,
                 )
