@@ -1020,29 +1020,26 @@ impl TypeChecker {
             if void_is_non_optional {
                 return Ok(min_argument_count);
             }
-            let mut i = if min_argument_count == 0 {
-                // avoid usize underflow
-                0
-            } else {
-                min_argument_count - 1
-            };
-            loop
-            /*while (i >= 0)*/
-            {
-                let type_ = self.get_type_at_position(signature, i)?;
-                if self
-                    .filter_type(type_, |type_| self.accepts_void(type_))
-                    .ref_(self)
-                    .flags()
-                    .intersects(TypeFlags::Never)
+            if min_argument_count > 0 {
+                let mut i = min_argument_count - 1;
+                loop
+                /*while (i >= 0)*/
                 {
-                    break;
-                }
-                min_argument_count = i;
-                if i == 0 {
-                    break;
-                } else {
-                    i -= 1;
+                    let type_ = self.get_type_at_position(signature, i)?;
+                    if self
+                        .filter_type(type_, |type_| self.accepts_void(type_))
+                        .ref_(self)
+                        .flags()
+                        .intersects(TypeFlags::Never)
+                    {
+                        break;
+                    }
+                    min_argument_count = i;
+                    if i == 0 {
+                        break;
+                    } else {
+                        i -= 1;
+                    }
                 }
             }
             signature
