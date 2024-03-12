@@ -951,7 +951,7 @@ impl TypeChecker {
                 self.get_contextual_type_for_object_literal_element_(parent, context_flags)?
             }
             SyntaxKind::SpreadAssignment => {
-                self.get_contextual_type_(parent.ref_(self).parent(), context_flags)?
+                self.get_contextual_type_(released!(parent.ref_(self).parent()), context_flags)?
             }
             SyntaxKind::ArrayLiteralExpression => {
                 let array_literal = parent;

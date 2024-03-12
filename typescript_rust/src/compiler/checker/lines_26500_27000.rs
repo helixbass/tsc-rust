@@ -1298,7 +1298,7 @@ impl TypeChecker {
                     has_computed_symbol_property = false;
                 }
                 let type_ = self.get_reduced_type(self.check_expression(
-                    member_decl.ref_(self).as_has_expression().expression(),
+                    released!(member_decl.ref_(self).as_has_expression().expression()),
                     None,
                     None,
                 )?)?;

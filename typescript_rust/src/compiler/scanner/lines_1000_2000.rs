@@ -1162,8 +1162,8 @@ impl Scanner {
                 }
                 CharacterCodes::_0 => {
                     if self.pos() + 2 < self.end()
-                        && self.text_char_at_index(self.pos() + 1) == CharacterCodes::X
-                        || self.text_char_at_index(self.pos() + 1) == CharacterCodes::x
+                        && (self.text_char_at_index(self.pos() + 1) == CharacterCodes::X
+                            || self.text_char_at_index(self.pos() + 1) == CharacterCodes::x)
                     {
                         self.increment_pos_by(2);
                         self.set_token_value(
@@ -1182,8 +1182,8 @@ impl Scanner {
                         self.add_token_flag(TokenFlags::HexSpecifier);
                         return self.set_token(self.check_big_int_suffix());
                     } else if self.pos() + 2 < self.end()
-                        && self.text_char_at_index(self.pos() + 1) == CharacterCodes::B
-                        || self.text_char_at_index(self.pos() + 1) == CharacterCodes::b
+                        && (self.text_char_at_index(self.pos() + 1) == CharacterCodes::B
+                            || self.text_char_at_index(self.pos() + 1) == CharacterCodes::b)
                     {
                         self.increment_pos_by(2);
                         self.set_token_value(self.scan_binary_or_octal_digits(on_error, 2));
@@ -1195,8 +1195,8 @@ impl Scanner {
                         self.add_token_flag(TokenFlags::BinarySpecifier);
                         return self.set_token(self.check_big_int_suffix());
                     } else if self.pos() + 2 < self.end()
-                        && self.text_char_at_index(self.pos() + 1) == CharacterCodes::O
-                        || self.text_char_at_index(self.pos() + 1) == CharacterCodes::o
+                        && (self.text_char_at_index(self.pos() + 1) == CharacterCodes::O
+                            || self.text_char_at_index(self.pos() + 1) == CharacterCodes::o)
                     {
                         self.increment_pos_by(2);
                         self.set_token_value(self.scan_binary_or_octal_digits(on_error, 8));

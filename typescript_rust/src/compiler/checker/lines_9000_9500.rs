@@ -640,10 +640,10 @@ impl TypeChecker {
                 .try_get_type_from_effective_type_node(declaration)?
                 .try_unwrap_or_else(|| {
                     self.check_expression_for_mutable_location(
-                        declaration
+                        released!(declaration
                             .ref_(self)
                             .as_shorthand_property_assignment()
-                            .name(),
+                            .name()),
                         Some(CheckMode::Normal),
                         None,
                         None,
