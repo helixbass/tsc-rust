@@ -409,8 +409,8 @@ impl SourceFile {
         self.contents.referenced_files.borrow().clone().unwrap()
     }
 
-    pub fn set_referenced_files(&self, referenced_files: Rc<RefCell<Vec<FileReference>>>) {
-        *self.contents.referenced_files.borrow_mut() = Some(referenced_files);
+    pub fn set_referenced_files(&self, referenced_files: Option<Rc<RefCell<Vec<FileReference>>>>) {
+        *self.contents.referenced_files.borrow_mut() = referenced_files;
     }
 
     pub fn maybe_type_reference_directives(&self) -> Option<Rc<RefCell<Vec<FileReference>>>> {

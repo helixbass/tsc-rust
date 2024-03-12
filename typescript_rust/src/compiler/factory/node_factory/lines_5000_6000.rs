@@ -298,7 +298,7 @@ impl NodeFactory {
         source: Id<Node>, /*SourceFile*/
         statements: NodeArrayOrVec,
         is_declaration_file: bool,
-        referenced_files: Rc<RefCell<Vec<FileReference>>>,
+        referenced_files: Option<Rc<RefCell<Vec<FileReference>>>>,
         type_reference_directives: Rc<RefCell<Vec<FileReference>>>,
         has_no_default_lib: bool,
         lib_reference_directives: Rc<RefCell<Vec<FileReference>>>,
@@ -350,7 +350,7 @@ impl NodeFactory {
         let is_declaration_file = is_declaration_file
             .unwrap_or_else(|| node.ref_(self).as_source_file().is_declaration_file());
         let referenced_files =
-            referenced_files.unwrap_or_else(|| node.ref_(self).as_source_file().referenced_files());
+            referenced_files.or_else(|| node.ref_(self).as_source_file().maybe_referenced_files());
         let type_reference_directives = type_reference_directives
             .unwrap_or_else(|| node.ref_(self).as_source_file().type_reference_directives());
         let has_no_default_lib = has_no_default_lib
@@ -365,7 +365,7 @@ impl NodeFactory {
                     .as_source_file()
                     .maybe_referenced_files()
                     .as_ref(),
-                Some(&referenced_files),
+                referenced_files.as_ref(),
             )
             || !are_option_rcs_equal(
                 node.ref_(self)

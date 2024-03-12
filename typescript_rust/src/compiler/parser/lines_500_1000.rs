@@ -726,7 +726,7 @@ impl ParserType {
                 Option::<&JsonConversionNotifierDummy>::None,
                 self,
             )?;
-            result_as_source_file.set_referenced_files(Default::default());
+            result_as_source_file.set_referenced_files(Some(Default::default()));
             result_as_source_file.set_type_reference_directives(Default::default());
             result_as_source_file.set_lib_reference_directives(Default::default());
             result_as_source_file.set_amd_dependencies(vec![]);
