@@ -299,7 +299,7 @@ impl NodeFactory {
         statements: NodeArrayOrVec,
         is_declaration_file: bool,
         referenced_files: Option<Rc<RefCell<Vec<FileReference>>>>,
-        type_reference_directives: Rc<RefCell<Vec<FileReference>>>,
+        type_reference_directives: Option<Rc<RefCell<Vec<FileReference>>>>,
         has_no_default_lib: bool,
         lib_reference_directives: Rc<RefCell<Vec<FileReference>>>,
     ) -> Id<Node> {
@@ -351,8 +351,11 @@ impl NodeFactory {
             .unwrap_or_else(|| node.ref_(self).as_source_file().is_declaration_file());
         let referenced_files =
             referenced_files.or_else(|| node.ref_(self).as_source_file().maybe_referenced_files());
-        let type_reference_directives = type_reference_directives
-            .unwrap_or_else(|| node.ref_(self).as_source_file().type_reference_directives());
+        let type_reference_directives = type_reference_directives.or_else(|| {
+            node.ref_(self)
+                .as_source_file()
+                .maybe_type_reference_directives()
+        });
         let has_no_default_lib = has_no_default_lib
             .unwrap_or_else(|| node.ref_(self).as_source_file().has_no_default_lib());
         let lib_reference_directives = lib_reference_directives
@@ -372,7 +375,7 @@ impl NodeFactory {
                     .as_source_file()
                     .maybe_type_reference_directives()
                     .as_ref(),
-                Some(&type_reference_directives),
+                type_reference_directives.as_ref(),
             )
             || node.ref_(self).as_source_file().has_no_default_lib() != has_no_default_lib
             || !are_option_rcs_equal(

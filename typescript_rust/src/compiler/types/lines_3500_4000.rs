@@ -427,9 +427,9 @@ impl SourceFile {
 
     pub fn set_type_reference_directives(
         &self,
-        type_reference_directives: Rc<RefCell<Vec<FileReference>>>,
+        type_reference_directives: Option<Rc<RefCell<Vec<FileReference>>>>,
     ) {
-        *self.contents.type_reference_directives.borrow_mut() = Some(type_reference_directives);
+        *self.contents.type_reference_directives.borrow_mut() = type_reference_directives;
     }
 
     pub fn maybe_lib_reference_directives(&self) -> Option<Rc<RefCell<Vec<FileReference>>>> {
