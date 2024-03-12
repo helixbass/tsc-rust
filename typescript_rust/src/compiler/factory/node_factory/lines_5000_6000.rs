@@ -301,7 +301,7 @@ impl NodeFactory {
         referenced_files: Option<Rc<RefCell<Vec<FileReference>>>>,
         type_reference_directives: Option<Rc<RefCell<Vec<FileReference>>>>,
         has_no_default_lib: bool,
-        lib_reference_directives: Rc<RefCell<Vec<FileReference>>>,
+        lib_reference_directives: Option<Rc<RefCell<Vec<FileReference>>>>,
     ) -> Id<Node> {
         let mut node = source.ref_(self).as_source_file().clone();
         node.set_pos(-1);
@@ -358,8 +358,11 @@ impl NodeFactory {
         });
         let has_no_default_lib = has_no_default_lib
             .unwrap_or_else(|| node.ref_(self).as_source_file().has_no_default_lib());
-        let lib_reference_directives = lib_reference_directives
-            .unwrap_or_else(|| node.ref_(self).as_source_file().lib_reference_directives());
+        let lib_reference_directives = lib_reference_directives.or_else(|| {
+            node.ref_(self)
+                .as_source_file()
+                .maybe_lib_reference_directives()
+        });
         let statements = statements.into();
         if has_node_array_changed(node.ref_(self).as_source_file().statements(), &statements)
             || node.ref_(self).as_source_file().is_declaration_file() != is_declaration_file
@@ -383,7 +386,7 @@ impl NodeFactory {
                     .as_source_file()
                     .maybe_lib_reference_directives()
                     .as_ref(),
-                Some(&lib_reference_directives),
+                lib_reference_directives.as_ref(),
             )
         {
             self.update(

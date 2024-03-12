@@ -446,9 +446,9 @@ impl SourceFile {
 
     pub fn set_lib_reference_directives(
         &self,
-        lib_reference_directives: Rc<RefCell<Vec<FileReference>>>,
+        lib_reference_directives: Option<Rc<RefCell<Vec<FileReference>>>>,
     ) {
-        *self.contents.lib_reference_directives.borrow_mut() = Some(lib_reference_directives);
+        *self.contents.lib_reference_directives.borrow_mut() = lib_reference_directives;
     }
 
     pub fn language_variant(&self) -> LanguageVariant {
