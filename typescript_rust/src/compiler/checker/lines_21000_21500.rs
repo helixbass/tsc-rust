@@ -1,6 +1,7 @@
-use std::{cell::RefCell, cmp, collections::HashMap, io, rc::Rc};
+use std::{cell::RefCell, cmp, io, rc::Rc};
 
 use id_arena::Id;
+use indexmap::IndexMap;
 
 use super::{MappedTypeModifiers, WideningKind};
 use crate::{
@@ -130,7 +131,7 @@ impl TypeChecker {
         context: Rc<RefCell<WideningContext>>,
     ) -> io::Result<Vec<Id<Symbol>>> {
         if (*context).borrow().resolved_properties.is_none() {
-            let mut names: HashMap<__String, Id<Symbol>> = HashMap::new();
+            let mut names: IndexMap<__String, Id<Symbol>> = IndexMap::new();
             for &t in &self.get_siblings_of_context(context.clone())? {
                 if self.is_object_literal_type(t)
                     && !get_object_flags(&t.ref_(self)).intersects(ObjectFlags::ContainsSpread)
@@ -192,7 +193,7 @@ impl TypeChecker {
         type_: Id<Type>,
         context: Option<Rc<RefCell<WideningContext>>>,
     ) -> io::Result<Id<Type>> {
-        let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None, self);
+        let mut members = create_symbol_table(None, self);
         for prop in self.get_properties_of_object_type(type_)? {
             members.insert(
                 released!(prop.ref_(self).escaped_name().to_owned()),
@@ -210,10 +211,7 @@ impl TypeChecker {
             }
         }
         let result = self.create_anonymous_type(
-            {
-                let symbol = type_.ref_(self).maybe_symbol();
-                symbol
-            },
+            released!(type_.ref_(self).maybe_symbol()),
             self.alloc_symbol_table(members),
             vec![],
             vec![],
