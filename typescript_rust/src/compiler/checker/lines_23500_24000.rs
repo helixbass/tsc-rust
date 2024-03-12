@@ -881,9 +881,9 @@ impl GetFlowTypeOfReference {
                         flow_as_flow_switch_clause.clause_start,
                         flow_as_flow_switch_clause.clause_end,
                         |t: Id<Type>| {
-                            !t.ref_(self).flags().intersects(TypeFlags::Never)
+                            !(t.ref_(self).flags().intersects(TypeFlags::Never)
                                 || t.ref_(self).flags().intersects(TypeFlags::StringLiteral)
-                                    && t.ref_(self).as_string_literal_type().value == "undefined"
+                                    && t.ref_(self).as_string_literal_type().value == "undefined")
                         },
                     )?;
                 }
