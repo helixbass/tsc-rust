@@ -41,6 +41,10 @@ impl Number {
     pub fn is_finite(&self) -> bool {
         self.0.is_finite()
     }
+
+    pub fn is_nan(&self) -> bool {
+        self.0.is_nan()
+    }
 }
 
 impl hash::Hash for Number {
@@ -167,8 +171,4 @@ impl ops::Rem for Number {
     fn rem(self, rhs: Self) -> Self::Output {
         Self::new(self.value() % rhs.value())
     }
-}
-
-pub fn is_nan(_value: &Number) -> bool {
-    unimplemented!()
 }

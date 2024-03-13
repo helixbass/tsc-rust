@@ -12,14 +12,13 @@ use crate::{
     has_abstract_modifier, is_ambient_module, is_binding_pattern, is_computed_non_literal_name,
     is_entity_name_expression, is_enum_const, is_enum_declaration, is_external_module_augmentation,
     is_external_module_name_relative, is_global_scope_augmentation, is_identifier,
-    is_infinity_or_nan_string, is_literal_expression, is_nan, is_optional_chain,
-    is_private_identifier, is_static, is_string_literal_like, length, maybe_for_each,
-    maybe_get_source_file_of_node, node_is_missing, node_is_present, released, set_parent,
-    should_preserve_const_enums, AsDoubleDeref, Diagnostics, EnumKind,
-    FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeParametersInterface, InArena,
-    InterfaceTypeInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeCheckFlags,
-    NodeFlags, NodeInterface, Number, OptionInArena, OptionTry, ReadonlyTextRange, StringOrNumber,
-    Symbol, SymbolFlags,
+    is_infinity_or_nan_string, is_literal_expression, is_optional_chain, is_private_identifier,
+    is_static, is_string_literal_like, length, maybe_for_each, maybe_get_source_file_of_node,
+    node_is_missing, node_is_present, released, set_parent, should_preserve_const_enums,
+    AsDoubleDeref, Diagnostics, EnumKind, FunctionLikeDeclarationInterface,
+    HasInitializerInterface, HasTypeParametersInterface, InArena, InterfaceTypeInterface,
+    ModifierFlags, NamedDeclarationInterface, Node, NodeCheckFlags, NodeFlags, NodeInterface,
+    Number, OptionInArena, OptionTry, ReadonlyTextRange, StringOrNumber, Symbol, SymbolFlags,
 };
 
 impl TypeChecker {
@@ -436,7 +435,7 @@ impl TypeChecker {
                     if !value.is_finite() {
                         self.error(
                             Some(initializer),
-                            if is_nan(value) {
+                            if value.is_nan() {
                                 &*Diagnostics::const_enum_member_initializer_was_evaluated_to_disallowed_value_NaN
                             } else {
                                 &*Diagnostics::const_enum_member_initializer_was_evaluated_to_a_non_finite_value
