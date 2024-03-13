@@ -902,17 +902,15 @@ impl TransformES2017 {
     fn hoist_variable_declaration_list(&self, node: Id<Node> /*VariableDeclarationList*/) {
         for_each(
             &*released!(node.ref_(self).as_variable_declaration_list().declarations).ref_(self),
-            |declaration: &Id<Node>, _| -> Option<()> {
-                self.hoist_variable(released!(declaration
-                    .ref_(self)
-                    .as_named_declaration()
-                    .name()));
+            |&declaration: &Id<Node>, _| -> Option<()> {
+                self.hoist_variable(declaration);
                 None
             },
         );
     }
 
-    fn hoist_variable(&self, name: Id<Node>) {
+    fn hoist_variable(&self, node: Id<Node>) {
+        let name = node.ref_(self).as_named_declaration().name();
         if is_identifier(&name.ref_(self)) {
             self.context.ref_(self).hoist_variable_declaration(name);
         } else {
