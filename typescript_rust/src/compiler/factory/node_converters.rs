@@ -258,14 +258,17 @@ impl NodeConverters for NodeConvertersConcrete {
         node: Id<Node>, /*ArrayBindingOrAssignmentPattern*/
     ) -> Id<Node /*ArrayLiteralExpression*/> {
         if is_array_binding_pattern(&node.ref_(self)) {
-            let node_ref = node.ref_(self);
-            let node_as_array_binding_pattern = node_ref.as_array_binding_pattern();
             return self
                 .factory
                 .ref_(self)
                 .create_array_literal_expression_raw(
                     Some(map(
-                        &*released!(node_as_array_binding_pattern.elements.ref_(self).clone()),
+                        &*released!(node
+                            .ref_(self)
+                            .as_array_binding_pattern()
+                            .elements
+                            .ref_(self)
+                            .clone()),
                         |&element, _| self.convert_to_array_assignment_element(element),
                     )),
                     None,
