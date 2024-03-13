@@ -875,15 +875,14 @@ impl TransformES2017 {
                         self.factory
                             .ref_(self)
                             .converters()
-                            .convert_to_assignment_element_target(
-                                node.ref_(self)
-                                    .as_variable_declaration_list()
-                                    .declarations
-                                    .ref_(self)[0]
-                                    .ref_(self)
-                                    .as_variable_declaration()
-                                    .name(),
-                            ),
+                            .convert_to_assignment_element_target(released!(node
+                                .ref_(self)
+                                .as_variable_declaration_list()
+                                .declarations
+                                .ref_(self)[0]
+                                .ref_(self)
+                                .as_variable_declaration()
+                                .name())),
                     ),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_expression(node, self)),
