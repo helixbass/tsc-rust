@@ -628,8 +628,8 @@ impl TypeChecker {
             if error_node.is_some() {
                 Debug_.assert_is_defined(&diagnostic_message, None);
                 self.error(error_node, diagnostic_message.unwrap(), args);
-                return Ok(None);
             }
+            return Ok(None);
         }
 
         let ret = type_;
