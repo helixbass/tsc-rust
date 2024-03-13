@@ -914,7 +914,7 @@ impl TransformES2017 {
         if is_identifier(&name.ref_(self)) {
             self.context.ref_(self).hoist_variable_declaration(name);
         } else {
-            for &element in &*name.ref_(self).as_has_elements().elements().ref_(self) {
+            for &element in &*released!(name.ref_(self).as_has_elements().elements()).ref_(self) {
                 if !is_omitted_expression(&element.ref_(self)) {
                     self.hoist_variable(element);
                 }
