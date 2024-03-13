@@ -94,25 +94,33 @@ impl NodeConverters for NodeConvertersConcrete {
         element: Id<Node>, /*ArrayBindingOrAssignmentElement*/
     ) -> Id<Node /*Expression*/> {
         if is_binding_element(&element.ref_(self)) {
-            let element_ref = element.ref_(self);
-            let element_as_binding_element = element_ref.as_binding_element();
-            if element_as_binding_element.dot_dot_dot_token.is_some() {
+            if element
+                .ref_(self)
+                .as_binding_element()
+                .dot_dot_dot_token
+                .is_some()
+            {
                 Debug_.assert_node(
-                    Some(element_as_binding_element.name()),
+                    Some(element.ref_(self).as_binding_element().name()),
                     Some(|node: Id<Node>| is_identifier(&node.ref_(self))),
                     None,
                 );
                 return self
                     .factory
                     .ref_(self)
-                    .create_spread_element_raw(element_as_binding_element.name())
+                    .create_spread_element_raw(released!(element
+                        .ref_(self)
+                        .as_binding_element()
+                        .name()))
                     .alloc(self.arena())
                     .set_text_range(Some(&*element.ref_(self)), self)
                     .set_original_node(Some(element), self);
             }
-            let expression =
-                self.convert_to_assignment_element_target(element_as_binding_element.name());
-            return match element_as_binding_element.maybe_initializer() {
+            let expression = self.convert_to_assignment_element_target(released!(element
+                .ref_(self)
+                .as_binding_element()
+                .name()));
+            return match released!(element.ref_(self).as_binding_element().maybe_initializer()) {
                 Some(element_initializer) => {
                     return self
                         .factory
@@ -257,7 +265,7 @@ impl NodeConverters for NodeConvertersConcrete {
                 .ref_(self)
                 .create_array_literal_expression_raw(
                     Some(map(
-                        &*node_as_array_binding_pattern.elements.ref_(self),
+                        &*released!(node_as_array_binding_pattern.elements.ref_(self).clone()),
                         |&element, _| self.convert_to_array_assignment_element(element),
                     )),
                     None,
