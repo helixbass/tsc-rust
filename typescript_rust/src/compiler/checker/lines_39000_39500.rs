@@ -616,7 +616,14 @@ impl TypeChecker {
             }
             SyntaxKind::Identifier => {
                 if is_infinity_or_nan_string(&expr.ref_(self).as_identifier().escaped_text) {
-                    unimplemented!("Infinity/NaN not implemented yet")
+                    return Ok(Some(StringOrNumber::Number(Number::new(
+                        match &*expr.ref_(self).as_identifier().escaped_text {
+                            "Infinity" => f64::INFINITY,
+                            "-Infinity" => f64::NEG_INFINITY,
+                            "NaN" => f64::NAN,
+                            _ => unreachable!(),
+                        },
+                    ))));
                 }
                 return Ok(if node_is_missing(Some(&expr.ref_(self))) {
                     Some(StringOrNumber::Number(Number::new(0.0)))

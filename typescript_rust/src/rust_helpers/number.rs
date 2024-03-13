@@ -5,12 +5,8 @@ use serde::Serialize;
 #[derive(Clone, Copy, Debug, PartialOrd, Serialize)]
 pub struct Number(f64);
 
-// TODO: need to include NaN and Infinity?
 impl Number {
     pub fn new(value: f64) -> Self {
-        if value.is_nan() {
-            panic!("Tried to initialize Number with NaN: {}", value);
-        }
         Self(value)
     }
 
