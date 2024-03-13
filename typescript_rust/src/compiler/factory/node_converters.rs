@@ -158,9 +158,10 @@ impl NodeConverters for NodeConvertersConcrete {
             if let Some(element_property_name) =
                 released!(element.ref_(self).as_binding_element().property_name)
             {
-                let expression = self.convert_to_assignment_element_target(
-                    element.ref_(self).as_binding_element().name(),
-                );
+                let expression = self.convert_to_assignment_element_target(released!(element
+                    .ref_(self)
+                    .as_binding_element()
+                    .name()));
                 return self
                     .factory
                     .ref_(self)
